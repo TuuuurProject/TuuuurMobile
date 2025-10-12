@@ -94,253 +94,371 @@ class _CompetitiveSelectPageState extends State<CompetitiveSelectPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+    return LayoutBuilder(
+      builder: (context, outer) {
+        final isPhone = outer.maxWidth < 420;
+        final isTablet = outer.maxWidth < 900;
+        final hPad = isPhone ? 12.0 : (isTablet ? 16.0 : 24.0);
+        final vGap = isPhone ? 16.0 : 24.0;
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const FaIcon(
-                  FontAwesomeIcons.fire,
-                  color: TuuurTheme.brandOrange,
-                  size: 32,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Mode Compétitif',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
+                // ---------------- HEADER ----------------
+                _buildHeader(
+                  isPhone,
+                ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.25),
+                SizedBox(height: vGap),
+
+                // ---------------- MAIN CARD ----------------
+                Container(
+                  padding: EdgeInsets.all(isPhone ? 16 : 24),
+                  decoration: TuuurStyles.gamingCard,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCardHeader(isPhone),
+                      const SizedBox(height: 16),
+
+                      // Grid de catégories (Wrap = anti-overflow)
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: categories.map((category) {
+                          final isSelected = selectedCategories.contains(
+                            category.id,
+                          );
+                          return _CategoryChip(
+                            icon: category.icon,
+                            label: category.name,
+                            selected: isSelected,
+                            onTap: () => toggleCategory(category.id),
+                            selectedColor: TuuurTheme.brandOrange,
+                          ).animate().fadeIn(
+                            delay: (categories.indexOf(category) * 70).ms,
+                          );
+                        }).toList(),
+                      ),
+
+                      SizedBox(height: isPhone ? 18 : 24),
+
+                      // Info bloc compact
+                      _InfoBlockCompact(),
+                      SizedBox(height: isPhone ? 18 : 24),
+
+                      // Boutons d'action (responsive)
+                      LayoutBuilder(
+                        builder: (context, inner) {
+                          final narrow = inner.maxWidth < 420;
+
+                          final backBtn = SizedBox(
+                            width: narrow ? double.infinity : null,
+                            child: GamingButtonGhost(
+                              text: '← Retour',
+                              onPressed: widget.onBack,
+                            ),
+                          );
+
+                          final searchBtn = SizedBox(
+                            width: narrow ? double.infinity : null,
+                            child: GamingButtonSecondary(
+                              text: '🔍 Lancer la recherche',
+                              onPressed: selectedCategories.isNotEmpty
+                                  ? proceed
+                                  : null,
+                            ),
+                          );
+
+                          if (narrow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                backBtn,
+                                const SizedBox(height: 10),
+                                searchBtn,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              backBtn,
+                              const SizedBox(width: 12),
+                              searchBtn,
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
-              ].animate().fadeIn(duration: 600.ms).slideX(begin: -0.3),
+                SizedBox(height: vGap),
+              ],
             ),
-            Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: TuuurStyles.pill.copyWith(
-                    color: TuuurTheme.brandOrange.withOpacity(0.2),
-                  ),
-                  child: const Text(
-                    'Choisissez vos catégories favorites',
-                    style: TextStyle(
-                      color: TuuurTheme.brandOrange,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                )
-                .animate(onPlay: (controller) => controller.repeat())
-                .shimmer(duration: 2000.ms),
-          ],
-        ),
-        const SizedBox(height: 32),
-
-        // Main Card
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: TuuurStyles.gamingCard,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with icon
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: TuuurTheme.brandOrange.withOpacity(0.2),
-                    ),
-                    child: const Center(
-                      child: FaIcon(
-                        FontAwesomeIcons.bullseye,
-                        color: TuuurTheme.brandOrange,
-                        size: 20,
-                      ),
-                    ),
-                  ).animate().rotate(duration: 3000.ms, curve: Curves.linear),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            FaIcon(
-                              FontAwesomeIcons.trophy,
-                              color: TuuurTheme.brandOrange,
-                              size: 16,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Catégories de Combat',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: TuuurTheme.brandLightGray,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Sélectionnez vos domaines d\'expertise pour des duels équilibrés.',
-                          style: TextStyle(color: TuuurTheme.brandGray),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Categories Grid
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: categories.map((category) {
-                  final isSelected = selectedCategories.contains(category.id);
-                  return GestureDetector(
-                    onTap: () => toggleCategory(category.id),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: isSelected
-                            ? TuuurTheme.brandOrange
-                            : TuuurTheme.brandDarkGray.withOpacity(0.5),
-                        border: Border.all(
-                          color: isSelected
-                              ? TuuurTheme.brandOrange
-                              : TuuurTheme.brandOrange.withOpacity(0.3),
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: TuuurTheme.brandOrange.withOpacity(
-                                    0.3,
-                                  ),
-                                  blurRadius: 12,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FaIcon(
-                            category.icon,
-                            color: isSelected
-                                ? Colors.white
-                                : TuuurTheme.brandLightGray,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            category.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: isSelected
-                                  ? Colors.white
-                                  : TuuurTheme.brandLightGray,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(
-                    delay: (categories.indexOf(category) * 100).ms,
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 32),
-
-              // Competitive Info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: TuuurTheme.brandOrange.withOpacity(0.1),
-                  border: Border.all(
-                    color: TuuurTheme.brandOrange.withOpacity(0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Text('⚡', style: TextStyle(fontSize: 16)),
-                        SizedBox(width: 8),
-                        Text(
-                          'Mode Compétitif',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandOrange,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Affrontez des joueurs de niveau similaire dans des duels rapides. Plus vous gagnez, plus votre rang augmente !',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: TuuurTheme.brandGray,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildInfoItem(
-                          'Matchmaking équilibré',
-                          TuuurTheme.brandGreen,
-                        ),
-                        const SizedBox(width: 16),
-                        _buildInfoItem(
-                          'Rang dynamique',
-                          TuuurTheme.brandPurple,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.3),
-              const SizedBox(height: 32),
-
-              // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GamingButtonGhost(text: '← Retour', onPressed: widget.onBack),
-                  const SizedBox(width: 12),
-                  GamingButtonSecondary(
-                    text: '🔍 Lancer la recherche',
-                    onPressed: selectedCategories.isNotEmpty ? proceed : null,
-                  ),
-                ],
-              ),
-            ],
           ),
-        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3),
+        );
+      },
+    );
+  }
+
+  // ---------- widgets privés ----------
+
+  Widget _buildHeader(bool isPhone) {
+    final left = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: const [
+        FaIcon(FontAwesomeIcons.fire, color: TuuurTheme.brandOrange, size: 28),
+        SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            'Mode Compétitif',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandLightGray,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final right = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: TuuurStyles.pill.copyWith(
+        color: TuuurTheme.brandOrange.withOpacity(0.18),
+      ),
+      child: const Text(
+        'Choisissez vos catégories favorites',
+        style: TextStyle(
+          color: TuuurTheme.brandOrange,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 2000.ms);
+
+    if (isPhone) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [left, const SizedBox(height: 10), right],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(child: left),
+        const SizedBox(width: 12),
+        right,
       ],
     );
   }
 
-  Widget _buildInfoItem(String text, Color color) {
+  Widget _buildCardHeader(bool isPhone) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: isPhone ? 42 : 48,
+          height: isPhone ? 42 : 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: TuuurTheme.brandOrange.withOpacity(0.2),
+          ),
+          child: const Center(
+            child: FaIcon(
+              FontAwesomeIcons.bullseye,
+              color: TuuurTheme.brandOrange,
+              size: 18,
+            ),
+          ),
+        ).animate().rotate(duration: 3000.ms, curve: Curves.linear),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  FaIcon(
+                    FontAwesomeIcons.trophy,
+                    color: TuuurTheme.brandOrange,
+                    size: 14,
+                  ),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Catégories de Combat',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: TuuurTheme.brandLightGray,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Sélectionnez vos domaines d\'expertise pour des duels équilibrés.',
+                style: TextStyle(color: TuuurTheme.brandGray, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------- sous-composants ----------
+
+class _CategoryChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color selectedColor;
+
+  const _CategoryChip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.selectedColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: selected
+              ? selectedColor
+              : TuuurTheme.brandDarkGray.withOpacity(0.5),
+          border: Border.all(
+            color: selected ? selectedColor : selectedColor.withOpacity(0.35),
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: selectedColor.withOpacity(0.28),
+                    blurRadius: 10,
+                    spreadRadius: 1.5,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FaIcon(
+              icon,
+              color: selected ? Colors.white : TuuurTheme.brandLightGray,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : TuuurTheme.brandLightGray,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBlockCompact extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: TuuurTheme.brandOrange.withOpacity(0.1),
+        border: Border.all(color: TuuurTheme.brandOrange.withOpacity(0.2)),
+      ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const _InfoDot(color: TuuurTheme.brandOrange),
+          const Text(
+            'Mode Compétitif',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandOrange,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Affrontez des joueurs de niveau similaire dans des duels rapides. Plus vous gagnez, plus votre rang augmente !',
+            style: TextStyle(
+              fontSize: 13,
+              color: TuuurTheme.brandGray,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: const [
+              _InfoTag(
+                text: 'Matchmaking équilibré',
+                color: TuuurTheme.brandGreen,
+              ),
+              _InfoTag(text: 'Rang dynamique', color: TuuurTheme.brandPurple),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoDot extends StatelessWidget {
+  final Color color;
+  const _InfoDot({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+}
+
+class _InfoTag extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _InfoTag({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

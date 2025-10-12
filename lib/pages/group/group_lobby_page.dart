@@ -22,11 +22,13 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header - matching Vue.js exactly
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+        // ---------- HEADER (responsive) ----------
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 620;
+
+            final left = Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 GestureDetector(
                   onTap: widget.onBack,
@@ -40,19 +42,21 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 const Text(
                   'Lobby',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 26, // compact
                     fontWeight: FontWeight.w600,
                     color: TuuurTheme.brandLightGray,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
+                    horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: TuuurStyles.pill.copyWith(
@@ -60,6 +64,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   ),
                   child: const Text(
                     'En attente d\'hôte',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: TuuurTheme.brandGreen,
                       fontSize: 12,
@@ -68,12 +74,16 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   ),
                 ),
               ],
-            ),
-            Row(
+            );
+
+            final right = Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
+                    horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: TuuurStyles.pill,
@@ -86,7 +96,6 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -101,8 +110,10 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   ),
                   child: Text(
                     widget.lobby.code,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: TuuurTheme.brandLightGray,
                       letterSpacing: 2,
@@ -110,12 +121,30 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   ),
                 ),
               ],
-            ),
-          ],
-        ).animate().fadeIn().slideX(begin: -0.3),
-        const SizedBox(height: 24),
+            );
 
-        // Quick parameters chips - matching Vue.js exactly
+            if (narrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [left, const SizedBox(height: 10), right],
+              ).animate().fadeIn().slideX(begin: -0.25);
+            }
+
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(child: left),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Align(alignment: Alignment.centerRight, child: right),
+                ),
+              ],
+            ).animate().fadeIn().slideX(begin: -0.25);
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // ---------- PARAMETER CHIPS ----------
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -131,178 +160,237 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
               _buildParameterChip('Spécifiques: ${widget.lobby.specifics}'),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
-        // Content - matching Vue.js layout exactly
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left: Players focus panel - matching Vue.js md:col-span-8
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: TuuurStyles.gamingCard,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Joueurs',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandLightGray,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: TuuurStyles.pill,
-                          child: Text(
-                            '${widget.lobby.players.length} connectés',
-                            style: const TextStyle(
-                              color: TuuurTheme.brandPurple,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Players list matching Vue.js grid layout
-                    ...widget.lobby.players.map(
-                      (player) => _buildPlayerTile(player),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 24),
+        // ---------- CONTENT (Left: players | Right: QR + actions) ----------
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stack = constraints.maxWidth < 900;
 
-            // Right: QR and actions - matching Vue.js md:col-span-4
-            Expanded(
+            final leftPanelBox = Container(
+              padding: const EdgeInsets.all(18),
+              decoration: TuuurStyles.gamingCard,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // QR Code section - matching Vue.js
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: TuuurStyles.gamingCard,
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Rejoindre via code',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandLightGray,
-                          ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Joueurs',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: TuuurTheme.brandLightGray,
                         ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Code',
-                                  style: TextStyle(
-                                    color: TuuurTheme.brandGray,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                Text(
-                                  widget.lobby.code,
-                                  style: const TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w600,
-                                    color: TuuurTheme.brandLightGray,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            GamingButtonSecondary(
-                              text: 'Copier',
-                              onPressed: () {
-                                // Copy functionality
-                              },
-                            ),
-                          ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
                         ),
-                        const SizedBox(height: 16),
-                        QRPreviewWidget(text: widget.lobby.code, size: 220),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-
-                  // Actions section - matching Vue.js exactly
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: TuuurStyles.gamingCard,
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Actions',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandLightGray,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: GamingButtonSecondary(
-                                text: 'Quitter',
-                                onPressed: widget.onBack,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: GamingButtonPrimary(
-                                text: 'Lancer la partie',
-                                onPressed: null, // Disabled like in Vue.js
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Lecture seule (démo) — l\'hôte peut lancer lorsqu\'il sera prêt.',
-                          style: TextStyle(
-                            color: TuuurTheme.brandGray,
+                        decoration: TuuurStyles.pill,
+                        child: Text(
+                          '${widget.lobby.players.length} connectés',
+                          style: const TextStyle(
+                            color: TuuurTheme.brandPurple,
                             fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  ...widget.lobby.players.map((p) => _buildPlayerTile(p)),
                 ],
               ),
-            ),
-          ],
+            );
+
+            final rightPanelBox = Column(
+              children: [
+                // QR card (inchangé)
+                LayoutBuilder(
+                  builder: (context, box) {
+                    final qrSize = box.maxWidth < 360
+                        ? 140.0
+                        : box.maxWidth < 460
+                        ? 180.0
+                        : 220.0;
+                    return Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: TuuurStyles.gamingCard,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Rejoindre via code',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: TuuurTheme.brandLightGray,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Code',
+                                      style: TextStyle(
+                                        color: TuuurTheme.brandGray,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      widget.lobby.code,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w600,
+                                        color: TuuurTheme.brandLightGray,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(minWidth: 90),
+                                child: GamingButtonSecondary(
+                                  text: 'Copier',
+                                  onPressed: () {
+                                    /* TODO: copier */
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: QRPreviewWidget(
+                              text: widget.lobby.code,
+                              size: qrSize,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Actions card (inchangé)
+                LayoutBuilder(
+                  builder: (context, box) {
+                    final narrowButtons = box.maxWidth < 420;
+                    final quitBtn = SizedBox(
+                      width: narrowButtons ? double.infinity : null,
+                      child: GamingButtonSecondary(
+                        text: 'Quitter',
+                        onPressed: widget.onBack,
+                      ),
+                    );
+                    final launchBtn = SizedBox(
+                      width: narrowButtons ? double.infinity : null,
+                      child: GamingButtonPrimary(
+                        text: 'Lancer la partie',
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Fonctionnalité en démo'),
+                              backgroundColor: TuuurTheme.brandOrange,
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                    return Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: TuuurStyles.gamingCard,
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Actions',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: TuuurTheme.brandLightGray,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (narrowButtons)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                quitBtn,
+                                const SizedBox(height: 10),
+                                launchBtn,
+                              ],
+                            )
+                          else
+                            Row(
+                              children: [
+                                Expanded(child: quitBtn),
+                                const SizedBox(width: 12),
+                                Expanded(child: launchBtn),
+                              ],
+                            ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Lecture seule (démo) — l\'hôte peut lancer lorsqu\'il sera prêt.',
+                            style: TextStyle(
+                              color: TuuurTheme.brandGray,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+
+            if (stack) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  leftPanelBox,
+                  const SizedBox(height: 16),
+                  rightPanelBox,
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: leftPanelBox),
+                const SizedBox(width: 20),
+                Expanded(child: rightPanelBox),
+              ],
+            );
+          },
         ),
       ],
     );
   }
 
-  // Method to build parameter chips - matching Vue.js design
+  // ---------- helpers ----------
   Widget _buildParameterChip(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: TuuurStyles.pill,
       child: Text(
         text,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: TuuurTheme.brandLightGray,
           fontSize: 12,
@@ -314,8 +402,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
 
   Widget _buildPlayerTile(GroupPlayer player) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.2)),
@@ -323,32 +411,33 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
       ),
       child: Row(
         children: [
-          // Player aura effect like in Vue.js
           Container(
-            width: 48,
-            height: 48,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(23),
               color: TuuurTheme.brandPurple.withOpacity(0.2),
               boxShadow: [
                 BoxShadow(
-                  color: TuuurTheme.brandPurple.withOpacity(0.3),
+                  color: TuuurTheme.brandPurple.withOpacity(0.25),
                   blurRadius: 8,
                   spreadRadius: 2,
                 ),
               ],
             ),
             child: Center(
-              child: Text(player.emoji, style: const TextStyle(fontSize: 24)),
+              child: Text(player.emoji, style: const TextStyle(fontSize: 22)),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   player.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: TuuurTheme.brandLightGray,
@@ -356,6 +445,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                 ),
                 Text(
                   'ID #${player.id}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: TuuurTheme.brandGray,
                     fontSize: 12,
@@ -369,6 +460,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
             decoration: TuuurStyles.pill,
             child: Text(
               player.status,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: TuuurTheme.brandPurple,
                 fontSize: 12,

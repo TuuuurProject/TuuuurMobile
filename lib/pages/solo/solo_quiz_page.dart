@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../navigation/route_history.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/common_widgets.dart';
@@ -184,7 +185,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     if (!_answered) {
       return TuuurTheme.brandDarkGray.withOpacity(0.5);
     }
-
     if (option == _currentQuestion.correct) {
       return TuuurTheme.brandGreen.withOpacity(0.2);
     } else {
@@ -196,7 +196,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     if (!_answered) {
       return TuuurTheme.brandPurple.withOpacity(0.3);
     }
-
     if (option == _currentQuestion.correct) {
       return TuuurTheme.brandGreen;
     } else {
@@ -208,7 +207,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     if (!_answered) {
       return TuuurTheme.brandLightGray;
     }
-
     if (option == _currentQuestion.correct) {
       return TuuurTheme.brandGreen;
     } else {
@@ -218,29 +216,36 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header avec progress
-            _buildHeader(),
-            const SizedBox(height: 24),
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // le système a déjà géré le pop
+        RouteHistory.instance.navigateBack(context);
+      },
+      child: Scaffold(
+        appBar: _buildAppBar(),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header avec progress
+              _buildHeader(),
+              const SizedBox(height: 24),
 
-            // Timer / Progress bar
-            _buildTimerSection(),
-            const SizedBox(height: 24),
+              // Timer / Progress bar
+              _buildTimerSection(),
+              const SizedBox(height: 24),
 
-            if (!_finished) ...[
-              // Question en cours
-              _buildQuestionSection(),
-            ] else ...[
-              // Résultats finaux
-              _buildResultsSection(),
+              if (!_finished) ...[
+                // Question en cours
+                _buildQuestionSection(),
+              ] else ...[
+                // Résultats finaux
+                _buildResultsSection(),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -258,31 +263,56 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
   }
 
   Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 420;
+
+        final left = Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             PillBadge(text: '← Accueil', onTap: () => context.goHome()),
             const SizedBox(width: 12),
             const Text(
               'Quiz Solo',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.w600,
                 color: TuuurTheme.brandLightGray,
               ),
             ),
           ],
-        ),
-        Row(
+        );
+
+        final right = Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             PillBadge(text: 'Question ${_currentIndex + 1} / ${_deck.length}'),
-            const SizedBox(width: 8),
             PillBadge(text: 'Score: $_score'),
           ],
-        ),
-      ],
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [left, const SizedBox(height: 12), right],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(child: left),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Align(alignment: Alignment.centerRight, child: right),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -292,28 +322,69 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       child: Column(
         children: [
           // Barre de progression
-          GamingProgressBar(progress: _remainingRatio, height: 8),
+          GamingProgressBar(progress: _remainingRatio, height: 6),
           // Informations timer
           Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Temps restant: ${_remainingTime.toStringAsFixed(1)}s',
-                  style: const TextStyle(
-                    color: TuuurTheme.brandLightGray,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  '+$_previewPoints pts si correct',
-                  style: const TextStyle(
-                    color: TuuurTheme.brandLightGray,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 360;
+                final row = Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Temps restant: ${_remainingTime.toStringAsFixed(1)}s',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: TuuurTheme.brandLightGray,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '+$_previewPoints pts si correct',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: TuuurTheme.brandLightGray,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+
+                if (narrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Temps restant: ${_remainingTime.toStringAsFixed(1)}s',
+                        style: const TextStyle(
+                          color: TuuurTheme.brandLightGray,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '+$_previewPoints pts si correct',
+                        style: const TextStyle(
+                          color: TuuurTheme.brandLightGray,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return row;
+              },
             ),
           ),
         ],
@@ -335,77 +406,115 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
               color: TuuurTheme.brandLightGray,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          // Options de réponse
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: MediaQuery.of(context).size.width > 600 ? 2 : 1,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: MediaQuery.of(context).size.width > 600 ? 4 : 6,
-            children: _currentQuestion.options.map((option) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: _getButtonColor(option),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: _getButtonBorderColor(option),
-                    width: 2,
-                  ),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: _answered ? null : () => _answer(option),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        option,
-                        style: TextStyle(
-                          color: _getButtonTextColor(option),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.left,
-                      ),
+          // Options de réponse (responsive)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 600;
+              final spacing = 12.0;
+              final itemWidth = isWide
+                  ? (constraints.maxWidth - spacing) /
+                        2 // 2 colonnes avec spacing
+                  : constraints.maxWidth; // 1 colonne
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: _currentQuestion.options.map((option) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: itemWidth,
+                      maxWidth: itemWidth,
                     ),
-                  ),
-                ),
+                    child: _OptionButton(
+                      option: option,
+                      enabled: !_answered,
+                      onTap: () => _answer(option),
+                      bgColor: _getButtonColor(option),
+                      borderColor: _getButtonBorderColor(option),
+                      textColor: _getButtonTextColor(option),
+                    ),
+                  );
+                }).toList(),
               );
-            }).toList(),
+            },
           ),
 
           const SizedBox(height: 24),
 
-          // Actions et feedback
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Feedback
-              if (_answered)
-                _wasCorrect
-                    ? BadgeSuccess(text: 'Correct +$_lastPoints pts')
-                    : const BadgeWarning(text: 'Mauvaise réponse'),
-              if (!_answered) const SizedBox(),
+          // Actions et feedback (responsive)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 420;
+              final showPasser =
+                  !_answered; // ⬅️ cacher Passer après réponse / timeout
 
-              // Boutons
-              Row(
+              final feedback = _answered
+                  ? (_wasCorrect
+                        ? BadgeSuccess(text: 'Correct +$_lastPoints pts')
+                        : const BadgeWarning(text: 'Mauvaise réponse'))
+                  : const SizedBox.shrink();
+
+              // Bouton Suivant (activé seulement après réponse)
+              Widget nextBtn({bool fullWidth = false}) => SizedBox(
+                width: fullWidth ? double.infinity : null,
+                child: GamingButtonPrimary(
+                  text: 'Suivant',
+                  onPressed: !_answered ? null : _next,
+                ),
+              );
+
+              // Bouton Passer (seulement si pas encore répondu)
+              Widget? skipBtn({bool fullWidth = false}) => showPasser
+                  ? SizedBox(
+                      width: fullWidth ? double.infinity : null,
+                      child: GamingButtonSecondary(
+                        text: 'Passer',
+                        onPressed: _answered ? null : _skip,
+                      ),
+                    )
+                  : null;
+
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    feedback,
+                    const SizedBox(height: 12),
+                    if (showPasser) ...[
+                      skipBtn(fullWidth: true)!,
+                      const SizedBox(height: 12),
+                    ],
+                    nextBtn(fullWidth: true),
+                  ],
+                );
+              }
+
+              // Largeur suffisante : feedback à gauche, boutons à droite
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GamingButtonSecondary(
-                    text: 'Passer',
-                    onPressed: _answered ? null : _skip,
-                  ),
-                  const SizedBox(width: 12),
-                  GamingButtonPrimary(
-                    text: 'Suivant',
-                    onPressed: !_answered ? null : _next,
+                  feedback,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showPasser) ...[
+                        GamingButtonSecondary(
+                          text: 'Passer',
+                          onPressed: _answered ? null : _skip,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      GamingButtonPrimary(
+                        text: 'Suivant',
+                        onPressed: !_answered ? null : _next,
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),
@@ -446,16 +555,39 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
             ),
           ),
           const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GamingButtonSecondary(
-                text: 'Accueil',
-                onPressed: () => context.goHome(),
-              ),
-              const SizedBox(width: 16),
-              GamingButtonPrimary(text: 'Rejouer', onPressed: _restart),
-            ],
+
+          // Boutons fin — responsive
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 420;
+
+              final homeBtn = SizedBox(
+                width: narrow ? double.infinity : null,
+                child: GamingButtonSecondary(
+                  text: 'Accueil',
+                  onPressed: () => context.goHome(),
+                ),
+              );
+              final replayBtn = SizedBox(
+                width: narrow ? double.infinity : null,
+                child: GamingButtonPrimary(
+                  text: 'Rejouer',
+                  onPressed: _restart,
+                ),
+              );
+
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [homeBtn, const SizedBox(height: 12), replayBtn],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [homeBtn, const SizedBox(width: 16), replayBtn],
+              );
+            },
           ),
         ],
       ),
@@ -565,6 +697,59 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       ),
     ],
   };
+}
+
+class _OptionButton extends StatelessWidget {
+  final String option;
+  final bool enabled;
+  final VoidCallback onTap;
+  final Color bgColor;
+  final Color borderColor;
+  final Color textColor;
+
+  const _OptionButton({
+    required this.option,
+    required this.enabled,
+    required this.onTap,
+    required this.bgColor,
+    required this.borderColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: 2),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: enabled ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Text(
+              option,
+              softWrap: true,
+              // Laisse respirer jusqu’à 3–4 lignes max sans scroller
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 15, // -1pt pour limiter la hauteur
+                fontWeight: FontWeight.w600,
+                height: 1.25, // compacter un peu la ligne
+              ),
+              textAlign: TextAlign.left,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class QuizQuestion {

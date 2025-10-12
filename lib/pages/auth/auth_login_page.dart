@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../navigation/app_router.dart';
+import '../../navigation/route_history.dart';
 
 class AuthLoginPage extends StatefulWidget {
   const AuthLoginPage({super.key});
@@ -42,18 +43,24 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TuuurTheme.brandDark,
-      appBar: AppBar(
-        title: const Text('Connexion'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.goBack(),
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // le système a déjà géré le pop
+        RouteHistory.instance.navigateBack(context);
+      },
+      child: Scaffold(
+        backgroundColor: TuuurTheme.brandDark,
+        appBar: AppBar(
+          title: const Text('Connexion'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.goBack(),
+          ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
           children: [
             const SizedBox(height: 24),
 
@@ -336,6 +343,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }
