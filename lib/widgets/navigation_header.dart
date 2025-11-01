@@ -33,9 +33,6 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
 
               // Spacer pour pousser la navigation à droite
               const Spacer(),
-
-              // Navigation pills - équivalent aux pills Vue.js
-              _buildNavigationPills(context),
             ],
           ),
         ),
@@ -88,36 +85,6 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildNavigationPills(BuildContext context) {
-    final currentRoute = ModalRoute.of(context)?.settings.name ?? '';
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildPill(
-          context: context,
-          text: 'Solo',
-          isActive: currentRoute.contains('/solo'),
-          onTap: () => context.goSolo(),
-        ),
-        const SizedBox(width: 12),
-        _buildPill(
-          context: context,
-          text: 'Groupe',
-          isActive: currentRoute.contains('/group'),
-          onTap: () => context.goGroup(),
-        ),
-        const SizedBox(width: 12),
-        _buildPill(
-          context: context,
-          text: 'Compétitif',
-          isActive: currentRoute.contains('/online'),
-          onTap: () => context.goOnline(),
-        ),
-      ],
     );
   }
 

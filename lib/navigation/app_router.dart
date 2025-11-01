@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'route_history.dart';
 
 // Pages de l'application
 import '../pages/home_page.dart';
@@ -113,6 +114,8 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const LeaderboardPage(),
     ),
   ],
+
+  observers: [ RouteHistory.instance ],
 
   // Gestion des erreurs de navigation
   errorBuilder: (context, state) => Scaffold(

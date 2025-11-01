@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../../navigation/route_history.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/common_widgets.dart';
@@ -26,35 +27,22 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       id: 'general',
       name: 'Général',
       icon: FontAwesomeIcons.wandMagicSparkles,
-    ), // wand-magic-sparkles
+    ),
     QuizCategory(
       id: 'histoire',
       name: 'Histoire',
-      icon: FontAwesomeIcons
-          .buildingColumns, // buildingColumns (nouvelle version de university)
+      icon: FontAwesomeIcons.buildingColumns,
     ),
-    QuizCategory(
-      id: 'science',
-      name: 'Science',
-      icon: FontAwesomeIcons.flask,
-    ), // flask - même nom que Vue.js
-    QuizCategory(
-      id: 'sport',
-      name: 'Sport',
-      icon: FontAwesomeIcons.medal, // medal
-    ),
+    QuizCategory(id: 'science', name: 'Science', icon: FontAwesomeIcons.flask),
+    QuizCategory(id: 'sport', name: 'Sport', icon: FontAwesomeIcons.medal),
     QuizCategory(id: 'musique', name: 'Musique', icon: FontAwesomeIcons.music),
     QuizCategory(id: 'cinema', name: 'Cinéma', icon: FontAwesomeIcons.film),
     QuizCategory(id: 'art', name: 'Art', icon: FontAwesomeIcons.palette),
-    QuizCategory(
-      id: 'geo',
-      name: 'Géographie',
-      icon: FontAwesomeIcons.globe, // globe
-    ),
+    QuizCategory(id: 'geo', name: 'Géographie', icon: FontAwesomeIcons.globe),
     QuizCategory(
       id: 'tech',
       name: 'Technologie',
-      icon: FontAwesomeIcons.laptopCode, // laptop-code
+      icon: FontAwesomeIcons.laptopCode,
     ),
     QuizCategory(
       id: 'jeux',
@@ -161,86 +149,131 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const NavigationHeader(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            _buildHeader(),
-            const SizedBox(height: 24),
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // le système a déjà géré le pop
+        RouteHistory.instance.navigateBack(context);
+      },
+      child: Scaffold(
+        appBar: const NavigationHeader(),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              _buildHeader(),
+              const SizedBox(height: 24),
 
-            // Main content
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 900) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 2, child: _buildCategoriesSection()),
-                      const SizedBox(width: 24),
-                      Expanded(child: _buildSettingsSection()),
-                    ],
-                  );
-                } else {
-                  return Column(
-                    children: [
-                      _buildCategoriesSection(),
-                      const SizedBox(height: 24),
-                      _buildSettingsSection(),
-                    ],
-                  );
-                }
-              },
-            ),
+              // Main content
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 900) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 2, child: _buildCategoriesSection()),
+                        const SizedBox(width: 24),
+                        Expanded(child: _buildSettingsSection()),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        _buildCategoriesSection(),
+                        const SizedBox(height: 24),
+                        _buildSettingsSection(),
+                      ],
+                    );
+                  }
+                },
+              ),
 
-            const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-            // Footer actions
-            _buildFooter(),
-          ],
+              // Footer actions
+              _buildFooter(),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 420;
+
+        final badge =
+            BadgeSuccess(
+                  text: 'Sélectionnez au moins une catégorie',
+                  icon: FontAwesomeIcons.lightbulb,
+                )
+                .animate(onPlay: (controller) => controller.repeat())
+                .fade(duration: 2000.ms);
+
+        if (narrow) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: [
-                  const FaIcon(
+                children: const [
+                  FaIcon(
                     FontAwesomeIcons.bullseye,
                     color: TuuurTheme.brandPurple,
                     size: 28,
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Mode Solo',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w600,
-                      color: TuuurTheme.brandLightGray,
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Mode Solo',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                        color: TuuurTheme.brandLightGray,
+                      ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              badge,
             ],
-          ),
-        ),
-        BadgeSuccess(
-              text: 'Sélectionnez au moins une catégorie',
-              icon: FontAwesomeIcons.lightbulb,
-            )
-            .animate(onPlay: (controller) => controller.repeat())
-            .fade(duration: 2000.ms),
-      ],
+          );
+        }
+
+        return Row(
+          children: [
+            const FaIcon(
+              FontAwesomeIcons.bullseye,
+              color: TuuurTheme.brandPurple,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Mode Solo',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandLightGray,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              fit: FlexFit.loose,
+              child: Align(alignment: Alignment.centerRight, child: badge),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -250,19 +283,23 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              const FaIcon(
+            children: const [
+              FaIcon(
                 FontAwesomeIcons.gamepad,
                 color: TuuurTheme.brandPurple,
                 size: 20,
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Catégories',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Catégories',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: TuuurTheme.brandLightGray,
+                  ),
                 ),
               ),
             ],
@@ -350,12 +387,16 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         children: [
           const Row(
             children: [
-              Text(
-                '⚙️ Paramètres',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
+              Expanded(
+                child: Text(
+                  '⚙️ Paramètres',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: TuuurTheme.brandLightGray,
+                  ),
                 ),
               ),
             ],
@@ -366,6 +407,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
           _buildSettingItem(
             'Nombre de questions',
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   onPressed: _questionCount > 5
@@ -416,36 +458,89 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
     );
   }
 
-  Widget _buildSettingItem(String label, Widget widget) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: TuuurTheme.brandLightGray,
-              fontWeight: FontWeight.w500,
+  /// Élément paramètre RESPONSIVE (évite les overflows)
+  Widget _buildSettingItem(String label, Widget trailing) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 360;
+
+        if (narrow) {
+          // Colonne sur micro-écrans
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: TuuurTheme.brandLightGray,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(alignment: Alignment.centerLeft, child: trailing),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: TuuurTheme.brandLightGray,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
-          ),
-        ),
-        widget,
-      ],
+            const SizedBox(width: 12),
+            trailing,
+          ],
+        );
+      },
     );
   }
 
   Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        GamingButtonGhost(text: '← Retour', onPressed: () => context.goBack()),
-        const SizedBox(width: 16),
-        GamingButtonPrimary(
-          text: 'Commencer l\'aventure',
-          icon: FontAwesomeIcons.rocket,
-          onPressed: _selectedCategories.isEmpty ? null : _startQuiz,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 420;
+        final veryNarrow = constraints.maxWidth < 320;
+
+        final primaryText = veryNarrow ? 'Jouer' : 'Commencer l\'aventure';
+
+        final backBtn = SizedBox(
+          width: narrow ? double.infinity : null,
+          child: GamingButtonGhost(
+            text: '← Retour',
+            onPressed: () => context.goBack(),
+          ),
+        );
+
+        final startBtn = SizedBox(
+          width: narrow ? double.infinity : null,
+          child: GamingButtonPrimary(
+            text: primaryText,
+            icon: FontAwesomeIcons.rocket,
+            onPressed: _startQuiz, // ⬅️ lance réellement la modale de démarrage
+          ),
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [backBtn, const SizedBox(height: 12), startBtn],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [backBtn, const SizedBox(width: 16), startBtn],
+        );
+      },
     );
   }
 }

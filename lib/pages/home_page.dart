@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../../navigation/route_history.dart';
 import '../theme/tuuuur_theme.dart';
 import '../widgets/gaming_widgets.dart';
 import '../navigation/app_router.dart';
@@ -20,12 +21,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _particleController = AnimationController(
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 1),
       vsync: this,
     )..repeat();
 
     _logoController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 1),
       vsync: this,
     )..repeat(reverse: true);
   }
@@ -39,44 +40,51 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: TuuurTheme.gamingGradient),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Particules animées en arrière-plan
-              _buildAnimatedParticles(),
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // le système a déjà géré le pop
+        RouteHistory.instance.navigateBack(context);
+      },
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(gradient: TuuurTheme.gamingGradient),
+          child: SafeArea(
+            child: Stack(
+              children: [
+                // Particules animées en arrière-plan
+                _buildAnimatedParticles(),
 
-              // Contenu principal
-              Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo et titre
-                      _buildLogoSection(),
+                // Contenu principal
+                Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Logo et titre
+                        _buildLogoSection(),
 
-                      const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-                      // Boutons principaux
-                      _buildMainButtons(),
+                        // Boutons principaux
+                        _buildMainButtons(),
 
-                      const SizedBox(height: 40),
+                        const SizedBox(height: 40),
 
-                      // Cartes de navigation
-                      _buildNavigationCards(),
+                        // Cartes de navigation
+                        _buildNavigationCards(),
 
-                      const SizedBox(height: 40),
+                        const SizedBox(height: 40),
 
-                      // Footer
-                      _buildFooter(),
-                    ],
+                        // Footer
+                        _buildFooter(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

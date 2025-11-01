@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
+import '../../navigation/route_history.dart';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
@@ -47,64 +48,111 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TuuurTheme.brandDark,
-      appBar: const NavigationHeader(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header identique à Vue.js
-            _buildHeader(),
-            const SizedBox(height: 32),
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // le système a déjà géré le pop
+        RouteHistory.instance.navigateBack(context);
+      },
+      child: Scaffold(
+        backgroundColor: TuuurTheme.brandDark,
+        appBar: const NavigationHeader(),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header identique à Vue.js mais responsive
+              _buildHeader(),
+              const SizedBox(height: 32),
 
-            // Podium top 3 identique à Vue.js
-            _buildPodium(),
-            const SizedBox(height: 32),
+              // Podium top 3
+              _buildPodium(),
+              const SizedBox(height: 32),
 
-            // Liste du classement identique à Vue.js
-            _buildLeaderboardList(),
-          ],
+              // Liste du classement
+              _buildLeaderboardList(),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          '🏆 Classement Gaming',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w600,
-            color: TuuurTheme.brandLightGray,
-          ),
-        ),
-        Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: TuuurTheme.brandOrange.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: TuuurTheme.brandOrange.withOpacity(0.4),
-                  width: 1,
-                ),
-              ),
-              child: const Text(
-                'Top 20 Légendes',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 420;
+
+        final badge =
+            Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: TuuurTheme.brandOrange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: TuuurTheme.brandOrange.withOpacity(0.4),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Text(
+                    'Top 20 Légendes',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: TuuurTheme.brandOrange,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+                .animate(onPlay: (c) => c.repeat())
+                .fade(duration: 2000.ms, curve: Curves.easeInOut);
+
+        if (narrow) {
+          // Empile pour éviter l’overflow
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '🏆 Classement Gaming',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: TuuurTheme.brandOrange,
-                  fontSize: 12,
+                  fontSize: 28,
                   fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandLightGray,
                 ),
               ),
-            )
-            .animate(onPlay: (controller) => controller.repeat())
-            .fade(duration: 2000.ms, curve: Curves.easeInOut),
-      ],
+              const SizedBox(height: 12),
+              badge,
+            ],
+          );
+        }
+
+        // Largeur suffisante : aligné sur une ligne
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Flexible(
+              child: Text(
+                '🏆 Classement Gaming',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandLightGray,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            badge,
+          ],
+        );
+      },
     );
   }
 
@@ -176,26 +224,14 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         children: [
           // Médaille/Icône
           Container(
-                width: isFirst
-                    ? 48
-                    : isSecond
-                    ? 32
-                    : 28,
-                height: isFirst
-                    ? 48
-                    : isSecond
-                    ? 32
-                    : 28,
+                width: isFirst ? 48 : (isSecond ? 32 : 28),
+                height: isFirst ? 48 : (isSecond ? 32 : 28),
                 margin: const EdgeInsets.only(bottom: 16),
                 child: Center(
                   child: Icon(
                     FontAwesomeIcons.trophy,
                     color: borderColor,
-                    size: isFirst
-                        ? 32
-                        : isSecond
-                        ? 24
-                        : 20,
+                    size: isFirst ? 32 : (isSecond ? 24 : 20),
                   ),
                 ),
               )
@@ -277,12 +313,14 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           // Nom du joueur
           Text(
             '#$rank ${player['name']}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: titleSize,
               fontWeight: FontWeight.w600,
               color: TuuurTheme.brandLightGray,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
 
@@ -296,6 +334,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             ),
             child: Text(
               '$medal ${player['elo']} Élo',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: borderColor,
                 fontSize: 14,
@@ -313,31 +353,41 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header de la liste
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: TuuurTheme.brandPurple.withOpacity(0.2),
-                ),
-                child: const Center(
-                  child: Text('📊', style: TextStyle(fontSize: 16)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Classement Complet',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
-              const Spacer(),
-              Container(
+          // Header de la liste — responsive
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 420;
+
+              final title = Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: TuuurTheme.brandPurple.withOpacity(0.2),
+                    ),
+                    child: const Center(
+                      child: Text('📊', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Classement Complet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: TuuurTheme.brandLightGray,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+
+              final chip = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: TuuurTheme.brandCyan.withOpacity(0.2),
@@ -349,14 +399,31 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ),
                 child: const Text(
                   'Mise à jour en temps réel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: TuuurTheme.brandCyan,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
+              );
+
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [title, const SizedBox(height: 8), chip],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  chip,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           Container(height: 1, color: TuuurTheme.brandPurple.withOpacity(0.2)),
@@ -395,6 +462,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 child: Center(
                   child: Text(
                     '#$rank',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -441,7 +510,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       child: Container(
                         width: 16,
                         height: 16,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: TuuurTheme.brandGreen,
                           shape: BoxShape.circle,
                         ),
@@ -461,6 +530,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   children: [
                     Text(
                       player['name'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -474,6 +545,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           : isTopTen
                           ? 'Challenger'
                           : 'Joueur confirmé',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
                         color: isTopFive
@@ -487,7 +560,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ),
               ),
 
-              // Score Élo
+              // Score Élo (compact, non expansif)
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -515,6 +589,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ),
                 child: Text(
                   '⚡ ${player['elo']}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isTopFive
                         ? TuuurTheme.brandGreen

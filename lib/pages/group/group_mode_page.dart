@@ -5,6 +5,7 @@ import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../navigation/app_router.dart';
+import '../../navigation/route_history.dart';
 import 'group_create_page.dart';
 import 'group_join_page.dart';
 import 'group_lobby_page.dart';
@@ -84,12 +85,19 @@ class _GroupModePageState extends State<GroupModePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TuuurTheme.brandDark,
-      appBar: const NavigationHeader(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: _buildContent(),
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // le système a déjà géré le pop
+        RouteHistory.instance.navigateBack(context);
+      },
+      child: Scaffold(
+        backgroundColor: TuuurTheme.brandDark,
+        appBar: const NavigationHeader(),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: _buildContent(),
+        ),
       ),
     );
   }
@@ -120,30 +128,35 @@ class _GroupModePageState extends State<GroupModePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+        // Header (responsive)
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 420;
+
+            final left = Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const FaIcon(
                   FontAwesomeIcons.users,
                   color: TuuurTheme.brandPurple,
-                  size: 32,
+                  size: 28, // légèrement plus compact
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 const Text(
                   'Mode Groupe',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 26, // compact
                     fontWeight: FontWeight.w600,
                     color: TuuurTheme.brandLightGray,
                   ),
                 ),
-              ].animate().fadeIn(duration: 600.ms).slideX(begin: -0.3),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ].animate().fadeIn(duration: 500.ms).slideX(begin: -0.25),
+            );
+
+            final right = Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: TuuurStyles.pill.copyWith(
                 color: TuuurTheme.brandDarkGray.withOpacity(0.8),
                 border: Border.all(
@@ -156,134 +169,189 @@ class _GroupModePageState extends State<GroupModePage> {
                   FaIcon(
                     FontAwesomeIcons.house,
                     color: TuuurTheme.brandOrange,
-                    size: 14,
+                    size: 12,
                   ),
                   SizedBox(width: 6),
                   Text(
                     'Local / Affichage uniquement',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: TuuurTheme.brandOrange,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-            ).animate().fadeIn(delay: 300.ms),
-          ],
-        ),
-        const SizedBox(height: 32),
+            ).animate().fadeIn(delay: 250.ms);
 
-        // Interactive Cards
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 24,
-          mainAxisSpacing: 24,
-          childAspectRatio: 1.2,
-          children: [
-            // Create Game Card
-            _buildModeCard(
-              icon: FontAwesomeIcons.gamepad,
-              title: 'Créer une partie',
-              description:
-                  'Définissez les paramètres et partagez le code/QR avec vos amis.',
-              color: TuuurTheme.brandPurple,
-              onTap: () => setState(() => step = GroupStep.create),
-              delay: 0,
-            ),
-            // Join Game Card
-            _buildModeCard(
-              icon: FontAwesomeIcons.rocket,
-              title: 'Rejoindre une partie',
-              description:
-                  'Entrez un code pour rejoindre le lobby et commencer l\'aventure.',
-              color: TuuurTheme.brandOrange,
-              onTap: () => setState(() => step = GroupStep.join),
-              delay: 200,
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
+            if (narrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [left, const SizedBox(height: 10), right],
+              );
+            }
 
-        // Tips Section
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: TuuurStyles.gamingCard,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: TuuurTheme.brandGreen.withOpacity(0.2),
-                    ),
-                    child: const Center(
-                      child: FaIcon(
-                        FontAwesomeIcons.lightbulb,
-                        color: TuuurTheme.brandGreen,
-                        size: 16,
-                      ),
-                    ),
-                  )
-                  .animate(onPlay: (controller) => controller.repeat())
-                  .shimmer(duration: 2000.ms),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(child: left),
+                const SizedBox(width: 12),
+                right,
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+
+        // Interactive Cards (responsive, 1 colonne mobile / 2 colonnes desktop)
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final twoCols = constraints.maxWidth >= 680;
+            if (twoCols) {
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+                // pas de childAspectRatio rigide → la hauteur s’adapte au contenu
+                children: [
+                  _buildModeCard(
+                    icon: FontAwesomeIcons.gamepad,
+                    title: 'Créer une partie',
+                    description:
+                        'Définissez les paramètres et partagez le code/QR avec vos amis.',
+                    color: TuuurTheme.brandPurple,
+                    onTap: () => setState(() => step = GroupStep.create),
+                    delay: 0,
+                  ),
+                  _buildModeCard(
+                    icon: FontAwesomeIcons.rocket,
+                    title: 'Rejoindre une partie',
+                    description:
+                        'Entrez un code pour rejoindre le lobby et commencer l\'aventure.',
+                    color: TuuurTheme.brandOrange,
+                    onTap: () => setState(() => step = GroupStep.join),
+                    delay: 180,
+                  ),
+                ],
+              );
+            }
+
+            // Mobile : une seule colonne, cartes pleine largeur
+            return Column(
+              children: [
+                _buildModeCard(
+                  icon: FontAwesomeIcons.gamepad,
+                  title: 'Créer une partie',
+                  description:
+                      'Définissez les paramètres et partagez le code/QR avec vos amis.',
+                  color: TuuurTheme.brandPurple,
+                  onTap: () => setState(() => step = GroupStep.create),
+                  delay: 0,
+                ),
+                const SizedBox(height: 16),
+                _buildModeCard(
+                  icon: FontAwesomeIcons.rocket,
+                  title: 'Rejoindre une partie',
+                  description:
+                      'Entrez un code pour rejoindre le lobby et commencer l\'aventure.',
+                  color: TuuurTheme.brandOrange,
+                  onTap: () => setState(() => step = GroupStep.join),
+                  delay: 160,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+
+        // Tips Section (responsive)
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 420;
+            final icon = Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: TuuurTheme.brandGreen.withOpacity(0.2),
+              ),
+              child: const Center(
+                child: FaIcon(
+                  FontAwesomeIcons.lightbulb,
+                  color: TuuurTheme.brandGreen,
+                  size: 14,
+                ),
+              ),
+            ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 1800.ms);
+
+            final textBlock = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
                   children: [
-                    const Row(
-                      children: [
-                        FaIcon(
-                          FontAwesomeIcons.bullseye,
-                          color: TuuurTheme.brandPurple,
-                          size: 14,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Conseils pour une partie réussie',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandLightGray,
-                          ),
-                        ),
-                      ],
+                    FaIcon(
+                      FontAwesomeIcons.bullseye,
+                      color: TuuurTheme.brandPurple,
+                      size: 12,
                     ),
-                    const SizedBox(height: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children:
-                          [
-                                '• Choisissez des catégories que tous les joueurs apprécient',
-                                '• Utilisez le mélange de questions pour plus de surprise',
-                                '• Partagez le QR code pour un accès rapide',
-                              ]
-                              .map(
-                                (tip) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 2,
-                                  ),
-                                  child: Text(
-                                    tip,
-                                    style: const TextStyle(
-                                      color: TuuurTheme.brandGray,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Conseils pour une partie réussie',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: TuuurTheme.brandLightGray,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3),
+                const SizedBox(height: 8),
+                ...[
+                  '• Choisissez des catégories que tous les joueurs apprécient',
+                  '• Utilisez le mélange de questions pour plus de surprise',
+                  '• Partagez le QR code pour un accès rapide',
+                ].map(
+                  (tip) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      tip,
+                      style: const TextStyle(
+                        color: TuuurTheme.brandGray,
+                        fontSize: 13,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+
+            return Container(
+              padding: const EdgeInsets.all(18), // compact
+              decoration: TuuurStyles.gamingCard,
+              child: narrow
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [icon, const SizedBox(height: 10), textBlock],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        icon,
+                        const SizedBox(width: 14),
+                        Expanded(child: textBlock),
+                      ],
+                    ),
+            ).animate().fadeIn(delay: 450.ms).slideY(begin: 0.25);
+          },
+        ),
       ],
     );
   }
@@ -299,9 +367,9 @@ class _GroupModePageState extends State<GroupModePage> {
     return GestureDetector(
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(18), // compact
             decoration: TuuurStyles.gamingCard.copyWith(
-              border: Border.all(color: color.withOpacity(0.3), width: 1),
+              border: Border.all(color: color.withOpacity(0.28), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,17 +377,18 @@ class _GroupModePageState extends State<GroupModePage> {
                 Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                         color: color.withOpacity(0.2),
                       ),
                       child: Center(
-                        child: FaIcon(icon, color: color, size: 20),
+                        child: FaIcon(icon, color: color, size: 18),
                       ),
                     ),
                     const Spacer(),
+                    // petit accent animé discret
                     Container(
                       width: 0,
                       height: 2,
@@ -328,28 +397,30 @@ class _GroupModePageState extends State<GroupModePage> {
                         borderRadius: BorderRadius.circular(1),
                       ),
                     ).animate().scaleX(
-                      duration: 500.ms,
-                      delay: (delay + 800).ms,
+                      duration: 450.ms,
+                      delay: (delay + 700).ms,
                       curve: Curves.easeOutBack,
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: TuuurTheme.brandLightGray,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   description,
                   style: const TextStyle(
                     color: TuuurTheme.brandGray,
                     fontSize: 14,
-                    height: 1.4,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -357,9 +428,9 @@ class _GroupModePageState extends State<GroupModePage> {
           ),
         )
         .animate()
-        .fadeIn(delay: delay.ms, duration: 600.ms)
-        .slideY(begin: 0.3, end: 0)
+        .fadeIn(delay: delay.ms, duration: 500.ms)
+        .slideY(begin: 0.25, end: 0)
         .then()
-        .shimmer(delay: (delay + 1000).ms, duration: 1500.ms);
+        .shimmer(delay: (delay + 900).ms, duration: 1400.ms);
   }
 }
