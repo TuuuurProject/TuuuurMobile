@@ -1,10 +1,17 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../auth/auth_store.dart';
 import '../../navigation/route_history.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
+import '../../api/auth_api_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,23 +21,172 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // Matching Vue.js exactly - simple auth state switch
-  bool isAuthenticated = false;
+  bool _loading = false;
+  String? _nickName;
+  String? _email;
+  String? _avatar; // valeur renvoyée par l’API (url, base64, data-uri…)
+  int? _userId;
 
-  // User data when authenticated
-  String playerName = 'sanbiX';
-  String playerId = '#123456';
-  int level = 12;
-  int elo = 1210;
-  String status = 'Actif';
+  Uint8List? _avatarBytes; // bytes à afficher (aperçu local OU décodage base64 serveur)
+  final _picker = ImagePicker();
 
-  String get avatarUrl {
-    final seed = Uri.encodeComponent(playerName);
+  bool _fetched = false;
+
+  String get _fallbackAvatarUrl {
+    final seed = Uri.encodeComponent(_nickName ?? 'player');
     return 'https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=$seed';
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fetchMeOnce();
+  }
+
+  Uint8List? _tryDecodeBase64(String? s) {
+    if (s == null || s.isEmpty) return null;
+    try {
+      var raw = s.trim();
+      final comma = raw.indexOf(',');
+      if (raw.startsWith('data:image') && comma != -1) {
+        raw = raw.substring(comma + 1);
+      }
+      return base64Decode(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _fetchMeOnce() async {
+    if (_fetched) return;
+    _fetched = true;
+
+    final store = MyAuthStore.of(context);
+    if (!store.isAuthenticated) return;
+
+    setState(() => _loading = true);
+    final res = await authApi.me(headers: store.authHeaders);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (res.ok && res.data != null) {
+      final u = res.data!;
+      final val = u.avatar;
+      final decoded = _tryDecodeBase64(val);
+
+      setState(() {
+        _nickName = u.nickName;
+        _email = u.email;
+        _avatar = val;
+        _userId = u.id;
+        _avatarBytes = decoded ?? _avatarBytes;
+      });
+    } else if (res.statusCode == 401) {
+      await store.signOut();
+      if (!mounted) return;
+      _toast('Session expirée. Veuillez vous reconnecter.');
+    } else {
+      _toast(res.message ?? 'Impossible de charger le profil.');
+    }
+  }
+
+  void _toast(String m, {Color color = TuuurTheme.brandOrange}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(m), backgroundColor: color),
+    );
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    try {
+      final xfile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+      if (xfile == null) return;
+
+      final bytes = await xfile.readAsBytes();
+      setState(() => _avatarBytes = bytes);
+
+      final base64Str = base64Encode(bytes);
+      final store = MyAuthStore.of(context);
+
+      setState(() => _loading = true);
+      final res = await authApi.updateAvatarBase64(
+        base64: base64Str,
+        headers: store.authHeaders,
+      );
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (res.ok) {
+        _toast('Avatar mis à jour ✅', color: TuuurTheme.brandGreen);
+        _fetched = false;
+        await _fetchMeOnce();
+      } else {
+        _toast(res.message ?? 'Échec de la mise à jour de l’avatar.');
+      }
+    } catch (e) {
+      _toast('Erreur avatar : $e');
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TuuurTheme.brandDarkGray,
+        title: const Text('Supprimer le compte', style: TextStyle(color: TuuurTheme.brandLightGray)),
+        content: const Text('Cette action est irréversible. Confirmer ?',
+            style: TextStyle(color: TuuurTheme.brandGray)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
+          GamingButtonSecondary(text: 'Supprimer', onPressed: () => Navigator.of(ctx).pop(true)),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final store = MyAuthStore.of(context);
+    setState(() => _loading = true);
+    final res = await authApi.deleteMe(headers: store.authHeaders);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (res.ok) {
+      await store.signOut();
+      if (!mounted) return;
+      _toast('Compte supprimé.', color: TuuurTheme.brandGreen);
+      context.go('/');
+    } else {
+      _toast(res.message ?? 'Suppression impossible.');
+    }
+  }
+
+  Future<void> _signOut() async {
+    final store = MyAuthStore.of(context);
+    await store.signOut();
+    if (!mounted) return;
+    // Nettoie l’état local pour éviter un vieux rendu
+    setState(() {
+      _nickName = null;
+      _email = null;
+      _avatar = null;
+      _userId = null;
+      _avatarBytes = null;
+      _fetched = false;
+    });
+    _toast('Déconnecté.', color: TuuurTheme.brandGreen);
+    context.go('/'); // Retour à l’accueil
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final store = MyAuthStore.of(context);
+    final isAuthenticated = store.isAuthenticated;
+
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 600;
 
@@ -49,77 +205,41 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               const SizedBox(height: 24),
 
-              // Header
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Text('👤', style: TextStyle(fontSize: 28)),
-                        SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            'Profil Joueur',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            softWrap: false,
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w600,
-                              color: TuuurTheme.brandLightGray,
-                            ),
-                          ),
-                        ),
-                      ],
+                children: const [
+                  Text('👤', style: TextStyle(fontSize: 28)),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Profil',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: TuuurTheme.brandLightGray,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
-              // Main content responsive
-              isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _SidebarDemo(
-                          isAuthenticated: isAuthenticated,
-                          onSetAuth: (v) => setState(() => isAuthenticated = v),
-                        ),
-                        const SizedBox(height: 24),
-                        _RightPanel(
-                          isAuthenticated: isAuthenticated,
-                          buildAuthenticatedView: _buildAuthenticatedView,
-                          buildUnauthenticatedView: _buildUnauthenticatedView,
-                        ),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left sidebar - Demo status switcher
-                        Expanded(
-                          flex: 1,
-                          child: _SidebarDemo(
-                            isAuthenticated: isAuthenticated,
-                            onSetAuth: (v) =>
-                                setState(() => isAuthenticated = v),
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        // Right main panel
-                        Expanded(
-                          flex: 2,
-                          child: _RightPanel(
-                            isAuthenticated: isAuthenticated,
-                            buildAuthenticatedView: _buildAuthenticatedView,
-                            buildUnauthenticatedView: _buildUnauthenticatedView,
-                          ),
-                        ),
-                      ],
+              if (!isAuthenticated) ...[
+                _notConnectedCard(isMobile),
+              ] else ...[
+                if (_loading && _nickName == null)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: TuuurStyles.gamingCard,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: TuuurTheme.brandPurple),
                     ),
+                  )
+                else
+                  _profileCard(isMobile),
+              ],
             ],
           ),
         ),
@@ -127,212 +247,44 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatusButton(
-    String text,
-    bool isSelected,
-    VoidCallback onPressed,
-  ) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        backgroundColor: isSelected
-            ? TuuurTheme.brandPurple.withOpacity(0.2)
-            : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: isSelected
-                ? TuuurTheme.brandPurple.withOpacity(0.4)
-                : TuuurTheme.brandPurple.withOpacity(0.2),
+  Widget _notConnectedCard(bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: TuuurStyles.gamingCard,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Vous n’êtes pas connecté',
+            style: TextStyle(
+              color: TuuurTheme.brandLightGray,
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+            ),
           ),
-        ),
-      ),
-      child: Text(
-        text,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: TuuurTheme.brandLightGray,
-          fontSize: 12,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUnauthenticatedView() {
-    return Column(
-      children: [
-        // Gaming icon and welcome text
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: TuuurTheme.brandOrange.withOpacity(0.2),
-              ),
-              child: const Center(
-                child: FaIcon(
-                  FontAwesomeIcons.gamepad,
-                  color: TuuurTheme.brandOrange,
-                  size: 24,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Rejoignez l\'Aventure',
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: TuuurTheme.brandLightGray,
-                    ),
-                  ),
-                  Text(
-                    'Sauvegardez votre historique, suivez votre rang et personnalisez votre avatar gaming.',
-                    style: TextStyle(color: TuuurTheme.brandGray, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Features grid
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: TuuurTheme.brandPurple.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: TuuurTheme.brandPurple.withOpacity(0.2),
+          const SizedBox(height: 16),
+          if (isMobile)
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: GamingButtonPrimary(
+                    text: '🚀 Se connecter',
+                    onPressed: () => context.push('/login'),
                   ),
                 ),
-                child: const Column(
-                  children: [
-                    Row(
-                      children: [
-                        FaIcon(
-                          FontAwesomeIcons.chartBar,
-                          color: TuuurTheme.brandPurple,
-                          size: 16,
-                        ),
-                        SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            'Statistiques',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: TuuurTheme.brandPurple,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Historique détaillé des parties',
-                      style: TextStyle(
-                        color: TuuurTheme.brandGray,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: TuuurTheme.brandGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: TuuurTheme.brandGreen.withOpacity(0.2),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: GamingButtonSecondary(
+                    text: '🔗 Créer un compte',
+                    onPressed: () => context.push('/register'),
                   ),
                 ),
-                child: const Column(
-                  children: [
-                    Row(
-                      children: [
-                        FaIcon(
-                          FontAwesomeIcons.trophy,
-                          color: TuuurTheme.brandGreen,
-                          size: 16,
-                        ),
-                        SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            'Classement',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: TuuurTheme.brandGreen,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Système de rang compétitif',
-                      style: TextStyle(
-                        color: TuuurTheme.brandGray,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Action buttons (déjà responsives via LayoutBuilder)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 360;
-            if (narrow) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: GamingButtonPrimary(
-                      text: '🚀 Se connecter',
-                      onPressed: () => context.push('/login'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: GamingButtonSecondary(
-                      text: '🔗 Créer un compte',
-                      onPressed: () => context.push('/register'),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return Row(
+              ],
+            )
+          else
+            Row(
               children: [
                 Expanded(
                   child: GamingButtonPrimary(
@@ -348,554 +300,167 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ],
-            );
-          },
-        ),
-      ],
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAuthenticatedView() {
-    final width = MediaQuery.of(context).size.width;
-    final isNarrow = width < 420;
+  Widget _profileCard(bool isMobile) {
+    final name = _nickName ?? 'Joueur';
+    final avatarUrl = (_avatar != null && _avatar!.startsWith('http')) ? _avatar! : _fallbackAvatarUrl;
 
-    // Sur très petit écran : Wrap pour éviter l’overflow horizontal
-    final headerContent = isNarrow
-        ? Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              _AvatarWithStatus(avatarUrl: avatarUrl),
-              _UserInfo(
-                playerName: playerName,
-                playerId: playerId,
-                status: status,
-                level: level,
-              ),
-              _EloAndModify(elo: elo),
-            ],
-          )
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _AvatarWithStatus(avatarUrl: avatarUrl),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _UserInfo(
-                  playerName: playerName,
-                  playerId: playerId,
-                  status: status,
-                  level: level,
-                ),
-              ),
-              const SizedBox(width: 12),
-              _EloAndModify(elo: elo),
-            ],
-          );
-
-    return Column(
-      children: [
-        // User profile header
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: TuuurTheme.brandPurple.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.2)),
-          ),
-          child: headerContent,
-        ),
-        const SizedBox(height: 24),
-
-        // Security section — RESPONSIVE, pas d'overflow
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 420;
-
-            final btnText = '🔄 Réinitialiser mot de passe';
-
-            final content = [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: TuuurTheme.brandCyan.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Text('🔒', style: TextStyle(fontSize: 16)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Sécurité',
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              // Le bouton : pas d’Expanded ici pour ne pas forcer trop large
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 0),
-                child: GamingButtonSecondary(
-                  text: btnText,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fonctionnalité en démo'),
-                        backgroundColor: TuuurTheme.brandOrange,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ];
-
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: TuuurTheme.brandDarkGray.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: TuuurTheme.brandPurple.withOpacity(0.2),
-                ),
-              ),
-              child: narrow
-                  // Sur petit écran : on passe en colonne, bouton plein largeur
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: content.sublist(0, 3)),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: GamingButtonSecondary(
-                            text: btnText,
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Fonctionnalité en démo'),
-                                  backgroundColor: TuuurTheme.brandOrange,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    )
-                  // Largeur OK : Flow horizontal
-                  : Row(children: content),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-
-        // Game history
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Text('📈', style: TextStyle(fontSize: 20)),
-                SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'Historique',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: TuuurTheme.brandLightGray,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Dernières sessions',
-                  style: TextStyle(color: TuuurTheme.brandCyan, fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: TuuurStyles.gamingCard,
-              child: const Row(
-                children: [
-                  Text(
-                    'S',
-                    style: TextStyle(
-                      color: TuuurTheme.brandGreen,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Solo',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandLightGray,
-                          ),
-                        ),
-                        Text(
-                          'Score 870',
-                          style: TextStyle(
-                            color: TuuurTheme.brandGray,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Aujourd\'hui à 12:45',
-                        style: TextStyle(
-                          color: TuuurTheme.brandGray,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        '+12',
-                        style: TextStyle(
-                          color: TuuurTheme.brandGreen,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// --- Widgets privés pour aérer le build et éviter l’overflow ---
-
-class _SidebarDemo extends StatelessWidget {
-  final bool isAuthenticated;
-  final ValueChanged<bool> onSetAuth;
-  const _SidebarDemo({required this.isAuthenticated, required this.onSetAuth});
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: TuuurStyles.gamingCard,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('🔧', style: TextStyle(fontSize: 20)),
-              SizedBox(width: 8),
-              Text(
-                'Statut de Démo',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
+              _Avatar(avatarUrl: avatarUrl, bytes: _avatarBytes, base64OrDataUri: _avatar),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Text(
+                  name,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: TuuurTheme.brandLightGray,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Wrap au lieu de Row pour éviter tout overflow
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              _StatusBtn(
-                text: '🔓 Déconnecté',
-                selected: !isAuthenticated,
-                onTap: () => onSetAuth(false),
-              ),
-              _StatusBtn(
-                text: '🔐 Connecté',
-                selected: isAuthenticated,
-                onTap: () => onSetAuth(true),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Basculez pour voir les deux interfaces gaming.',
-            style: TextStyle(color: TuuurTheme.brandGray, fontSize: 12),
-          ),
+          const SizedBox(height: 24),
+
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                GamingButtonSecondary(
+                  text: '⚙️ Modifier avatar',
+                  onPressed: _pickAndUploadAvatar,
+                ),
+                const SizedBox(height: 12),
+                GamingButtonPrimary(
+                  text: '🔑 Réinitialiser le mot de passe',
+                  onPressed: () => context.push('/change-password'),
+                ),
+                const SizedBox(height: 12),
+                GamingButtonSecondary(
+                  text: '🚪 Se déconnecter',
+                  onPressed: _signOut,
+                ),
+                const SizedBox(height: 12),
+                GamingButtonSecondary(
+                  text: '🗑️ Supprimer mon compte',
+                  onPressed: _deleteAccount,
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: GamingButtonSecondary(
+                    text: '⚙️ Modifier avatar',
+                    onPressed: _pickAndUploadAvatar,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GamingButtonPrimary(
+                    text: '🔑 Réinitialiser le mot de passe',
+                    onPressed: () => context.push('/change-password'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GamingButtonSecondary(
+                    text: '🚪 Se déconnecter',
+                    onPressed: _signOut,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GamingButtonSecondary(
+                    text: '🗑️ Supprimer mon compte',
+                    onPressed: _deleteAccount,
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 }
 
-class _RightPanel extends StatelessWidget {
-  final bool isAuthenticated;
-  final Widget Function() buildAuthenticatedView;
-  final Widget Function() buildUnauthenticatedView;
+class _Avatar extends StatelessWidget {
+  final String avatarUrl;            // utilisé si bytes null ET pas de base64
+  final Uint8List? bytes;            // priorité d’affichage
+  final String? base64OrDataUri;     // si présent, tentative de décodage interne
 
-  const _RightPanel({
-    required this.isAuthenticated,
-    required this.buildAuthenticatedView,
-    required this.buildUnauthenticatedView,
+  const _Avatar({
+    required this.avatarUrl,
+    this.bytes,
+    this.base64OrDataUri,
   });
+
+  Uint8List? _decode(String? s) {
+    if (s == null || s.isEmpty) return null;
+    try {
+      var raw = s.trim();
+      final comma = raw.indexOf(',');
+      if (raw.startsWith('data:image') && comma != -1) {
+        raw = raw.substring(comma + 1);
+      }
+      return base64Decode(raw);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    Widget img;
+
+    if (bytes != null) {
+      img = Image.memory(bytes!, fit: BoxFit.cover, width: 60, height: 60);
+    } else {
+      final decoded = _decode(base64OrDataUri);
+      if (decoded != null) {
+        img = Image.memory(decoded, fit: BoxFit.cover, width: 60, height: 60);
+      } else {
+        img = Image.network(
+          avatarUrl,
+          width: 60,
+          height: 60,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: TuuurTheme.brandPurple.withOpacity(0.2),
+            child: const Icon(Icons.person, color: TuuurTheme.brandPurple, size: 30),
+          ),
+        );
+      }
+    }
+
     return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: TuuurStyles.gamingCard,
-      child: isAuthenticated
-          ? buildAuthenticatedView()
-          : buildUnauthenticatedView(),
-    );
-  }
-}
-
-class _StatusBtn extends StatelessWidget {
-  final String text;
-  final bool selected;
-  final VoidCallback onTap;
-  const _StatusBtn({
-    required this.text,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        backgroundColor: selected
-            ? TuuurTheme.brandPurple.withOpacity(0.2)
-            : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: selected
-                ? TuuurTheme.brandPurple.withOpacity(0.4)
-                : TuuurTheme.brandPurple.withOpacity(0.2),
-          ),
-        ),
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: TuuurTheme.brandPurple, width: 2),
       ),
-      child: Text(
-        text,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: TuuurTheme.brandLightGray,
-          fontSize: 12,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-        ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: img,
       ),
-    );
-  }
-}
-
-class _AvatarWithStatus extends StatelessWidget {
-  final String avatarUrl;
-  const _AvatarWithStatus({required this.avatarUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: TuuurTheme.brandPurple, width: 2),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(30),
-            child: Image.network(
-              avatarUrl,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 60,
-                height: 60,
-                color: TuuurTheme.brandPurple.withOpacity(0.2),
-                child: const Icon(
-                  Icons.person,
-                  color: TuuurTheme.brandPurple,
-                  size: 30,
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: -2,
-          right: -2,
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: TuuurTheme.brandGreen,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: TuuurTheme.brandDarkGray, width: 2),
-            ),
-            child: const Center(
-              child: FaIcon(
-                FontAwesomeIcons.fire,
-                color: Colors.white,
-                size: 10,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UserInfo extends StatelessWidget {
-  final String playerName;
-  final String playerId;
-  final String status;
-  final int level;
-
-  const _UserInfo({
-    required this.playerName,
-    required this.playerId,
-    required this.status,
-    required this.level,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          playerName,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            color: TuuurTheme.brandLightGray,
-          ),
-        ),
-        Text(
-          'Joueur $playerId',
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: TuuurTheme.brandGray, fontSize: 14),
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: TuuurTheme.brandGreen.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                status,
-                style: const TextStyle(
-                  color: TuuurTheme.brandGreen,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: TuuurTheme.brandYellow.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Niveau $level',
-                style: const TextStyle(
-                  color: TuuurTheme.brandYellow,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _EloAndModify extends StatelessWidget {
-  final int elo;
-  const _EloAndModify({required this.elo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: TuuurTheme.brandOrange.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: TuuurTheme.brandOrange.withOpacity(0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const FaIcon(
-                FontAwesomeIcons.trophy,
-                color: TuuurTheme.brandOrange,
-                size: 12,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Élo: $elo',
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: TuuurTheme.brandOrange,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        GamingButtonSecondary(
-          text: '⚙️ Modifier avatar',
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Fonctionnalité en démo'),
-                backgroundColor: TuuurTheme.brandOrange,
-              ),
-            );
-          },
-        ),
-      ],
     );
   }
 }

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import 'pages/auth/auth_store.dart';  
 import 'theme/tuuuur_theme.dart';
 import 'navigation/app_router.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configuration de la barre de statut
+  // UI système (status / nav bar)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -16,7 +18,15 @@ void main() {
     ),
   );
 
-  runApp(const TuuurApp());
+  // Hydrate l'état d'auth depuis le Secure Storage
+  await AuthStore.instance.load();
+
+  runApp(
+    MyAuthStore(
+      notifier: AuthStore.instance,
+      child: const TuuurApp(),
+    ),
+  );
 }
 
 class TuuurApp extends StatelessWidget {
@@ -32,8 +42,7 @@ class TuuurApp extends StatelessWidget {
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler:
-                TextScaler.noScaling, // Empêche le scaling automatique du texte
+            textScaler: TextScaler.noScaling, // pas de scaling auto du texte
           ),
           child: child!,
         );

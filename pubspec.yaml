@@ -25,6 +25,9 @@ dependencies:
   # Utilitaires
   url_launcher: ^6.3.1
   shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
+  image_picker: ^1.1.2
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:
