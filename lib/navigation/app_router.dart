@@ -11,6 +11,10 @@ import '../pages/online/online_mode_page.dart';
 import '../pages/profile/profile_page.dart';
 import '../pages/auth/auth_login_page.dart';
 import '../pages/auth/auth_register_page.dart';
+import '../pages/auth/auth_verify_page.dart';
+import '../pages/auth/forgot_password_page.dart';
+import '../pages/auth/reset_password_page.dart';
+import '../pages/auth/change_password_page.dart';
 import '../pages/leaderboard/leaderboard_page.dart';
 
 // Modèles pour la navigation
@@ -100,6 +104,22 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const AuthLoginPage(),
     ),
 
+    GoRoute(
+      path: '/verify',
+      builder: (ctx, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return AuthVerifyPage(
+          initialLogin: extra?['login'] as String?,
+          emailHint: extra?['email'] as String?,
+        );
+      },
+    ),
+
+    GoRoute(
+      path: '/change-password',
+      builder: (ctx, state) => const ChangePasswordPage(),
+    ),
+
     // Inscription
     GoRoute(
       path: '/register',
@@ -112,6 +132,18 @@ final GoRouter appRouter = GoRouter(
       path: '/leaderboard',
       name: 'leaderboard',
       builder: (context, state) => const LeaderboardPage(),
+    ),
+
+    GoRoute(
+      path: '/forgot-password',
+      builder: (context, state) => const ForgotPasswordPage(),
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ResetPasswordPage(initialLogin: extra?['login'] as String?);
+      },
     ),
   ],
 
