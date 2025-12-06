@@ -355,14 +355,14 @@ class BadgeInfo extends StatelessWidget {
 // Category Button équivalent à .category-button
 class CategoryButton extends StatelessWidget {
   final String text;
-  final IconData icon;
+  final IconData? icon;
   final bool selected;
   final VoidCallback onTap;
 
   const CategoryButton({
     super.key,
     required this.text,
-    required this.icon,
+    this.icon,
     required this.selected,
     required this.onTap,
   });
@@ -381,12 +381,14 @@ class CategoryButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                FaIcon(
-                  icon,
-                  color: selected ? Colors.white : TuuurTheme.brandLightGray,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
+                if (icon != null) ...[
+                  FaIcon(
+                    icon,
+                    color: selected ? Colors.white : TuuurTheme.brandLightGray,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Text(
                   text,
                   style: TextStyle(
