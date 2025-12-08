@@ -1,23 +1,28 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+
 import '../../navigation/route_history.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/common_widgets.dart';
 import '../../navigation/app_router.dart';
 
+import '../../api/solo_api_service.dart';
+import '../auth/auth_store.dart';
+
 class SoloQuizPage extends StatefulWidget {
   final List<String> categories;
   final int questions;
-  final bool shuffle;
+  final int difficulty; // id de difficulté backend
 
   const SoloQuizPage({
     super.key,
     required this.categories,
     required this.questions,
-    required this.shuffle,
+    required this.difficulty,
   });
 
   @override
@@ -25,24 +30,68 @@ class SoloQuizPage extends StatefulWidget {
 }
 
 class _SoloQuizPageState extends State<SoloQuizPage> {
-  static const int totalTime = 15; // secondes par question
+  static const int totalTime = 15; // secondes (juste pour l'UI)
 
-  List<QuizQuestion> _deck = [];
-  int _currentIndex = 0;
+  // Pour éviter d'appeler _initGame() trop tôt / plusieurs fois
+  bool _initialized = false;
+
+  // État de la partie
+  String? _partyId;
   int _score = 0;
+  int _totalQuestions = 0;
+  int _answeredCount = 0;
+  bool _finished = false; // état "terminé" renvoyé par le backend
+
+  // Question en cours + éventuelle prochaine question déjà connue
+  SoloQuestionViewModel? _currentQuestion;
+  SoloQuestionViewModel? _nextQuestion;
+
+  // État de réponse
   bool _answered = false;
   bool _wasCorrect = false;
   int _lastPoints = 0;
-  bool _finished = false;
+  int? _selectedAnswerId;
+  bool _submitting = false;
 
+  // Chargement / erreurs
+  bool _loading = true;
+  String? _error;
+  bool _unauthorized = false;
+
+  // Timer visuel
   double _remainingTime = totalTime.toDouble();
   Timer? _timer;
+
+  // Helpers
+  double get _remainingRatio =>
+      max(0, min(1, _remainingTime / totalTime));
+
+  int get _currentQuestionNumber {
+    if (_totalQuestions <= 0) {
+      return _answeredCount + 1;
+    }
+    if (_finished) {
+      // Si la partie est marquée finie par le backend,
+      // on affiche le total de questions (pour le "X / X").
+      return _totalQuestions;
+    }
+    return min(_answeredCount + 1, _totalQuestions);
+  }
 
   @override
   void initState() {
     super.initState();
-    _buildDeck();
-    _startTimer();
+    // NE PAS appeler _initGame() ici, pour éviter dependOnInheritedWidgetOfExactType
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ici, on a le droit d'utiliser les InheritedWidgets (MyAuthStore, Theme, etc.)
+    if (!_initialized) {
+      _initialized = true;
+      _initGame();
+    }
   }
 
   @override
@@ -51,67 +100,278 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     super.dispose();
   }
 
-  void _buildDeck() {
-    final pool = <QuizQuestion>[];
-    final categories = widget.categories.isEmpty
-        ? ['general']
-        : widget.categories;
+  // ---------------------------------------------------------------------------
+  // Initialisation / API
+  // ---------------------------------------------------------------------------
 
-    for (final category in categories) {
-      final questions = _getQuestionsForCategory(category);
-      pool.addAll(questions);
+  Future<void> _initGame() async {
+    _clearTimer();
+    setState(() {
+      _loading = true;
+      _error = null;
+      _unauthorized = false;
+      _finished = false;
+      _score = 0;
+      _answeredCount = 0;
+      _totalQuestions = widget.questions;
+      _currentQuestion = null;
+      _nextQuestion = null;
+      _answered = false;
+      _wasCorrect = false;
+      _lastPoints = 0;
+      _selectedAnswerId = null;
+    });
+
+    try {
+      final store = MyAuthStore.of(context);
+      final headers = store.isAuthenticated ? store.authHeaders : null;
+
+      // On suppose que les catégories sont des IDs de thème en string (ex: "1").
+      final themeIds = <int>[];
+      for (final c in widget.categories) {
+        final parsed = int.tryParse(c);
+        if (parsed != null) themeIds.add(parsed);
+      }
+
+      final difficultyIds = <int>[widget.difficulty];
+
+      // 1) Création de la partie solo
+      final createRes = await soloApi.createSolo(
+        themeIds: themeIds,
+        difficultyIds: difficultyIds,
+        nbQuestions: widget.questions,
+        headers: headers,
+      );
+
+      if (!mounted) return;
+
+      if (!createRes.ok) {
+        setState(() {
+          _loading = false;
+          _error =
+              createRes.message ?? 'Impossible de démarrer la partie.';
+          _unauthorized = createRes.statusCode == 401;
+        });
+        return;
+      }
+
+      final result = createRes.data;
+      final partyId = result?.partyId;
+
+      if (partyId == null || partyId.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error =
+              'Réponse inattendue du serveur (id de partie manquant).';
+        });
+        return;
+      }
+      _partyId = partyId;
+
+      // 2) Récupération de l’état initial (première question)
+      final partyRes = await soloApi.getSolo(
+        partyId: partyId,
+        headers: headers,
+      );
+
+      if (!mounted) return;
+
+      if (!partyRes.ok || partyRes.data == null) {
+        setState(() {
+          _loading = false;
+          _error = partyRes.message ??
+              'Impossible de récupérer la partie.';
+          _unauthorized = partyRes.statusCode == 401;
+        });
+        return;
+      }
+
+      _applyInitialParty(partyRes.data!);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Erreur: $e';
+      });
+    }
+  }
+
+  void _applyInitialParty(SoloPartyDto party) {
+    final questions = List<SoloPartyQuestionDto>.from(
+      party.partyQuestions,
+    );
+
+    // Tri sur order puis id (en gérant les nulls)
+    questions.sort((a, b) {
+      final ao = a.order ?? 0;
+      final bo = b.order ?? 0;
+      if (ao != bo) return ao.compareTo(bo);
+      final aid = a.id ?? 0;
+      final bid = b.id ?? 0;
+      return aid.compareTo(bid);
+    });
+
+    final answered =
+        questions.where((q) => q.isAnswered).toList();
+    final pending =
+        questions.where((q) => !q.isAnswered).toList();
+
+    SoloPartyQuestionDto? current;
+    if (pending.isNotEmpty) {
+      current = pending.first;
+    } else if (answered.isNotEmpty) {
+      current = answered.last;
     }
 
-    // Fallback si pas assez de questions
-    if (pool.length < widget.questions) {
-      final allQuestions = _getAllQuestions();
-      pool.addAll(allQuestions.where((q) => !pool.contains(q)));
+    setState(() {
+      _partyId = party.id;
+      _score = party.score ?? 0;
+      _totalQuestions =
+          party.nbQuestions ?? questions.length;
+      _answeredCount = answered.length;
+      _finished = party.isFinished;
+      _currentQuestion = current != null
+          ? SoloQuestionViewModel.fromPartyQuestion(current)
+          : null;
+      _nextQuestion = null;
+      _loading = false;
+      _answered = false;
+      _wasCorrect = false;
+      _lastPoints = 0;
+      _selectedAnswerId = null;
+    });
+
+    if (!_finished && _currentQuestion != null) {
+      _startTimer();
+    }
+  }
+
+  void _applyAfterAnswer(
+    SoloPartyDto party, {
+    required int answerId,
+  }) {
+    final questions = List<SoloPartyQuestionDto>.from(
+      party.partyQuestions,
+    );
+
+    questions.sort((a, b) {
+      final ao = a.order ?? 0;
+      final bo = b.order ?? 0;
+      if (ao != bo) return ao.compareTo(bo);
+      final aid = a.id ?? 0;
+      final bid = b.id ?? 0;
+      return aid.compareTo(bid);
+    });
+
+    final answered =
+        questions.where((q) => q.isAnswered).toList();
+    final pending =
+        questions.where((q) => !q.isAnswered).toList();
+
+    final lastAnswered =
+        answered.isNotEmpty ? answered.last : null;
+    final next =
+        pending.isNotEmpty ? pending.first : null;
+
+    int lastPoints = 0;
+    bool wasCorrect = false;
+
+    if (lastAnswered?.userAnswer != null) {
+      final upq = lastAnswered!.userAnswer!;
+      lastPoints = upq.score ?? 0;
+      wasCorrect = upq.correct ?? false;
     }
 
-    _deck = widget.shuffle ? _shuffleList(pool) : pool;
-    _deck = _deck.take(widget.questions).toList();
+    setState(() {
+      _partyId = party.id;
+      _score = party.score ?? 0;
+      _totalQuestions =
+          party.nbQuestions ?? questions.length;
+      _answeredCount = answered.length;
+      _currentQuestion = lastAnswered != null
+          ? SoloQuestionViewModel.fromPartyQuestion(lastAnswered)
+          : null;
+      _nextQuestion = next != null
+          ? SoloQuestionViewModel.fromPartyQuestion(next)
+          : null;
+      _answered = true;
+      _wasCorrect = wasCorrect;
+      _lastPoints = lastPoints;
+      _selectedAnswerId = answerId;
+      _loading = false;
+      _submitting = false;
+
+      // ⚠️ IMPORTANT : on fait confiance UNIQUEMENT au backend
+      // pour dire si la partie est terminée ou pas.
+      _finished = party.isFinished;
+    });
+
+    _clearTimer();
   }
 
-  List<QuizQuestion> _getQuestionsForCategory(String category) {
-    return _questionBank[category] ?? [];
-  }
+  /// Recharge la partie depuis le backend (utile si le POST /answer
+  /// ne renvoie pas encore la prochaine question).
+  Future<void> _reloadParty() async {
+    if (_partyId == null) return;
 
-  List<QuizQuestion> _getAllQuestions() {
-    return _questionBank.values.expand((questions) => questions).toList();
-  }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-  List<T> _shuffleList<T>(List<T> list) {
-    final random = Random();
-    final shuffled = List<T>.from(list);
-    for (int i = shuffled.length - 1; i > 0; i--) {
-      int j = random.nextInt(i + 1);
-      T temp = shuffled[i];
-      shuffled[i] = shuffled[j];
-      shuffled[j] = temp;
+    try {
+      final store = MyAuthStore.of(context);
+      final headers = store.isAuthenticated ? store.authHeaders : null;
+
+      final res = await soloApi.getSolo(
+        partyId: _partyId!,
+        headers: headers,
+      );
+
+      if (!mounted) return;
+
+      if (!res.ok || res.data == null) {
+        setState(() {
+          _loading = false;
+          _error = res.message ??
+              'Impossible de récupérer la partie.';
+          _unauthorized = res.statusCode == 401;
+        });
+        return;
+      }
+
+      _applyInitialParty(res.data!);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Erreur: $e';
+      });
     }
-    return shuffled;
   }
 
-  QuizQuestion get _currentQuestion => _deck[_currentIndex];
-
-  double get _remainingRatio => max(0, _remainingTime / totalTime);
-
-  int get _previewPoints => (30 + 70 * _remainingRatio).round();
+  // ---------------------------------------------------------------------------
+  // Timer
+  // ---------------------------------------------------------------------------
 
   void _startTimer() {
     _clearTimer();
     _remainingTime = totalTime.toDouble();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      setState(() {
-        _remainingTime = max(0, _remainingTime - 0.1);
-        if (_remainingTime <= 0) {
-          _clearTimer();
-          _answered = true;
-          _wasCorrect = false;
-          _lastPoints = 0;
+    _timer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
         }
-      });
-    });
+        setState(() {
+          _remainingTime = max(0, _remainingTime - 0.1);
+          if (_remainingTime <= 0) {
+            _clearTimer();
+          }
+        });
+      },
+    );
   }
 
   void _clearTimer() {
@@ -119,107 +379,167 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     _timer = null;
   }
 
-  void _answer(String option) {
-    if (_answered) return;
+  // ---------------------------------------------------------------------------
+  // Actions (réponses / navigation)
+  // ---------------------------------------------------------------------------
 
-    setState(() {
-      _answered = true;
-      _clearTimer();
-
-      if (option == _currentQuestion.correct) {
-        _wasCorrect = true;
-        _lastPoints = (30 + 70 * _remainingRatio).round();
-        _score += _lastPoints;
-      } else {
-        _wasCorrect = false;
-        _lastPoints = 0;
-      }
-    });
-  }
-
-  void _skip() {
-    if (!_answered) {
-      setState(() {
-        _answered = true;
-        _clearTimer();
-        _wasCorrect = false;
-        _lastPoints = 0;
-      });
-    }
-  }
-
-  void _next() {
-    if (!_answered) return;
-
-    if (_currentIndex + 1 >= _deck.length) {
-      setState(() {
-        _finished = true;
-        _clearTimer();
-      });
+  Future<void> _submitAnswer({required int answerId}) async {
+    if (_submitting || _partyId == null || _currentQuestion == null) {
       return;
     }
 
     setState(() {
-      _currentIndex++;
-      _answered = false;
-      _wasCorrect = false;
-      _lastPoints = 0;
+      _submitting = true;
+      _error = null;
+      _selectedAnswerId = answerId;
     });
-    _startTimer();
+
+    try {
+      final store = MyAuthStore.of(context);
+      final headers = store.isAuthenticated ? store.authHeaders : null;
+
+      final res = await soloApi.answerSolo(
+        partyId: _partyId!,
+        answerId: answerId,
+        headers: headers,
+      );
+
+      if (!mounted) return;
+
+      if (!res.ok || res.data == null) {
+        setState(() {
+          _submitting = false;
+          _error =
+              res.message ?? 'Erreur lors de l\'envoi de la réponse.';
+        });
+        ToastManager.show(
+          context: context,
+          message: _error!,
+          backgroundColor: TuuurTheme.brandOrange.withOpacity(0.9),
+        );
+        return;
+      }
+
+      _applyAfterAnswer(res.data!, answerId: answerId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = 'Erreur: $e';
+      });
+      ToastManager.show(
+        context: context,
+        message: _error!,
+        backgroundColor: TuuurTheme.brandOrange.withOpacity(0.9),
+      );
+    }
+  }
+
+  void _answer(SoloAnswerViewModel answer) {
+    if (_answered || _submitting || _finished) return;
+    _submitAnswer(answerId: answer.id);
+  }
+
+  /// "Passer" — côté backend il faut que `answerId = 0` soit géré
+  /// comme "pas de réponse". À adapter si ton API attend autre chose.
+  void _skip() {
+    if (_answered || _submitting || _finished) return;
+    _submitAnswer(answerId: 0);
+  }
+
+  Future<void> _next() async {
+    if (!_answered) return;
+
+    // Si le backend a marqué la partie comme finie,
+    // on n'affiche l'écran de résultat que quand l'utilisateur
+    // clique sur "Terminer".
+    if (_finished) {
+      _clearTimer();
+      setState(() {
+        _currentQuestion = null; // -> affiche les résultats
+      });
+      return;
+    }
+
+    // Si on a déjà une prochaine question dans la réponse précédente,
+    // on passe simplement à celle-ci.
+    if (_nextQuestion != null) {
+      setState(() {
+        _currentQuestion = _nextQuestion;
+        _nextQuestion = null;
+        _answered = false;
+        _wasCorrect = false;
+        _lastPoints = 0;
+        _selectedAnswerId = null;
+      });
+
+      _startTimer();
+      return;
+    }
+
+    // Cas important : la partie n'est PAS finie,
+    // mais le backend ne nous a pas encore donné la prochaine question.
+    // On va donc recharger l'état depuis l'API.
+    await _reloadParty();
   }
 
   void _restart() {
-    setState(() {
-      _buildDeck();
-      _currentIndex = 0;
-      _score = 0;
-      _answered = false;
-      _wasCorrect = false;
-      _lastPoints = 0;
-      _finished = false;
-    });
-    _startTimer();
+    _initGame();
   }
 
-  Color _getButtonColor(String option) {
+  // ---------------------------------------------------------------------------
+  // Helpers UI (couleurs boutons selon correction)
+  // ---------------------------------------------------------------------------
+
+  Color _getButtonBgColor(SoloAnswerViewModel answer) {
     if (!_answered) {
       return TuuurTheme.brandDarkGray.withOpacity(0.5);
     }
-    if (option == _currentQuestion.correct) {
+    if (answer.valid == true) {
       return TuuurTheme.brandGreen.withOpacity(0.2);
-    } else {
+    }
+    if (_selectedAnswerId != null && answer.id == _selectedAnswerId) {
       return TuuurTheme.brandOrange.withOpacity(0.2);
     }
+    return TuuurTheme.brandDarkGray.withOpacity(0.3);
   }
 
-  Color _getButtonBorderColor(String option) {
+  Color _getButtonBorderColor(SoloAnswerViewModel answer) {
     if (!_answered) {
       return TuuurTheme.brandPurple.withOpacity(0.3);
     }
-    if (option == _currentQuestion.correct) {
+    if (answer.valid == true) {
       return TuuurTheme.brandGreen;
-    } else {
+    }
+    if (_selectedAnswerId != null && answer.id == _selectedAnswerId) {
       return TuuurTheme.brandOrange;
     }
+    return TuuurTheme.brandPurple.withOpacity(0.3);
   }
 
-  Color _getButtonTextColor(String option) {
+  Color _getButtonTextColor(SoloAnswerViewModel answer) {
     if (!_answered) {
       return TuuurTheme.brandLightGray;
     }
-    if (option == _currentQuestion.correct) {
+    if (answer.valid == true) {
       return TuuurTheme.brandGreen;
-    } else {
+    }
+    if (_selectedAnswerId != null && answer.id == _selectedAnswerId) {
       return TuuurTheme.brandOrange;
     }
+    return TuuurTheme.brandLightGray;
   }
+
+  // ---------------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return; // le système a déjà géré le pop
+        if (didPop) return;
         RouteHistory.instance.navigateBack(context);
       },
       child: Scaffold(
@@ -229,21 +549,20 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header avec progress
               _buildHeader(),
               const SizedBox(height: 24),
-
-              // Timer / Progress bar
               _buildTimerSection(),
               const SizedBox(height: 24),
-
-              if (!_finished) ...[
-                // Question en cours
-                _buildQuestionSection(),
-              ] else ...[
-                // Résultats finaux
+              if (_loading)
+                _buildLoadingCard()
+              else if (_error != null)
+                _buildErrorCard()
+              else if (_currentQuestion != null)
+                // ✅ Même si _finished == true, on garde l'affichage
+                // de la dernière question avec la correction.
+                _buildQuestionSection()
+              else
                 _buildResultsSection(),
-              ],
             ],
           ),
         ),
@@ -290,7 +609,11 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            PillBadge(text: 'Question ${_currentIndex + 1} / ${_deck.length}'),
+            PillBadge(
+              text: _totalQuestions > 0
+                  ? 'Question $_currentQuestionNumber / $_totalQuestions'
+                  : 'Question $_currentQuestionNumber',
+            ),
             PillBadge(text: 'Score: $_score'),
           ],
         );
@@ -308,7 +631,10 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
             Flexible(child: left),
             const SizedBox(width: 12),
             Flexible(
-              child: Align(alignment: Alignment.centerRight, child: right),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: right,
+              ),
             ),
           ],
         );
@@ -321,70 +647,19 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       padding: const EdgeInsets.all(0),
       child: Column(
         children: [
-          // Barre de progression
           GamingProgressBar(progress: _remainingRatio, height: 6),
-          // Informations timer
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 360;
-                final row = Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Temps restant: ${_remainingTime.toStringAsFixed(1)}s',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: TuuurTheme.brandLightGray,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          '+$_previewPoints pts si correct',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: TuuurTheme.brandLightGray,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-
-                if (narrow) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Temps restant: ${_remainingTime.toStringAsFixed(1)}s',
-                        style: const TextStyle(
-                          color: TuuurTheme.brandLightGray,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '+$_previewPoints pts si correct',
-                        style: const TextStyle(
-                          color: TuuurTheme.brandLightGray,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return row;
-              },
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Temps restant: ${_remainingTime.toStringAsFixed(1)}s',
+                style: const TextStyle(
+                  color: TuuurTheme.brandLightGray,
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
         ],
@@ -392,14 +667,73 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     );
   }
 
+  Widget _buildLoadingCard() {
+    return GamingCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: const [
+            CircularProgressIndicator(color: TuuurTheme.brandPurple),
+            SizedBox(height: 12),
+            Text(
+              'Chargement du quiz…',
+              style: TextStyle(color: TuuurTheme.brandGray),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return GamingCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Erreur',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandLightGray,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _error ?? 'Erreur inconnue',
+            style: const TextStyle(color: TuuurTheme.brandOrange),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              GamingButtonSecondary(
+                text: '↻ Réessayer',
+                onPressed: _initGame,
+              ),
+              if (_unauthorized)
+                GamingButtonPrimary(
+                  text: 'Se connecter',
+                  onPressed: () => context.goLogin(),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuestionSection() {
+    final q = _currentQuestion;
+    if (q == null) return const SizedBox.shrink();
+
     return GamingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Question
           Text(
-            _currentQuestion.question,
+            q.label,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -408,32 +742,31 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
           ),
           const SizedBox(height: 16),
 
-          // Options de réponse (responsive)
+          // Réponses (responsive)
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 600;
               final spacing = 12.0;
               final itemWidth = isWide
-                  ? (constraints.maxWidth - spacing) /
-                        2 // 2 colonnes avec spacing
-                  : constraints.maxWidth; // 1 colonne
+                  ? (constraints.maxWidth - spacing) / 2
+                  : constraints.maxWidth;
 
               return Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
-                children: _currentQuestion.options.map((option) {
+                children: q.answers.map((answer) {
                   return ConstrainedBox(
                     constraints: BoxConstraints(
                       minWidth: itemWidth,
                       maxWidth: itemWidth,
                     ),
                     child: _OptionButton(
-                      option: option,
-                      enabled: !_answered,
-                      onTap: () => _answer(option),
-                      bgColor: _getButtonColor(option),
-                      borderColor: _getButtonBorderColor(option),
-                      textColor: _getButtonTextColor(option),
+                      label: answer.label,
+                      enabled: !_answered && !_submitting && !_loading,
+                      onTap: () => _answer(answer),
+                      bgColor: _getButtonBgColor(answer),
+                      borderColor: _getButtonBorderColor(answer),
+                      textColor: _getButtonTextColor(answer),
                     ),
                   );
                 }).toList(),
@@ -443,29 +776,28 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
 
           const SizedBox(height: 24),
 
-          // Actions et feedback (responsive)
+          // Feedback + boutons
           LayoutBuilder(
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 420;
-              final showPasser =
-                  !_answered; // ⬅️ cacher Passer après réponse / timeout
+              final showPasser = !_answered;
 
               final feedback = _answered
                   ? (_wasCorrect
-                        ? BadgeSuccess(text: 'Correct +$_lastPoints pts')
-                        : const BadgeWarning(text: 'Mauvaise réponse'))
+                      ? BadgeSuccess(text: 'Correct +$_lastPoints pts')
+                      : const BadgeWarning(text: 'Mauvaise réponse'))
                   : const SizedBox.shrink();
 
-              // Bouton Suivant (activé seulement après réponse)
               Widget nextBtn({bool fullWidth = false}) => SizedBox(
-                width: fullWidth ? double.infinity : null,
-                child: GamingButtonPrimary(
-                  text: 'Suivant',
-                  onPressed: !_answered ? null : _next,
-                ),
-              );
+                    width: fullWidth ? double.infinity : null,
+                    child: GamingButtonPrimary(
+                      text: _finished && _nextQuestion == null
+                          ? 'Terminer'
+                          : 'Suivant',
+                      onPressed: !_answered ? null : () => _next(),
+                    ),
+                  );
 
-              // Bouton Passer (seulement si pas encore répondu)
               Widget? skipBtn({bool fullWidth = false}) => showPasser
                   ? SizedBox(
                       width: fullWidth ? double.infinity : null,
@@ -491,7 +823,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
                 );
               }
 
-              // Largeur suffisante : feedback à gauche, boutons à droite
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -507,8 +838,10 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
                         const SizedBox(width: 12),
                       ],
                       GamingButtonPrimary(
-                        text: 'Suivant',
-                        onPressed: !_answered ? null : _next,
+                        text: _finished && _nextQuestion == null
+                            ? 'Terminer'
+                            : 'Suivant',
+                        onPressed: !_answered ? null : () => _next(),
                       ),
                     ],
                   ),
@@ -533,14 +866,17 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
               color: TuuurTheme.brandLightGray,
             ),
           ).animate().scale(
-            begin: const Offset(0.8, 0.8),
-            duration: 600.ms,
-            curve: Curves.easeOutBack,
-          ),
+                begin: const Offset(0.8, 0.8),
+                duration: 600.ms,
+                curve: Curves.easeOutBack,
+              ),
           const SizedBox(height: 16),
           RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 18, color: TuuurTheme.brandGray),
+              style: const TextStyle(
+                fontSize: 18,
+                color: TuuurTheme.brandGray,
+              ),
               children: [
                 const TextSpan(text: 'Score final: '),
                 TextSpan(
@@ -555,8 +891,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
             ),
           ),
           const SizedBox(height: 32),
-
-          // Boutons fin — responsive
           LayoutBuilder(
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 420;
@@ -568,24 +902,17 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
                   onPressed: () => context.goHome(),
                 ),
               );
-              final replayBtn = SizedBox(
-                width: narrow ? double.infinity : null,
-                child: GamingButtonPrimary(
-                  text: 'Rejouer',
-                  onPressed: _restart,
-                ),
-              );
 
               if (narrow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [homeBtn, const SizedBox(height: 12), replayBtn],
-                );
+                // ✅ Plus de bouton "Rejouer"
+                return homeBtn;
               }
 
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [homeBtn, const SizedBox(width: 16), replayBtn],
+                children: [
+                  homeBtn,
+                ],
               );
             },
           ),
@@ -593,114 +920,76 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       ),
     );
   }
-
-  // Banque de questions (équivalent au BANK dans Vue)
-  static final Map<String, List<QuizQuestion>> _questionBank = {
-    'general': [
-      QuizQuestion(
-        question: 'Quelle est la capitale de la France ?',
-        correct: 'Paris',
-        incorrect: ['Lyon', 'Marseille', 'Bordeaux'],
-      ),
-      QuizQuestion(
-        question: 'Combien font 7 × 6 ?',
-        correct: '42',
-        incorrect: ['36', '48', '54'],
-      ),
-      QuizQuestion(
-        question: 'Quelle planète est surnommée la planète rouge ?',
-        correct: 'Mars',
-        incorrect: ['Jupiter', 'Vénus', 'Saturne'],
-      ),
-    ],
-    'histoire': [
-      QuizQuestion(
-        question: 'En quelle année a eu lieu la Révolution française ?',
-        correct: '1789',
-        incorrect: ['1492', '1815', '1914'],
-      ),
-      QuizQuestion(
-        question: 'Qui était Napoléon Bonaparte ?',
-        correct: 'Un empereur français',
-        incorrect: ['Un peintre', 'Un physicien', 'Un poète'],
-      ),
-    ],
-    'science': [
-      QuizQuestion(
-        question: 'Quelle est la formule chimique de l\'eau ?',
-        correct: 'H₂O',
-        incorrect: ['CO₂', 'O₂', 'NaCl'],
-      ),
-      QuizQuestion(
-        question: 'Quel organe pompe le sang ?',
-        correct: 'Le cœur',
-        incorrect: ['Le foie', 'Le poumon', 'Le cerveau'],
-      ),
-    ],
-    'sport': [
-      QuizQuestion(
-        question:
-            'Combien de joueurs dans une équipe de football sur le terrain ?',
-        correct: '11',
-        incorrect: ['9', '10', '12'],
-      ),
-      QuizQuestion(
-        question: 'Dans quel sport utilise-t-on une raquette et un volant ?',
-        correct: 'Badminton',
-        incorrect: ['Tennis', 'Squash', 'Ping-pong'],
-      ),
-    ],
-    'musique': [
-      QuizQuestion(
-        question: 'Combien de notes dans une gamme majeure ?',
-        correct: '7',
-        incorrect: ['5', '6', '8'],
-      ),
-    ],
-    'cinema': [
-      QuizQuestion(
-        question: 'Qui a réalisé "Inception" ?',
-        correct: 'Christopher Nolan',
-        incorrect: ['Steven Spielberg', 'James Cameron', 'Ridley Scott'],
-      ),
-    ],
-    'art': [
-      QuizQuestion(
-        question: 'Qui a peint La Joconde ?',
-        correct: 'Léonard de Vinci',
-        incorrect: ['Michel-Ange', 'Raphaël', 'Botticelli'],
-      ),
-    ],
-    'geo': [
-      QuizQuestion(
-        question: 'Quel est le plus grand océan ?',
-        correct: 'Pacifique',
-        incorrect: ['Atlantique', 'Arctique', 'Indien'],
-      ),
-    ],
-    'tech': [
-      QuizQuestion(
-        question: 'Que signifie HTML ?',
-        correct: 'HyperText Markup Language',
-        incorrect: [
-          'HighText Makeup Language',
-          'Hyperlinks and Text Mark Language',
-          'Home Tool Markup Language',
-        ],
-      ),
-    ],
-    'jeux': [
-      QuizQuestion(
-        question: 'Quel studio a créé Minecraft ?',
-        correct: 'Mojang',
-        incorrect: ['Epic Games', 'Valve', 'Ubisoft'],
-      ),
-    ],
-  };
 }
 
+// -----------------------------------------------------------------------------
+// ViewModels pour l’UI (à partir des DTO de solo_api_service.dart)
+// -----------------------------------------------------------------------------
+
+class SoloAnswerViewModel {
+  final int id;
+  final String label;
+  final bool? valid;
+
+  SoloAnswerViewModel({
+    required this.id,
+    required this.label,
+    this.valid,
+  });
+}
+
+class SoloQuestionViewModel {
+  final int? partyQuestionId;
+  final int? questionId;
+  final String label;
+  final List<SoloAnswerViewModel> answers;
+  final int? selectedAnswerId;
+  final bool? correct;
+
+  SoloQuestionViewModel({
+    required this.partyQuestionId,
+    required this.questionId,
+    required this.label,
+    required this.answers,
+    this.selectedAnswerId,
+    this.correct,
+  });
+
+  factory SoloQuestionViewModel.fromPartyQuestion(
+    SoloPartyQuestionDto pq,
+  ) {
+    final q = pq.question;
+    final user = pq.userAnswer;
+
+    final rawAnswers = q?.answers ?? const <SoloAnswerDto>[];
+
+    final answers = rawAnswers
+        .map(
+          (a) => SoloAnswerViewModel(
+            id: a.id ?? 0,
+            label: a.value,
+            valid: a.valid,
+          ),
+        )
+        .toList();
+
+    return SoloQuestionViewModel(
+      partyQuestionId: pq.id,
+      questionId: q?.id,
+      label: q?.label ?? '',
+      answers: answers,
+      selectedAnswerId: user?.answerId,
+      correct: user?.correct,
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Bouton d’option (UI pour les réponses)
+// -----------------------------------------------------------------------------
+
 class _OptionButton extends StatelessWidget {
-  final String option;
+  final String label;
   final bool enabled;
   final VoidCallback onTap;
   final Color bgColor;
@@ -708,7 +997,7 @@ class _OptionButton extends StatelessWidget {
   final Color textColor;
 
   const _OptionButton({
-    required this.option,
+    required this.label,
     required this.enabled,
     required this.onTap,
     required this.bgColor,
@@ -730,18 +1019,20 @@ class _OptionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           onTap: enabled ? onTap : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             child: Text(
-              option,
+              label,
               softWrap: true,
-              // Laisse respirer jusqu’à 3–4 lignes max sans scroller
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textColor,
-                fontSize: 15, // -1pt pour limiter la hauteur
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
-                height: 1.25, // compacter un peu la ligne
+                height: 1.25,
               ),
               textAlign: TextAlign.left,
             ),
@@ -749,23 +1040,5 @@ class _OptionButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class QuizQuestion {
-  final String question;
-  final String correct;
-  final List<String> incorrect;
-  late final List<String> options;
-
-  QuizQuestion({
-    required this.question,
-    required this.correct,
-    required this.incorrect,
-  }) {
-    // Mélange les options (bonne réponse + mauvaises réponses)
-    final allOptions = [correct, ...incorrect];
-    allOptions.shuffle();
-    options = allOptions.take(4).toList();
   }
 }

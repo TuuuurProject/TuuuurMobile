@@ -21,25 +21,25 @@ import '../pages/leaderboard/leaderboard_page.dart';
 class SoloQuizParams {
   final List<String> categories;
   final int questions;
-  final bool shuffle;
+  final int difficulty; // 1=Facile, 2=Moyen, 3=Difficile, 4=Extrême
 
   SoloQuizParams({
     required this.categories,
     required this.questions,
-    required this.shuffle,
+    required this.difficulty,
   });
 
   Map<String, dynamic> toJson() => {
-    'categories': categories.join(','),
-    'questions': questions.toString(),
-    'shuffle': shuffle.toString(),
-  };
+        'categories': categories.join(','),
+        'questions': questions.toString(),
+        'difficulty': difficulty.toString(),
+      };
 
   factory SoloQuizParams.fromJson(Map<String, String> params) {
     return SoloQuizParams(
       categories: params['categories']?.split(',') ?? ['general'],
       questions: int.tryParse(params['questions'] ?? '10') ?? 10,
-      shuffle: params['shuffle'] == 'true',
+      difficulty: int.tryParse(params['difficulty'] ?? '2') ?? 2,
     );
   }
 }
@@ -71,7 +71,7 @@ final GoRouter appRouter = GoRouter(
         return SoloQuizPage(
           categories: params.categories,
           questions: params.questions,
-          shuffle: params.shuffle,
+          difficulty: params.difficulty,
         );
       },
     ),
@@ -147,7 +147,7 @@ final GoRouter appRouter = GoRouter(
     ),
   ],
 
-  observers: [ RouteHistory.instance ],
+  observers: [RouteHistory.instance],
 
   // Gestion des erreurs de navigation
   errorBuilder: (context, state) => Scaffold(
@@ -193,12 +193,12 @@ extension AppNavigation on BuildContext {
   void goSoloQuiz({
     required List<String> categories,
     required int questions,
-    required bool shuffle,
+    required int difficulty,
   }) {
     final params = SoloQuizParams(
       categories: categories,
       questions: questions,
-      shuffle: shuffle,
+      difficulty: difficulty,
     );
     go('/solo-quiz?${_buildQueryString(params.toJson())}');
   }
