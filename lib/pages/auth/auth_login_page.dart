@@ -10,7 +10,7 @@ import '../../navigation/route_history.dart';
 import '../../api/auth_api_service.dart';
 import '../auth/auth_store.dart';
 
-const kGoogleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+const kGoogleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '777528026888-65jbcmsm5mm0e77j2vgneql6gf9ceckh.apps.googleusercontent.com');
 
 class AuthLoginPage extends StatefulWidget {
   const AuthLoginPage({super.key});
