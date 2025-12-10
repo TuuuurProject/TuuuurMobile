@@ -4,7 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
-import '../../navigation/route_history.dart';
+import '../../navigation/app_router.dart';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
@@ -52,7 +52,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return; // le système a déjà géré le pop
-        RouteHistory.instance.navigateBack(context);
+        context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,

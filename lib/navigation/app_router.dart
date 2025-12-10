@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'route_history.dart';
 
 // Pages de l'application
 import '../pages/home_page.dart';
@@ -29,7 +28,7 @@ class SoloQuizParams {
     required this.difficulty,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map<String, String> toJson() => {
         'categories': categories.join(','),
         'questions': questions.toString(),
         'difficulty': difficulty.toString(),
@@ -147,8 +146,6 @@ final GoRouter appRouter = GoRouter(
     ),
   ],
 
-  observers: [RouteHistory.instance],
-
   // Gestion des erreurs de navigation
   errorBuilder: (context, state) => Scaffold(
     body: Center(
@@ -199,17 +196,33 @@ extension AppNavigation on BuildContext {
       categories: categories,
       questions: questions,
       difficulty: difficulty,
+    ).toJson();
+
+    // Utilise le NOM de la route ('solo-quiz') + queryParameters
+    GoRouter.of(this).pushNamed(
+      'solo-quiz',
+      queryParameters: params,
     );
-    go('/solo-quiz?${_buildQueryString(params.toJson())}');
   }
 
   // Navigation avec retour
   void goBack() {
-    if (canPop()) {
-      pop();
-    } else {
-      goHome();
+    final router = GoRouter.of(this);
+
+    // Est-ce que GoRouter peut revenir en arrière ?
+    if (router.canPop()) {
+      router.pop();
+      return;
     }
+
+    // Sinon, on tente le Navigator
+    if (Navigator.of(this).canPop()) {
+      Navigator.of(this).pop();
+      return;
+    }
+
+    // 3) Plus rien à pop → on va à l'accueil
+    goHome();
   }
 }
 

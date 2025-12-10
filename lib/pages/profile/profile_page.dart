@@ -6,14 +6,13 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../auth/auth_store.dart';
-import '../../navigation/route_history.dart';
+import '../../stores/auth_store.dart';
+import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../api/auth_api_service.dart';
 import '../../api/history_api_service.dart';
-
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -45,9 +44,29 @@ class _ProfilePageState extends State<ProfilePage> {
   static const int _historyPageSize = 10;
   int _historyCurrentPage = 1;
   int _historyTotalPages = 1;
+
   String get _fallbackAvatarUrl {
     final seed = Uri.encodeComponent(_nickName ?? 'player');
     return 'https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=$seed';
+  }
+
+  List<HistoryMatchDto> get _visibleHistoryMatches {
+    var list = List<HistoryMatchDto>.from(_historyMatches);
+
+    if (_historySelectedFilter == 'solo') {
+      list = list
+          .where((m) => (m.partyType?.label ?? '').toLowerCase() == 'solo')
+          .toList();
+    }
+
+    // Plus récente -> plus ancienne
+    list.sort((a, b) {
+      final adt = a.dt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bdt = b.dt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bdt.compareTo(adt); // desc
+    });
+
+    return list;
   }
 
   @override
@@ -56,19 +75,79 @@ class _ProfilePageState extends State<ProfilePage> {
     _fetchMeOnce();
   }
 
-  Uint8List? _tryDecodeBase64(String? s) {
-    if (s == null || s.isEmpty) return null;
-    try {
-      var raw = s.trim();
-      final comma = raw.indexOf(',');
-      if (raw.startsWith('data:image') && comma != -1) {
-        raw = raw.substring(comma + 1);
-      }
-      return base64Decode(raw);
-    } catch (_) {
-      return null;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final store = MyAuthStore.of(context);
+    final isAuthenticated = store.isAuthenticated;
+
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.goBack();
+      },
+      child: Scaffold(
+        backgroundColor: TuuurTheme.brandDark,
+        appBar: const NavigationHeader(
+          showBack: true,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const SizedBox(height: 24),
+              Row(
+                children: const [
+                  Text('👤', style: TextStyle(fontSize: 28)),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Profil',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: TuuurTheme.brandLightGray,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (!isAuthenticated) ...[
+                _notConnectedCard(),
+              ] else ...[
+                if (_loading && _nickName == null)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: TuuurStyles.gamingCard,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: TuuurTheme.brandPurple,
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                      _profileCard(),
+                      const SizedBox(height: 24),
+                      _historySection(),
+                    ],
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
+
+  // -----------------------------
+  // Async : profil / historique / actions
+  // -----------------------------
 
   Future<void> _fetchMeOnce() async {
     if (_fetched) return;
@@ -85,7 +164,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (res.ok && res.data != null) {
       final u = res.data!;
       final val = u.avatar;
-      final decoded = _tryDecodeBase64(val);
+      final decoded = _decodeBase64Image(val);
 
       setState(() {
         _nickName = u.nickName;
@@ -95,14 +174,13 @@ class _ProfilePageState extends State<ProfilePage> {
         _avatarBytes = decoded ?? _avatarBytes;
       });
 
-      // 🔥 On charge l’historique une fois qu’on a confirmé que l’utilisateur est OK
       await _fetchHistory();
     } else if (res.statusCode == 401) {
       await store.signOut();
       if (!mounted) return;
-      _toast('Session expirée. Veuillez vous reconnecter.');
+      _showToast('Session expirée. Veuillez vous reconnecter.');
     } else {
-      _toast(res.message ?? 'Impossible de charger le profil.');
+      _showToast(res.message ?? 'Impossible de charger le profil.');
     }
   }
 
@@ -138,7 +216,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final historyPage = res.data!;
     final matches = historyPage.items;
 
-    // Matches terminés
     final finished = matches.where((m) => m.finish).toList();
     final withPercent = finished.where((m) => m.percent != null).toList();
 
@@ -162,6 +239,135 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    try {
+      final xfile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+      if (xfile == null) return;
+
+      final bytes = await xfile.readAsBytes();
+      setState(() => _avatarBytes = bytes);
+
+      final base64Str = base64Encode(bytes);
+      final store = MyAuthStore.of(context);
+
+      setState(() => _loading = true);
+      final res = await authApi.updateAvatarBase64(
+        base64: base64Str,
+        headers: store.authHeaders,
+      );
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (res.ok) {
+        _showToast('Avatar mis à jour ✅', color: TuuurTheme.brandGreen);
+        _fetched = false;
+        await _fetchMeOnce();
+      } else {
+        _showToast(res.message ?? 'Échec de la mise à jour de l’avatar.');
+      }
+    } catch (e) {
+      _showToast('Erreur avatar : $e');
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TuuurTheme.brandDarkGray,
+        title: const Text(
+          'Supprimer le compte',
+          style: TextStyle(color: TuuurTheme.brandLightGray),
+        ),
+        content: const Text(
+          'Cette action est irréversible. Confirmer ?',
+          style: TextStyle(color: TuuurTheme.brandGray),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          GamingButtonSecondary(
+            text: 'Supprimer',
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final store = MyAuthStore.of(context);
+    setState(() => _loading = true);
+    final res = await authApi.deleteMe(headers: store.authHeaders);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (res.ok) {
+      await store.signOut();
+      if (!mounted) return;
+      _showToast('Compte supprimé.', color: TuuurTheme.brandGreen);
+      context.go('/');
+    } else {
+      _showToast(res.message ?? 'Suppression impossible.');
+    }
+  }
+
+  Future<void> _signOut() async {
+    final store = MyAuthStore.of(context);
+    await store.signOut();
+    if (!mounted) return;
+
+    // Nettoie l’état local pour éviter un vieux rendu
+    setState(() {
+      _nickName = null;
+      _email = null;
+      _avatar = null;
+      _userId = null;
+      _avatarBytes = null;
+      _fetched = false;
+
+      _historyLoading = false;
+      _historyError = null;
+      _historyMatches = [];
+      _historyTotalMatches = 0;
+      _historyAvgPercent = null;
+      _historySelectedFilter = 'all';
+      _historyCurrentPage = 1;
+      _historyTotalPages = 1;
+    });
+
+    _showToast('Déconnecté.', color: TuuurTheme.brandGreen);
+    context.go('/'); // Retour à l’accueil
+  }
+
+  Future<void> _changeHistoryPage(int page) async {
+    if (page < 1 || page > _historyTotalPages || _historyLoading) return;
+    await _fetchHistory(page: page);
+  }
+
+  // -----------------------------
+  // Helpers / formatting
+  // -----------------------------
+
+  Uint8List? _decodeBase64Image(String? value) {
+    if (value == null || value.isEmpty) return null;
+    try {
+      var raw = value.trim();
+      final comma = raw.indexOf(',');
+      if (raw.startsWith('data:image') && comma != -1) {
+        raw = raw.substring(comma + 1);
+      }
+      return base64Decode(raw);
+    } catch (_) {
+      return null;
+    }
+  }
 
   String _formatRelative(DateTime dt) {
     final now = DateTime.now();
@@ -208,6 +414,17 @@ class _ProfilePageState extends State<ProfilePage> {
     if (lower.contains('hardcore')) return Colors.redAccent;
     return TuuurTheme.brandGray;
   }
+
+  void _showToast(String message, {Color color = TuuurTheme.brandOrange}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
+    );
+  }
+
+  // -----------------------------
+  // UI helpers
+  // -----------------------------
 
   Widget _statsPill(String text, {IconData? icon, required Color color}) {
     return Container(
@@ -281,312 +498,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  List<HistoryMatchDto> get _visibleHistoryMatches {
-    var list = List<HistoryMatchDto>.from(_historyMatches);
+  // -----------------------------
+  // UI sections
+  // -----------------------------
 
-    if (_historySelectedFilter == 'solo') {
-      list = list
-          .where((m) => (m.partyType?.label ?? '').toLowerCase() == 'solo')
-          .toList();
-    }
-
-    // Plus récente -> plus ancienne
-    list.sort((a, b) {
-      final adt = a.dt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bdt = b.dt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bdt.compareTo(adt); // desc
-    });
-
-    return list;
-  }
-
-
-  void _toast(String m, {Color color = TuuurTheme.brandOrange}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(m), backgroundColor: color),
-    );
-  }
-
-  Future<void> _pickAndUploadAvatar() async {
-    try {
-      final xfile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      );
-      if (xfile == null) return;
-
-      final bytes = await xfile.readAsBytes();
-      setState(() => _avatarBytes = bytes);
-
-      final base64Str = base64Encode(bytes);
-      final store = MyAuthStore.of(context);
-
-      setState(() => _loading = true);
-      final res = await authApi.updateAvatarBase64(
-        base64: base64Str,
-        headers: store.authHeaders,
-      );
-      if (!mounted) return;
-      setState(() => _loading = false);
-
-      if (res.ok) {
-        _toast('Avatar mis à jour ✅', color: TuuurTheme.brandGreen);
-        _fetched = false;
-        await _fetchMeOnce();
-      } else {
-        _toast(res.message ?? 'Échec de la mise à jour de l’avatar.');
-      }
-    } catch (e) {
-      _toast('Erreur avatar : $e');
-    }
-  }
-
-  Future<void> _deleteAccount() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: TuuurTheme.brandDarkGray,
-        title: const Text('Supprimer le compte', style: TextStyle(color: TuuurTheme.brandLightGray)),
-        content: const Text('Cette action est irréversible. Confirmer ?',
-            style: TextStyle(color: TuuurTheme.brandGray)),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
-          GamingButtonSecondary(text: 'Supprimer', onPressed: () => Navigator.of(ctx).pop(true)),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    final store = MyAuthStore.of(context);
-    setState(() => _loading = true);
-    final res = await authApi.deleteMe(headers: store.authHeaders);
-    if (!mounted) return;
-    setState(() => _loading = false);
-
-    if (res.ok) {
-      await store.signOut();
-      if (!mounted) return;
-      _toast('Compte supprimé.', color: TuuurTheme.brandGreen);
-      context.go('/');
-    } else {
-      _toast(res.message ?? 'Suppression impossible.');
-    }
-  }
-
-  Future<void> _signOut() async {
-    final store = MyAuthStore.of(context);
-    await store.signOut();
-    if (!mounted) return;
-    // Nettoie l’état local pour éviter un vieux rendu
-    setState(() {
-      _nickName = null;
-      _email = null;
-      _avatar = null;
-      _userId = null;
-      _avatarBytes = null;
-      _fetched = false;
-
-      _historyLoading = false;
-      _historyError = null;
-      _historyMatches = [];
-      _historyTotalMatches = 0;
-      _historyAvgPercent = null;
-      _historySelectedFilter = 'all';
-      _historyCurrentPage = 1;
-      _historyTotalPages = 1;
-    });
-    _toast('Déconnecté.', color: TuuurTheme.brandGreen);
-    context.go('/'); // Retour à l’accueil
-  }
-
-  Future<void> _changeHistoryPage(int page) async {
-    if (page < 1 || page > _historyTotalPages || _historyLoading) return;
-    await _fetchHistory(page: page);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final store = MyAuthStore.of(context);
-    final isAuthenticated = store.isAuthenticated;
-
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 600;
-
-    return PopScope(
-      canPop: Navigator.of(context).canPop(),
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        RouteHistory.instance.navigateBack(context);
-      },
-      child: Scaffold(
-        backgroundColor: TuuurTheme.brandDark,
-        appBar: const NavigationHeader(),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 24),
-
-              Row(
-                children: const [
-                  Text('👤', style: TextStyle(fontSize: 28)),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Profil',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                        color: TuuurTheme.brandLightGray,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              if (!isAuthenticated) ...[
-                _notConnectedCard(isMobile),
-              ] else ...[
-                if (_loading && _nickName == null)
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: TuuurStyles.gamingCard,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: TuuurTheme.brandPurple),
-                    ),
-                  )
-                else
-                  Column(
-                    children: [
-                      _profileCard(isMobile),
-                      const SizedBox(height: 24),
-                      _historySection(isMobile),
-                    ],
-                  ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryPagination() {
-    if (_historyTotalPages <= 1 || _historyTotalMatches == 0) {
-      return const SizedBox.shrink();
-    }
-
-    final start = (_historyCurrentPage - 1) * _historyPageSize + 1;
-    var end = _historyCurrentPage * _historyPageSize;
-    if (end > _historyTotalMatches) end = _historyTotalMatches;
-
-    final isFirstPage = _historyCurrentPage <= 1;
-    final isLastPage = _historyCurrentPage >= _historyTotalPages;
-
-    return Column(
-      children: [
-        Text(
-          'Affichage de $start à $end sur $_historyTotalMatches '
-          'partie${_historyTotalMatches > 1 ? 's' : ''}',
-          style: const TextStyle(
-            fontSize: 12,
-            color: TuuurTheme.brandGray,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          alignment: WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            // Première page
-            IconButton(
-              onPressed: (!isFirstPage && !_historyLoading)
-                  ? () => _changeHistoryPage(1)
-                  : null,
-              icon: const Icon(
-                FontAwesomeIcons.anglesLeft,
-                size: 12,
-              ),
-              tooltip: 'Première page',
-              visualDensity: VisualDensity.compact,
-            ),
-
-            // Page précédente
-            TextButton.icon(
-              onPressed: (!isFirstPage && !_historyLoading)
-                  ? () => _changeHistoryPage(_historyCurrentPage - 1)
-                  : null,
-              icon: const Icon(
-                FontAwesomeIcons.chevronLeft,
-                size: 12,
-              ),
-              label: const Text(
-                '',
-                style: TextStyle(fontSize: 12),
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              ),
-            ),
-
-            Text(
-              'Page $_historyCurrentPage / $_historyTotalPages',
-              style: const TextStyle(
-                fontSize: 12,
-                color: TuuurTheme.brandLightGray,
-              ),
-            ),
-
-            // Page suivante
-            TextButton.icon(
-              onPressed: (!isLastPage && !_historyLoading)
-                  ? () => _changeHistoryPage(_historyCurrentPage + 1)
-                  : null,
-              icon: const Icon(
-                FontAwesomeIcons.chevronRight,
-                size: 12,
-              ),
-              label: const Text(
-                '',
-                style: TextStyle(fontSize: 12),
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              ),
-            ),
-
-            // Dernière page
-            IconButton(
-              onPressed: (!isLastPage && !_historyLoading)
-                  ? () => _changeHistoryPage(_historyTotalPages)
-                  : null,
-              icon: const Icon(
-                FontAwesomeIcons.anglesRight,
-                size: 12,
-              ),
-              tooltip: 'Dernière page',
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-
-
-
-  Widget _notConnectedCard(bool isMobile) {
+  Widget _notConnectedCard() {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: TuuurStyles.gamingCard,
@@ -602,50 +518,31 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 16),
-          if (isMobile)
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: GamingButtonPrimary(
-                    text: '🚀 Se connecter',
-                    onPressed: () => context.push('/login'),
-                  ),
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: GamingButtonPrimary(
+                  text: '🚀 Se connecter',
+                  onPressed: () => context.push('/login'),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: GamingButtonSecondary(
-                    text: '🔗 Créer un compte',
-                    onPressed: () => context.push('/register'),
-                  ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: GamingButtonSecondary(
+                  text: '🔗 Créer un compte',
+                  onPressed: () => context.push('/register'),
                 ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: GamingButtonPrimary(
-                    text: '🚀 Se connecter',
-                    onPressed: () => context.push('/login'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GamingButtonSecondary(
-                    text: '🔗 Créer un compte',
-                    onPressed: () => context.push('/register'),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _historySection(bool isMobile) {
+  Widget _historySection() {
     final matches = _visibleHistoryMatches;
 
     return Container(
@@ -654,13 +551,12 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              const Expanded(
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(
                       FontAwesomeIcons.clockRotateLeft,
                       color: TuuurTheme.brandPurple,
@@ -681,7 +577,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               _statsPill(
                 '${_historyTotalMatches} Partie${_historyTotalMatches > 1 ? 's' : ''}',
                 icon: FontAwesomeIcons.gamepad,
@@ -689,14 +585,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Filtres
           _buildHistoryFilters(),
-
           const SizedBox(height: 16),
-
           if (_historyLoading) ...[
             const Center(
               child: CircularProgressIndicator(
@@ -895,16 +786,20 @@ class _ProfilePageState extends State<ProfilePage> {
                             if (!match.finish)
                               _pill(
                                 label: 'En cours',
-                                bgColor: TuuurTheme.brandOrange.withOpacity(0.15),
-                                borderColor: TuuurTheme.brandOrange.withOpacity(0.4),
+                                bgColor: TuuurTheme.brandOrange
+                                    .withOpacity(0.15),
+                                borderColor: TuuurTheme.brandOrange
+                                    .withOpacity(0.4),
                                 textColor: TuuurTheme.brandOrange,
                                 icon: FontAwesomeIcons.hourglassHalf,
                               )
                             else
                               _pill(
                                 label: 'Terminer',
-                                bgColor: TuuurTheme.brandGreen.withOpacity(0.15),
-                                borderColor: TuuurTheme.brandGreen.withOpacity(0.4),
+                                bgColor:
+                                    TuuurTheme.brandGreen.withOpacity(0.15),
+                                borderColor:
+                                    TuuurTheme.brandGreen.withOpacity(0.4),
                                 textColor: TuuurTheme.brandGreen,
                                 icon: FontAwesomeIcons.check,
                               ),
@@ -1055,10 +950,109 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildHistoryPagination() {
+    if (_historyTotalPages <= 1 || _historyTotalMatches == 0) {
+      return const SizedBox.shrink();
+    }
 
-  Widget _profileCard(bool isMobile) {
+    final start = (_historyCurrentPage - 1) * _historyPageSize + 1;
+    var end = _historyCurrentPage * _historyPageSize;
+    if (end > _historyTotalMatches) end = _historyTotalMatches;
+
+    final isFirstPage = _historyCurrentPage <= 1;
+    final isLastPage = _historyCurrentPage >= _historyTotalPages;
+
+    return Column(
+      children: [
+        Text(
+          'Affichage de $start à $end sur $_historyTotalMatches '
+          'partie${_historyTotalMatches > 1 ? 's' : ''}',
+          style: const TextStyle(
+            fontSize: 12,
+            color: TuuurTheme.brandGray,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            IconButton(
+              onPressed: (!isFirstPage && !_historyLoading)
+                  ? () => _changeHistoryPage(1)
+                  : null,
+              icon: const Icon(
+                FontAwesomeIcons.anglesLeft,
+                size: 12,
+              ),
+              tooltip: 'Première page',
+              visualDensity: VisualDensity.compact,
+            ),
+            TextButton.icon(
+              onPressed: (!isFirstPage && !_historyLoading)
+                  ? () => _changeHistoryPage(_historyCurrentPage - 1)
+                  : null,
+              icon: const Icon(
+                FontAwesomeIcons.chevronLeft,
+                size: 12,
+              ),
+              label: const Text(
+                '',
+                style: TextStyle(fontSize: 12),
+              ),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+            ),
+            Text(
+              'Page $_historyCurrentPage / $_historyTotalPages',
+              style: const TextStyle(
+                fontSize: 12,
+                color: TuuurTheme.brandLightGray,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: (!isLastPage && !_historyLoading)
+                  ? () => _changeHistoryPage(_historyCurrentPage + 1)
+                  : null,
+              icon: const Icon(
+                FontAwesomeIcons.chevronRight,
+                size: 12,
+              ),
+              label: const Text(
+                '',
+                style: TextStyle(fontSize: 12),
+              ),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+            ),
+            IconButton(
+              onPressed: (!isLastPage && !_historyLoading)
+                  ? () => _changeHistoryPage(_historyTotalPages)
+                  : null,
+              icon: const Icon(
+                FontAwesomeIcons.anglesRight,
+                size: 12,
+              ),
+              tooltip: 'Dernière page',
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _profileCard() {
     final name = _nickName ?? 'Joueur';
-    final avatarUrl = (_avatar != null && _avatar!.startsWith('http')) ? _avatar! : _fallbackAvatarUrl;
+    final avatarUrl =
+        (_avatar != null && _avatar!.startsWith('http')) ? _avatar! : _fallbackAvatarUrl;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1071,7 +1065,26 @@ class _ProfilePageState extends State<ProfilePage> {
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _Avatar(avatarUrl: avatarUrl, bytes: _avatarBytes, base64OrDataUri: _avatar),
+              GestureDetector(
+                onTap: _pickAndUploadAvatar,
+                child: _Avatar(
+                  avatarUrl: avatarUrl,
+                  bytes: _avatarBytes,
+                  base64OrDataUri: _avatar,
+                ),
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 360),
+                child: Text(
+                  '',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: TuuurTheme.brandLightGray,
+                  ),
+                ),
+              ),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 360),
                 child: Text(
@@ -1087,64 +1100,25 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           const SizedBox(height: 24),
-
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                GamingButtonSecondary(
-                  text: '⚙️ Modifier avatar',
-                  onPressed: _pickAndUploadAvatar,
-                ),
-                const SizedBox(height: 12),
-                GamingButtonPrimary(
-                  text: '🔑 Réinitialiser le mot de passe',
-                  onPressed: () => context.push('/change-password'),
-                ),
-                const SizedBox(height: 12),
-                GamingButtonSecondary(
-                  text: '🚪 Se déconnecter',
-                  onPressed: _signOut,
-                ),
-                const SizedBox(height: 12),
-                GamingButtonSecondary(
-                  text: '🗑️ Supprimer mon compte',
-                  onPressed: _deleteAccount,
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: GamingButtonSecondary(
-                    text: '⚙️ Modifier avatar',
-                    onPressed: _pickAndUploadAvatar,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GamingButtonPrimary(
-                    text: '🔑 Réinitialiser le mot de passe',
-                    onPressed: () => context.push('/change-password'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GamingButtonSecondary(
-                    text: '🚪 Se déconnecter',
-                    onPressed: _signOut,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GamingButtonSecondary(
-                    text: '🗑️ Supprimer mon compte',
-                    onPressed: _deleteAccount,
-                  ),
-                ),
-              ],
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GamingButtonPrimary(
+                text: '🔑 Réinitialiser le mot de passe',
+                onPressed: () => context.push('/change-password'),
+              ),
+              const SizedBox(height: 12),
+              GamingButtonSecondary(
+                text: '🚪 Se déconnecter',
+                onPressed: _signOut,
+              ),
+              const SizedBox(height: 12),
+              GamingButtonSecondary(
+                text: '🗑️ Supprimer mon compte',
+                onPressed: _deleteAccount,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1152,9 +1126,9 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _Avatar extends StatelessWidget {
-  final String avatarUrl;            // utilisé si bytes null ET pas de base64
-  final Uint8List? bytes;            // priorité d’affichage
-  final String? base64OrDataUri;     // si présent, tentative de décodage interne
+  final String avatarUrl; // utilisé si bytes null ET pas de base64
+  final Uint8List? bytes; // priorité d’affichage
+  final String? base64OrDataUri; // si présent, tentative de décodage interne
 
   const _Avatar({
     required this.avatarUrl,
@@ -1194,7 +1168,11 @@ class _Avatar extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
             color: TuuurTheme.brandPurple.withOpacity(0.2),
-            child: const Icon(Icons.person, color: TuuurTheme.brandPurple, size: 30),
+            child: const Icon(
+              Icons.person,
+              color: TuuurTheme.brandPurple,
+              size: 30,
+            ),
           ),
         );
       }

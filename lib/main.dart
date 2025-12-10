@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'pages/auth/auth_store.dart';  
+import 'stores/auth_store.dart';
 import 'theme/tuuuur_theme.dart';
 import 'navigation/app_router.dart';
 

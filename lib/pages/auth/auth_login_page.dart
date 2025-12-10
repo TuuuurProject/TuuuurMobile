@@ -3,14 +3,15 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../api/auth_api_service.dart';
+import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
-import '../../navigation/app_router.dart';
-import '../../navigation/route_history.dart';
-import '../../api/auth_api_service.dart';
-import '../auth/auth_store.dart';
+import '../../stores/auth_store.dart';
 
-const kGoogleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '777528026888-65jbcmsm5mm0e77j2vgneql6gf9ceckh.apps.googleusercontent.com');
+const kGoogleWebClientId = String.fromEnvironment(
+  'GOOGLE_WEB_CLIENT_ID',
+);
 
 class AuthLoginPage extends StatefulWidget {
   const AuthLoginPage({super.key});
@@ -20,70 +21,86 @@ class AuthLoginPage extends StatefulWidget {
 }
 
 class _AuthLoginPageState extends State<AuthLoginPage> {
-  final pseudoController = TextEditingController();
-  final passwordController = TextEditingController();
-  bool isObscure = true;
-  bool isLoading = false;
-  bool isGoogleLoading = false;
+  // Controllers
+  final TextEditingController _pseudoController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // UI state
+  bool _isObscure = true;
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
-    pseudoController.dispose();
-    passwordController.dispose();
+    _pseudoController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _toast(String msg, {Color color = TuuurTheme.brandOrange}) {
+  // Toast helper
+  void _showToast(String msg, {Color color = TuuurTheme.brandOrange}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+      ),
     );
   }
 
-  bool _clientValidate() {
-    final pseudo = pseudoController.text.trim();
-    final pass = passwordController.text;
+  // Validation
+  bool _validateCredentials() {
+    final pseudo = _pseudoController.text.trim();
+    final pass = _passwordController.text;
+
     if (pseudo.isEmpty) {
-      _toast('Le pseudo est requis.');
+      _showToast('Le pseudo est requis.');
       return false;
     }
     if (pass.isEmpty) {
-      _toast('Le mot de passe est requis.');
+      _showToast('Le mot de passe est requis.');
       return false;
     }
     return true;
   }
 
+  // Actions
   Future<void> handleLogin() async {
-    if (!_clientValidate()) return;
+    if (!_validateCredentials()) return;
 
-    setState(() => isLoading = true);
+    setState(() => _isLoading = true);
+
     try {
-      final login = pseudoController.text.trim();
-      final password = passwordController.text;
+      final login = _pseudoController.text.trim();
+      final password = _passwordController.text;
 
       final res = await authApi.login(login: login, password: password);
 
       if (!mounted) return;
-      setState(() => isLoading = false);
+
+      setState(() => _isLoading = false);
 
       if (!res.ok) {
-        _toast(res.message ?? 'Connexion impossible.');
+        _showToast(res.message ?? 'Connexion impossible.');
         return;
       }
 
       // 200 => code envoyé -> on redirige vers la page de vérification
-      _toast('Code envoyé par email. Vérifiez votre boîte 📬', color: TuuurTheme.brandCyan);
+      _showToast(
+        'Code envoyé par email. Vérifiez votre boîte 📬',
+        color: TuuurTheme.brandCyan,
+      );
       context.push('/verify', extra: {'login': login});
     } catch (e) {
       if (!mounted) return;
-      setState(() => isLoading = false);
-      _toast('Erreur : $e');
+      setState(() => _isLoading = false);
+      _showToast('Erreur : $e');
     }
   }
 
   Future<void> handleGoogleLogin() async {
-    setState(() => isGoogleLoading = true);
+    setState(() => _isGoogleLoading = true);
+
     try {
       final google = GoogleSignIn(
         scopes: const ['email', 'profile'],
@@ -91,33 +108,48 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       );
 
       final account = await google.signIn();
+
+      if (!mounted) return;
+
       if (account == null) {
-        setState(() => isGoogleLoading = false);
-        return; // annulé
+        setState(() => _isGoogleLoading = false);
+        return;
       }
 
       final auth = await account.authentication;
       final idToken = auth.idToken;
+
       if (idToken == null || idToken.isEmpty) {
-        throw Exception('idToken introuvable. Vérifie le serverClientId (Web Client ID) / config OAuth.');
+        throw Exception(
+          'idToken introuvable. Vérifie le serverClientId (Web Client ID) / config OAuth.',
+        );
       }
 
       final res = await authApi.loginWithGoogle(idToken: idToken);
-      setState(() => isGoogleLoading = false);
+
+      if (!mounted) return;
+
+      setState(() => _isGoogleLoading = false);
 
       if (!res.ok || res.data == null) {
-        _toast(res.message ?? 'Connexion Google refusée.');
+        _showToast(res.message ?? 'Connexion Google refusée.');
         return;
       }
 
       final session = res.data!;
       await MyAuthStore.of(context).signInWithSession(session);
 
-      _toast('Connecté avec Google ✅', color: TuuurTheme.brandGreen);
+      _showToast(
+        'Connecté avec Google ✅',
+        color: TuuurTheme.brandGreen,
+      );
+
+      if (!mounted) return;
       context.go('/');
     } catch (e) {
-      setState(() => isGoogleLoading = false);
-      _toast('Erreur Google: $e');
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      _showToast('Erreur Google: $e');
     }
   }
 
@@ -126,8 +158,8 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return; // déjà géré
-        RouteHistory.instance.navigateBack(context);
+        if (didPop) return;
+        context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,
@@ -144,7 +176,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
             children: [
               const SizedBox(height: 24),
 
-              // Header: Wrap pour éviter tout overflow
+              // Header
               Wrap(
                 spacing: 12,
                 runSpacing: 8,
@@ -171,16 +203,22 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: TuuurTheme.brandCyan.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: TuuurTheme.brandCyan.withOpacity(0.3)),
+                      border: Border.all(
+                        color: TuuurTheme.brandCyan.withOpacity(0.3),
+                      ),
                     ),
                     child: const Text(
                       'Pseudo + mot de passe',
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: TuuurTheme.brandLightGray, fontSize: 12),
+                      style: TextStyle(
+                        color: TuuurTheme.brandLightGray,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -188,7 +226,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
 
               const SizedBox(height: 24),
 
-              // Form
+              // Formulaire
               Center(
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 500),
@@ -210,31 +248,45 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                           ),
                           const SizedBox(height: 4),
                           TextField(
-                            controller: pseudoController,
+                            controller: _pseudoController,
                             textInputAction: TextInputAction.next,
-                            style: const TextStyle(color: TuuurTheme.brandLightGray),
+                            style: const TextStyle(
+                              color: TuuurTheme.brandLightGray,
+                            ),
                             decoration: InputDecoration(
                               hintText: 'Votre pseudo',
-                              hintStyle: TextStyle(color: TuuurTheme.brandGray.withOpacity(0.7)),
+                              hintStyle: TextStyle(
+                                color: TuuurTheme.brandGray.withOpacity(0.7),
+                              ),
                               filled: true,
-                              fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
+                              fillColor:
+                                  TuuurTheme.brandDarkGray.withOpacity(0.5),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color: TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color:
+                                      TuuurTheme.brandPurple.withOpacity(0.3),
                                 ),
                               ),
                               focusedBorder: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(16)),
-                                borderSide: BorderSide(color: TuuurTheme.brandPurple, width: 2),
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(16)),
+                                borderSide: BorderSide(
+                                  color: TuuurTheme.brandPurple,
+                                  width: 2,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color: TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color:
+                                      TuuurTheme.brandPurple.withOpacity(0.3),
                                 ),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                             ),
                           ),
                         ],
@@ -255,38 +307,58 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                           ),
                           const SizedBox(height: 4),
                           TextField(
-                            controller: passwordController,
-                            obscureText: isObscure,
-                            style: const TextStyle(color: TuuurTheme.brandLightGray),
+                            controller: _passwordController,
+                            obscureText: _isObscure,
+                            style: const TextStyle(
+                              color: TuuurTheme.brandLightGray,
+                            ),
                             decoration: InputDecoration(
                               hintText: '••••••••',
-                              hintStyle: TextStyle(color: TuuurTheme.brandGray.withOpacity(0.7)),
+                              hintStyle: TextStyle(
+                                color: TuuurTheme.brandGray.withOpacity(0.7),
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  isObscure ? Icons.visibility : Icons.visibility_off,
+                                  _isObscure
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: TuuurTheme.brandGray,
                                 ),
-                                onPressed: () => setState(() => isObscure = !isObscure),
+                                onPressed: () {
+                                  setState(() {
+                                    _isObscure = !_isObscure;
+                                  });
+                                },
                               ),
                               filled: true,
-                              fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
+                              fillColor:
+                                  TuuurTheme.brandDarkGray.withOpacity(0.5),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color: TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color:
+                                      TuuurTheme.brandPurple.withOpacity(0.3),
                                 ),
                               ),
                               focusedBorder: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(16)),
-                                borderSide: BorderSide(color: TuuurTheme.brandPurple, width: 2),
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(16)),
+                                borderSide: BorderSide(
+                                  color: TuuurTheme.brandPurple,
+                                  width: 2,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color: TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color:
+                                      TuuurTheme.brandPurple.withOpacity(0.3),
                                 ),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -295,16 +367,25 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                             child: TextButton(
                               onPressed: () => context.push('/forgot-password'),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 backgroundColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: TuuurTheme.brandPurple.withOpacity(0.3)),
+                                  side: BorderSide(
+                                    color: TuuurTheme.brandPurple
+                                        .withOpacity(0.3),
+                                  ),
                                 ),
                               ),
                               child: const Text(
                                 'Mot de passe oublié ?',
-                                style: TextStyle(color: TuuurTheme.brandLightGray, fontSize: 12),
+                                style: TextStyle(
+                                  color: TuuurTheme.brandLightGray,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ),
@@ -323,24 +404,41 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                           ),
                           const SizedBox(width: 12),
                           GamingButtonPrimary(
-                            text: isLoading ? 'Connexion...' : 'Se connecter',
-                            onPressed: isLoading ? null : handleLogin,
+                            text: _isLoading
+                                ? 'Connexion...'
+                                : 'Se connecter',
+                            onPressed:
+                                _isLoading ? null : handleLogin,
                           ),
                         ],
                       ),
 
                       const SizedBox(height: 24),
 
-                      // --- Séparateur ---
+                      // Séparateur
                       Row(
                         children: const [
-                          Expanded(child: Divider(color: TuuurTheme.brandGray)),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text('ou',
-                                style: TextStyle(color: TuuurTheme.brandGray, fontSize: 12)),
+                          Expanded(
+                            child: Divider(
+                              color: TuuurTheme.brandGray,
+                            ),
                           ),
-                          Expanded(child: Divider(color: TuuurTheme.brandGray)),
+                          Padding(
+                            padding:
+                                EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              'ou',
+                              style: TextStyle(
+                                color: TuuurTheme.brandGray,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: TuuurTheme.brandGray,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -349,16 +447,30 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: isGoogleLoading ? null : handleGoogleLogin,
-                          icon: const FaIcon(FontAwesomeIcons.google, size: 16, color: Colors.white),
+                          onPressed: _isGoogleLoading
+                              ? null
+                              : handleGoogleLogin,
+                          icon: const FaIcon(
+                            FontAwesomeIcons.google,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                           label: Text(
-                            isGoogleLoading ? 'Connexion Google...' : 'Continuer avec Google',
+                            _isGoogleLoading
+                                ? 'Connexion Google...'
+                                : 'Continuer avec Google',
                             overflow: TextOverflow.ellipsis,
                           ),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            backgroundColor: const Color(0xFF4285F4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            backgroundColor:
+                                const Color(0xFF4285F4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
@@ -369,22 +481,36 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Pas de compte ?',
-                              style: TextStyle(color: TuuurTheme.brandGray, fontSize: 14)),
+                          const Text(
+                            'Pas de compte ?',
+                            style: TextStyle(
+                              color: TuuurTheme.brandGray,
+                              fontSize: 14,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           TextButton(
                             onPressed: () => context.push('/register'),
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               backgroundColor: Colors.transparent,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: TuuurTheme.brandPurple.withOpacity(0.3)),
+                                side: BorderSide(
+                                  color: TuuurTheme.brandPurple
+                                      .withOpacity(0.3),
+                                ),
                               ),
                             ),
                             child: const Text(
                               'Créer un compte',
-                              style: TextStyle(color: TuuurTheme.brandLightGray, fontSize: 12),
+                              style: TextStyle(
+                                color: TuuurTheme.brandLightGray,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],

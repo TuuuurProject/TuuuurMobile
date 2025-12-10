@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../../navigation/route_history.dart';
 import '../theme/tuuuur_theme.dart';
 import '../widgets/gaming_widgets.dart';
 import '../navigation/app_router.dart';
@@ -44,7 +43,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return; // le système a déjà géré le pop
-        RouteHistory.instance.navigateBack(context);
+        context.goBack(); 
       },
       child: Scaffold(
         body: Container(

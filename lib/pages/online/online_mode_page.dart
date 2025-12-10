@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/navigation_header.dart';
 import '../../navigation/app_router.dart';
-import '../../navigation/route_history.dart';
 import 'competitive_select_page.dart';
 import 'matchmaking_page.dart';
 import 'duel_1v1_page.dart';
@@ -41,7 +40,7 @@ class _OnlineModePageState extends State<OnlineModePage> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return; // le système a déjà géré le pop
-        RouteHistory.instance.navigateBack(context);
+        context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,

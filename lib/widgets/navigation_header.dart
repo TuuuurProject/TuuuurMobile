@@ -1,11 +1,33 @@
 import 'package:flutter/material.dart';
 import '../theme/tuuuur_theme.dart';
 import '../navigation/app_router.dart';
+import '../navigation/navigation_utils.dart';
 
-/// Header de navigation identique à Vue.js avec logo, titre et pills
-/// Équivalent au header dans App.vue (lignes 184-225)
 class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
-  const NavigationHeader({super.key});
+  /// Affiche ou non la flèche de retour.
+  final bool showBack;
+
+  /// Active la confirmation pour la flèche retour.
+  final bool confirmOnBack;
+
+  /// Active la confirmation pour le clic sur le logo / texte "Tuuuur".
+  final bool confirmOnHome;
+
+  /// Message de confirmation pour la flèche retour.
+  final String backConfirmMessage;
+
+  /// Message de confirmation pour le clic sur "Tuuuur" (retour à l'accueil).
+  final String homeConfirmMessage;
+
+  const NavigationHeader({
+    super.key,
+    this.showBack = false,
+    this.confirmOnBack = false,
+    this.confirmOnHome = false,
+    this.backConfirmMessage = 'Voulez-vous vraiment retourner en arrière ?',
+    this.homeConfirmMessage =
+        'Êtes-vous sûr de vouloir retourner à l\'accueil ?',
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight + 8);
@@ -15,7 +37,6 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
     return Container(
       decoration: BoxDecoration(
         color: TuuurTheme.brandDarkGray.withOpacity(0.8),
-        // Backdrop blur effect équivalent à backdrop-blur-xl
         border: Border(
           bottom: BorderSide(
             color: TuuurTheme.brandPurple.withOpacity(0.2),
@@ -28,10 +49,27 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: Row(
             children: [
-              // Logo et titre - équivalent au bouton home Vue.js
+              if (showBack) ...[
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: TuuurTheme.brandLightGray,
+                    size: 20,
+                  ),
+                  tooltip: 'Retour',
+                  onPressed: () => runWithConfirmIfNeeded(
+                    context,
+                    confirm: confirmOnBack,
+                    message: backConfirmMessage,
+                    action: () => context.goBack(),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+
+              // Logo + titre
               _buildLogoTitle(context),
 
-              // Spacer pour pousser la navigation à droite
               const Spacer(),
             ],
           ),
@@ -43,13 +81,18 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildLogoTitle(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => context.goHome(),
+      onTap: () => runWithConfirmIfNeeded(
+        context,
+        confirm: confirmOnHome,
+        message: homeConfirmMessage,
+        action: () => context.goHome(),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo avec gradient identique à Vue.js
+            // Logo
             Container(
               width: 28,
               height: 28,
@@ -71,8 +114,6 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
             const SizedBox(width: 8),
-
-            // Titre avec police display identique à Vue.js
             const Text(
               'Tuuuur',
               style: TextStyle(
@@ -88,6 +129,7 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
+  // Optionnel : pills de navigation, inchangé si tu veux les réutiliser
   Widget _buildPill({
     required BuildContext context,
     required String text,
