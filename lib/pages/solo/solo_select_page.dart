@@ -645,44 +645,36 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
           const SizedBox(height: 16),
           _buildSettingItem(
             'Nombre de questions',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: TuuurStyles.pill,
-                    child: Text(
-                      '$_questionCount questions',
-                      style: const TextStyle(
-                        color: TuuurTheme.brandLightGray,
-                        fontWeight: FontWeight.w600,
-                      ),
+                IconButton(
+                  onPressed: _questionCount > 5
+                      ? () => setState(() => _questionCount--)
+                      : null,
+                  icon: const Icon(Icons.remove),
+                  color: TuuurTheme.brandLightGray,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: TuuurStyles.pill,
+                  child: Text(
+                    '$_questionCount',
+                    style: const TextStyle(
+                      color: TuuurTheme.brandLightGray,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    showValueIndicator: ShowValueIndicator.always,
-                  ),
-                  child: Slider(
-                    value: _questionCount.toDouble(),
-                    min: 5,
-                    max: 100,
-                    // de 5 en 5
-                    divisions: (100 - 5) ~/ 5, // 19 divisions
-                    label: '$_questionCount',
-                    onChanged: (value) {
-                      setState(() {
-                        _questionCount = value.round(); // valeur entière, step 5 grâce à divisions
-                      });
-                    },
-                  ),
+                IconButton(
+                  onPressed: _questionCount < 50
+                      ? () => setState(() => _questionCount++)
+                      : null,
+                  icon: const Icon(Icons.add),
+                  color: TuuurTheme.brandLightGray,
                 ),
               ],
             ),
