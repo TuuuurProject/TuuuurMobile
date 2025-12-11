@@ -1,4 +1,4 @@
-import 'auth_api_service.dart'; // réutilise ApiClient + ApiResponse
+import 'api_client.dart'; 
 
 /// DTO pour une difficulté (ref.Difficulty_DFT)
 class DifficultyDto {

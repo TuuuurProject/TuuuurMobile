@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart';
-import 'auth_api_service.dart'; // réutilise ApiClient + ApiResponse
+import 'api_client.dart';
 
 class ThemeItemDto {
   final int? id;

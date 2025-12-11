@@ -1,17 +1,20 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../../api/auth_api_service.dart';
+import '../api/auth_api_service.dart';
 
 /// Stocke user + token en mémoire et dans le secure storage.
 class AuthStore extends ChangeNotifier {
   AuthStore._();
+
   static final AuthStore instance = AuthStore._();
 
-  final _storage = const FlutterSecureStorage();
-  static const _kTokenKey = 'auth.token';
-  static const _kUserKey = 'auth.user';
+  static const String _tokenStorageKey = 'auth.token';
+  static const String _userStorageKey = 'auth.user';
+
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   UserDto? _user;
   AuthToken? _token;
@@ -22,17 +25,19 @@ class AuthStore extends ChangeNotifier {
 
   /// À appeler au démarrage (hydrate depuis le secure storage).
   Future<void> load() async {
-    final tokenRaw = await _storage.read(key: _kTokenKey);
-    final userRaw = await _storage.read(key: _kUserKey);
+    final tokenRaw = await _storage.read(key: _tokenStorageKey);
+    final userRaw = await _storage.read(key: _userStorageKey);
 
     if (tokenRaw != null && tokenRaw.isNotEmpty) {
       final map = jsonDecode(tokenRaw) as Map<String, dynamic>;
       _token = AuthToken.fromJson(map);
     }
+
     if (userRaw != null && userRaw.isNotEmpty) {
       final map = jsonDecode(userRaw) as Map<String, dynamic>;
       _user = UserDto.fromJson(map);
     }
+
     notifyListeners();
   }
 
@@ -42,7 +47,7 @@ class AuthStore extends ChangeNotifier {
     _token = session.token;
 
     await _storage.write(
-      key: _kTokenKey,
+      key: _tokenStorageKey,
       value: jsonEncode({
         'token': _token?.token ?? '',
         'validFrom': _token?.validFrom?.toIso8601String(),
@@ -51,7 +56,7 @@ class AuthStore extends ChangeNotifier {
     );
 
     await _storage.write(
-      key: _kUserKey,
+      key: _userStorageKey,
       value: jsonEncode({
         'id': _user?.id,
         'nickName': _user?.nickName,
@@ -69,8 +74,10 @@ class AuthStore extends ChangeNotifier {
   Future<void> signOut() async {
     _user = null;
     _token = null;
-    await _storage.delete(key: _kTokenKey);
-    await _storage.delete(key: _kUserKey);
+
+    await _storage.delete(key: _tokenStorageKey);
+    await _storage.delete(key: _userStorageKey);
+
     notifyListeners();
   }
 
@@ -92,7 +99,7 @@ class MyAuthStore extends InheritedNotifier<AuthStore> {
 
   static AuthStore of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<MyAuthStore>();
-    assert(scope != null, 'MyAuthStore non trouvé dans l’arbre de widgets.');
+    assert(scope != null, 'MyAuthStore non trouvé dans l\'arbre de widgets.');
     return scope!.notifier!;
   }
 

@@ -1,17 +1,18 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../../navigation/route_history.dart';
-import '../../theme/tuuuur_theme.dart';
-import '../../widgets/gaming_widgets.dart';
-import '../../widgets/common_widgets.dart';
-import '../../navigation/app_router.dart';
-
 import '../../api/solo_api_service.dart';
-import '../auth/auth_store.dart';
+import '../../navigation/app_router.dart';
+import '../../navigation/navigation_utils.dart';
+import '../../stores/auth_store.dart';
+import '../../theme/tuuuur_theme.dart';
+import '../../widgets/common_widgets.dart';
+import '../../widgets/gaming_widgets.dart';
+import '../../widgets/navigation_header.dart';
 
 class SoloQuizPage extends StatefulWidget {
   final List<String> categories;
@@ -29,8 +30,13 @@ class SoloQuizPage extends StatefulWidget {
   State<SoloQuizPage> createState() => _SoloQuizPageState();
 }
 
-class _SoloQuizPageState extends State<SoloQuizPage> {
+class _SoloQuizPageState extends State<SoloQuizPage>
+    with WidgetsBindingObserver {
   static const int totalTime = 15; // secondes (juste pour l'UI)
+
+  AppLifecycleState? _appLifecycleState;
+  bool _pendingAutoSubmitOnResume = false;
+  int _pendingAnswerIdOnResume = 0;
 
   // Pour éviter d'appeler _initGame() trop tôt / plusieurs fois
   bool _initialized = false;
@@ -62,9 +68,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
   double _remainingTime = totalTime.toDouble();
   Timer? _timer;
 
-  // Helpers
-  double get _remainingRatio =>
-      max(0, min(1, _remainingTime / totalTime));
+  double get _remainingRatio => max(0, min(1, _remainingTime / totalTime));
 
   int get _currentQuestionNumber {
     if (_totalQuestions <= 0) {
@@ -81,6 +85,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // NE PAS appeler _initGame() ici, pour éviter dependOnInheritedWidgetOfExactType
   }
 
@@ -96,8 +101,85 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _clearTimer();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    _appLifecycleState = state;
+
+    if (state == AppLifecycleState.resumed) {
+      _autoSubmitIfNeeded();
+    }
+  }
+
+  void _autoSubmitIfNeeded() {
+    if (!_pendingAutoSubmitOnResume) return;
+
+    if (_answered || _submitting || _finished) {
+      _pendingAutoSubmitOnResume = false;
+      return;
+    }
+
+    if (_partyId == null || _currentQuestion == null) {
+      _pendingAutoSubmitOnResume = false;
+      return;
+    }
+
+    if (_remainingTime > 0) {
+      return;
+    }
+
+    _pendingAutoSubmitOnResume = false;
+    _submitAnswer(answerId: _pendingAnswerIdOnResume);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Timer
+  // ---------------------------------------------------------------------------
+
+  void _startTimer() {
+    _clearTimer();
+    _remainingTime = totalTime.toDouble();
+    _timer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        setState(() {
+          _remainingTime = max(0, _remainingTime - 0.1);
+        });
+
+        if (_remainingTime <= 0) {
+          _clearTimer();
+          _onTimeUp();
+        }
+      },
+    );
+  }
+
+  void _clearTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void _onTimeUp() {
+    if (_answered || _submitting || _finished) return;
+    if (_currentQuestion == null || _partyId == null) return;
+
+    if (_appLifecycleState == null ||
+        _appLifecycleState == AppLifecycleState.resumed) {
+      _submitAnswer(answerId: 0);
+    } else {
+      _pendingAutoSubmitOnResume = true;
+      _pendingAnswerIdOnResume = 0;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -179,14 +261,55 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       if (!partyRes.ok || partyRes.data == null) {
         setState(() {
           _loading = false;
-          _error = partyRes.message ??
-              'Impossible de récupérer la partie.';
+          _error =
+              partyRes.message ?? 'Impossible de récupérer la partie.';
           _unauthorized = partyRes.statusCode == 401;
         });
         return;
       }
 
       _applyInitialParty(partyRes.data!);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Erreur: $e';
+      });
+    }
+  }
+
+  /// Recharge la partie depuis le backend (utile si le POST /answer
+  /// ne renvoie pas encore la prochaine question).
+  Future<void> _reloadParty() async {
+    if (_partyId == null) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final store = MyAuthStore.of(context);
+      final headers = store.isAuthenticated ? store.authHeaders : null;
+
+      final res = await soloApi.getSolo(
+        partyId: _partyId!,
+        headers: headers,
+      );
+
+      if (!mounted) return;
+
+      if (!res.ok || res.data == null) {
+        setState(() {
+          _loading = false;
+          _error =
+              res.message ?? 'Impossible de récupérer la partie.';
+          _unauthorized = res.statusCode == 401;
+        });
+        return;
+      }
+
+      _applyInitialParty(res.data!);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -211,10 +334,8 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       return aid.compareTo(bid);
     });
 
-    final answered =
-        questions.where((q) => q.isAnswered).toList();
-    final pending =
-        questions.where((q) => !q.isAnswered).toList();
+    final answered = questions.where((q) => q.isAnswered).toList();
+    final pending = questions.where((q) => !q.isAnswered).toList();
 
     SoloPartyQuestionDto? current;
     if (pending.isNotEmpty) {
@@ -226,8 +347,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     setState(() {
       _partyId = party.id;
       _score = party.score ?? 0;
-      _totalQuestions =
-          party.nbQuestions ?? questions.length;
+      _totalQuestions = party.nbQuestions ?? questions.length;
       _answeredCount = answered.length;
       _finished = party.isFinished;
       _currentQuestion = current != null
@@ -263,15 +383,11 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       return aid.compareTo(bid);
     });
 
-    final answered =
-        questions.where((q) => q.isAnswered).toList();
-    final pending =
-        questions.where((q) => !q.isAnswered).toList();
+    final answered = questions.where((q) => q.isAnswered).toList();
+    final pending = questions.where((q) => !q.isAnswered).toList();
 
-    final lastAnswered =
-        answered.isNotEmpty ? answered.last : null;
-    final next =
-        pending.isNotEmpty ? pending.first : null;
+    final lastAnswered = answered.isNotEmpty ? answered.last : null;
+    final next = pending.isNotEmpty ? pending.first : null;
 
     int lastPoints = 0;
     bool wasCorrect = false;
@@ -285,8 +401,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     setState(() {
       _partyId = party.id;
       _score = party.score ?? 0;
-      _totalQuestions =
-          party.nbQuestions ?? questions.length;
+      _totalQuestions = party.nbQuestions ?? questions.length;
       _answeredCount = answered.length;
       _currentQuestion = lastAnswered != null
           ? SoloQuestionViewModel.fromPartyQuestion(lastAnswered)
@@ -300,83 +415,10 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       _selectedAnswerId = answerId;
       _loading = false;
       _submitting = false;
-
-      // ⚠️ IMPORTANT : on fait confiance UNIQUEMENT au backend
-      // pour dire si la partie est terminée ou pas.
-      _finished = party.isFinished;
+      _finished = party.isFinished; // état de fin fourni par le backend
     });
 
     _clearTimer();
-  }
-
-  /// Recharge la partie depuis le backend (utile si le POST /answer
-  /// ne renvoie pas encore la prochaine question).
-  Future<void> _reloadParty() async {
-    if (_partyId == null) return;
-
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final store = MyAuthStore.of(context);
-      final headers = store.isAuthenticated ? store.authHeaders : null;
-
-      final res = await soloApi.getSolo(
-        partyId: _partyId!,
-        headers: headers,
-      );
-
-      if (!mounted) return;
-
-      if (!res.ok || res.data == null) {
-        setState(() {
-          _loading = false;
-          _error = res.message ??
-              'Impossible de récupérer la partie.';
-          _unauthorized = res.statusCode == 401;
-        });
-        return;
-      }
-
-      _applyInitialParty(res.data!);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = 'Erreur: $e';
-      });
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Timer
-  // ---------------------------------------------------------------------------
-
-  void _startTimer() {
-    _clearTimer();
-    _remainingTime = totalTime.toDouble();
-    _timer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
-        setState(() {
-          _remainingTime = max(0, _remainingTime - 0.1);
-          if (_remainingTime <= 0) {
-            _clearTimer();
-          }
-        });
-      },
-    );
-  }
-
-  void _clearTimer() {
-    _timer?.cancel();
-    _timer = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -435,18 +477,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     }
   }
 
-  void _answer(SoloAnswerViewModel answer) {
-    if (_answered || _submitting || _finished) return;
-    _submitAnswer(answerId: answer.id);
-  }
-
-  /// "Passer" — côté backend il faut que `answerId = 0` soit géré
-  /// comme "pas de réponse". À adapter si ton API attend autre chose.
-  void _skip() {
-    if (_answered || _submitting || _finished) return;
-    _submitAnswer(answerId: 0);
-  }
-
   Future<void> _next() async {
     if (!_answered) return;
 
@@ -477,10 +507,20 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
       return;
     }
 
-    // Cas important : la partie n'est PAS finie,
-    // mais le backend ne nous a pas encore donné la prochaine question.
-    // On va donc recharger l'état depuis l'API.
+    // La partie n'est pas finie mais le backend ne nous a pas encore donné
+    // la prochaine question : on recharge l'état depuis l'API.
     await _reloadParty();
+  }
+
+  void _answer(SoloAnswerViewModel answer) {
+    if (_answered || _submitting || _finished) return;
+    _submitAnswer(answerId: answer.id);
+  }
+
+  /// "Passer" — côté backend, `answerId = 0` représente "pas de réponse".
+  void _skip() {
+    if (_answered || _submitting || _finished) return;
+    _submitAnswer(answerId: 0);
   }
 
   void _restart() {
@@ -537,13 +577,26 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: Navigator.of(context).canPop(),
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        RouteHistory.instance.navigateBack(context);
+        runWithConfirmIfNeeded(
+          context,
+          confirm: true,
+          message:
+              'Voulez-vous vraiment quitter le quiz et retourner en arrière ?',
+          action: () => context.goBack(),
+        );
       },
       child: Scaffold(
-        appBar: _buildAppBar(),
+        appBar: const NavigationHeader(
+          showBack: true,
+          confirmOnBack: true,
+          confirmOnHome: true,
+          backConfirmMessage:
+              'Voulez-vous vraiment quitter le quiz et retourner en arrière ?',
+          homeConfirmMessage:
+              'Voulez-vous vraiment quitter le quiz et retourner à l\'accueil ?',
+        ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -558,8 +611,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
               else if (_error != null)
                 _buildErrorCard()
               else if (_currentQuestion != null)
-                // ✅ Même si _finished == true, on garde l'affichage
-                // de la dernière question avec la correction.
+                // Affiche la dernière question avec la correction même si la partie est terminée.
                 _buildQuestionSection()
               else
                 _buildResultsSection(),
@@ -570,39 +622,10 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => context.goHome(),
-      ),
-      title: const Text('Quiz Solo'),
-      backgroundColor: TuuurTheme.brandDarkGray.withOpacity(0.8),
-    );
-  }
-
   Widget _buildHeader() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 420;
-
-        final left = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PillBadge(text: '← Accueil', onTap: () => context.goHome()),
-            const SizedBox(width: 12),
-            const Text(
-              'Quiz Solo',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w600,
-                color: TuuurTheme.brandLightGray,
-              ),
-            ),
-          ],
-        );
 
         final right = Wrap(
           alignment: WrapAlignment.end,
@@ -621,15 +644,13 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
         if (narrow) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [left, const SizedBox(height: 12), right],
+            children: [right],
           );
         }
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(child: left),
-            const SizedBox(width: 12),
             Flexible(
               child: Align(
                 alignment: Alignment.centerRight,
@@ -710,7 +731,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
             children: [
               GamingButtonSecondary(
                 text: '↻ Réessayer',
-                onPressed: _initGame,
+                onPressed: _partyId != null ? _reloadParty : _initGame,
               ),
               if (_unauthorized)
                 GamingButtonPrimary(
@@ -728,16 +749,33 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
     final q = _currentQuestion;
     if (q == null) return const SizedBox.shrink();
 
+    const double maxQuestionFontSize = 22;
+    const double minQuestionFontSize = 14;
+    const double questionLineHeight = 1.2;
+    const int questionMaxLines = 3;
+
+    const double questionBoxHeight =
+        maxQuestionFontSize * questionLineHeight * questionMaxLines;
+
+    const double feedbackHeight = 28.0;
+
     return GamingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            q.label,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: TuuurTheme.brandLightGray,
+          SizedBox(
+            height: questionBoxHeight,
+            child: AutoSizeText(
+              q.label,
+              maxLines: questionMaxLines,
+              minFontSize: minQuestionFontSize,
+              stepGranularity: 1,
+              style: const TextStyle(
+                fontSize: maxQuestionFontSize,
+                height: questionLineHeight,
+                fontWeight: FontWeight.w600,
+                color: TuuurTheme.brandLightGray,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -780,6 +818,7 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
           LayoutBuilder(
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 420;
+
               final showPasser = !_answered;
 
               final feedback = _answered
@@ -808,25 +847,41 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
                     )
                   : null;
 
+              // Petite zone de feedback avec hauteur fixe
+              Widget feedbackSlot = SizedBox(
+                height: feedbackHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AnimatedSwitcher(
+                    duration: 200.ms,
+                    child: feedback,
+                  ),
+                ),
+              );
+
               if (narrow) {
+                // Sur mobile : bouton toujours au même endroit,
+                // la zone de feedback a une hauteur fixe.
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    feedback,
+                    feedbackSlot,
                     const SizedBox(height: 12),
                     if (showPasser) ...[
                       skipBtn(fullWidth: true)!,
-                      const SizedBox(height: 12),
+                    ] else ...[
+                      nextBtn(fullWidth: true),
                     ],
-                    nextBtn(fullWidth: true),
                   ],
                 );
               }
 
+              // Large écran : même principe avec hauteur fixe pour le feedback
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  feedback,
+                  Expanded(child: feedbackSlot),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -835,14 +890,14 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
                           text: 'Passer',
                           onPressed: _answered ? null : _skip,
                         ),
-                        const SizedBox(width: 12),
+                      ] else ...[
+                        GamingButtonPrimary(
+                          text: _finished && _nextQuestion == null
+                              ? 'Terminer'
+                              : 'Suivant',
+                          onPressed: !_answered ? null : () => _next(),
+                        ),
                       ],
-                      GamingButtonPrimary(
-                        text: _finished && _nextQuestion == null
-                            ? 'Terminer'
-                            : 'Suivant',
-                        onPressed: !_answered ? null : () => _next(),
-                      ),
                     ],
                   ),
                 ],
@@ -904,7 +959,6 @@ class _SoloQuizPageState extends State<SoloQuizPage> {
               );
 
               if (narrow) {
-                // ✅ Plus de bouton "Rejouer"
                 return homeBtn;
               }
 

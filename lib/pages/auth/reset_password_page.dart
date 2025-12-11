@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/services.dart';
 
 import '../../api/auth_api_service.dart';
-import '../../navigation/route_history.dart';
+import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
-import '../../navigation/app_router.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String? initialLogin;
+
   const ResetPasswordPage({super.key, this.initialLogin});
 
   @override
@@ -18,88 +17,97 @@ class ResetPasswordPage extends StatefulWidget {
 }
 
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final loginController = TextEditingController();
-  final codeController = TextEditingController();
-  final passController = TextEditingController();
-  final pass2Controller = TextEditingController();
+  // Controllers
+  final TextEditingController _loginController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
-  bool isLoading = false;
-  bool obscure1 = true;
-  bool obscure2 = true;
+  // UI state
+  bool _isLoading = false;
+  bool _isPasswordObscured = true;
+  bool _isConfirmPasswordObscured = true;
 
   @override
   void initState() {
     super.initState();
-    if ((widget.initialLogin ?? '').isNotEmpty) {
-      loginController.text = widget.initialLogin!;
+    final initialLogin = widget.initialLogin;
+    if (initialLogin != null && initialLogin.isNotEmpty) {
+      _loginController.text = initialLogin;
     }
   }
 
   @override
   void dispose() {
-    loginController.dispose();
-    codeController.dispose();
-    passController.dispose();
-    pass2Controller.dispose();
+    _loginController.dispose();
+    _codeController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _toast(String m, {Color color = TuuurTheme.brandOrange}) {
+  void _showToast(String message, {Color color = TuuurTheme.brandOrange}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(m), backgroundColor: color),
+      SnackBar(content: Text(message), backgroundColor: color),
     );
   }
 
-  bool _validate() {
-    final login = loginController.text.trim();
-    final code = codeController.text.trim();
-    final p1 = passController.text;
-    final p2 = pass2Controller.text;
+  bool _validateForm() {
+    final login = _loginController.text.trim();
+    final code = _codeController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
     if (login.isEmpty) {
-      _toast('Le login est requis.');
+      _showToast('Le login est requis.');
       return false;
     }
     if (code.isEmpty) {
-      _toast('Le code est requis.');
+      _showToast('Le code est requis.');
       return false;
     }
-    if (p1.isEmpty) {
-      _toast('Le nouveau mot de passe est requis.');
+    if (password.isEmpty) {
+      _showToast('Le nouveau mot de passe est requis.');
       return false;
     }
-    if (p1.length < 8 ||
-        !RegExp(r'[A-Z]').hasMatch(p1) ||
-        !RegExp(r'[a-z]').hasMatch(p1) ||
-        !RegExp(r'[0-9]').hasMatch(p1)) {
-      _toast('Mot de passe invalide : min 8, 1 maj, 1 min, 1 chiffre.');
+    if (password.length < 8 ||
+        !RegExp(r'[A-Z]').hasMatch(password) ||
+        !RegExp(r'[a-z]').hasMatch(password) ||
+        !RegExp(r'[0-9]').hasMatch(password)) {
+      _showToast(
+        'Mot de passe invalide : min 8, 1 maj, 1 min, 1 chiffre.',
+      );
       return false;
     }
-    if (p1 != p2) {
-      _toast('Les mots de passe ne correspondent pas.');
+    if (password != confirmPassword) {
+      _showToast('Les mots de passe ne correspondent pas.');
       return false;
     }
     return true;
   }
 
-  Future<void> _handleReset() async {
-    if (!_validate()) return;
+  Future<void> _handleResetPassword() async {
+    if (!_validateForm()) return;
 
-    setState(() => isLoading = true);
+    setState(() => _isLoading = true);
+
     final res = await authApi.passwordReset(
-      login: loginController.text.trim(),
-      code: codeController.text.trim(),
-      password: passController.text,
+      login: _loginController.text.trim(),
+      code: _codeController.text.trim(),
+      password: _passwordController.text,
     );
+
     if (!mounted) return;
-    setState(() => isLoading = false);
+
+    setState(() => _isLoading = false);
 
     if (res.ok) {
-      _toast('Mot de passe réinitialisé ✅', color: TuuurTheme.brandGreen);
+      _showToast('Mot de passe réinitialisé ✅', color: TuuurTheme.brandGreen);
       context.go('/login');
     } else {
-      _toast(res.message ?? 'Réinitialisation impossible.');
+      _showToast(res.message ?? 'Réinitialisation impossible.');
     }
   }
 
@@ -109,7 +117,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        RouteHistory.instance.navigateBack(context);
+        context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,
@@ -132,7 +140,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 children: [
                   Row(
                     children: const [
-                      FaIcon(FontAwesomeIcons.rotateRight, color: TuuurTheme.brandLightGray, size: 20),
+                      FaIcon(
+                        FontAwesomeIcons.rotateRight,
+                        color: TuuurTheme.brandLightGray,
+                        size: 20,
+                      ),
                       SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -149,53 +161,69 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  const _Label('Login'),
+                  const _FieldLabel('Login'),
                   TextField(
-                    controller: loginController,
+                    controller: _loginController,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration: _input('Votre login'),
+                    decoration: _buildInputDecoration('Votre login'),
                   ),
                   const SizedBox(height: 16),
 
-                  const _Label('Code reçu par email'),
+                  const _FieldLabel('Code reçu par email'),
                   TextField(
-                    controller: codeController,
+                    controller: _codeController,
                     keyboardType: TextInputType.number,
                     maxLength: 6,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration: _input('••••••').copyWith(counterText: ''),
+                    decoration: _buildInputDecoration('••••••')
+                        .copyWith(counterText: ''),
                   ),
                   const SizedBox(height: 16),
 
-                  const _Label('Nouveau mot de passe'),
+                  const _FieldLabel('Nouveau mot de passe'),
                   TextField(
-                    controller: passController,
-                    obscureText: obscure1,
+                    controller: _passwordController,
+                    obscureText: _isPasswordObscured,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration: _input('••••••••').copyWith(
+                    decoration:
+                        _buildInputDecoration('••••••••').copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
-                          obscure1 ? Icons.visibility : Icons.visibility_off,
+                          _isPasswordObscured
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: TuuurTheme.brandGray,
                         ),
-                        onPressed: () => setState(() => obscure1 = !obscure1),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordObscured = !_isPasswordObscured;
+                          });
+                        },
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  const _Label('Confirmer le mot de passe'),
+                  const _FieldLabel('Confirmer le mot de passe'),
                   TextField(
-                    controller: pass2Controller,
-                    obscureText: obscure2,
+                    controller: _confirmPasswordController,
+                    obscureText: _isConfirmPasswordObscured,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration: _input('••••••••').copyWith(
+                    decoration:
+                        _buildInputDecoration('••••••••').copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
-                          obscure2 ? Icons.visibility : Icons.visibility_off,
+                          _isConfirmPasswordObscured
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: TuuurTheme.brandGray,
                         ),
-                        onPressed: () => setState(() => obscure2 = !obscure2),
+                        onPressed: () {
+                          setState(() {
+                            _isConfirmPasswordObscured =
+                                !_isConfirmPasswordObscured;
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -204,11 +232,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      GamingButtonSecondary(text: 'Annuler', onPressed: () => context.goBack()),
+                      GamingButtonSecondary(
+                        text: 'Annuler',
+                        onPressed: () => context.goBack(),
+                      ),
                       const SizedBox(width: 12),
                       GamingButtonPrimary(
-                        text: isLoading ? 'Validation...' : 'Valider',
-                        onPressed: isLoading ? null : _handleReset,
+                        text: _isLoading ? 'Validation...' : 'Valider',
+                        onPressed:
+                            _isLoading ? null : _handleResetPassword,
                       ),
                     ],
                   ),
@@ -220,39 +252,54 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       ),
     );
   }
-}
 
-class _Label extends StatelessWidget {
-  final String t;
-  const _Label(this.t);
-
-  @override
-  Widget build(BuildContext context) => Text(
-        t,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          color: TuuurTheme.brandLightGray,
-          fontSize: 14,
+  InputDecoration _buildInputDecoration(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: TuuurTheme.brandGray.withOpacity(0.7),
+        ),
+        filled: true,
+        fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: TuuurTheme.brandPurple.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+          borderSide: BorderSide(
+            color: TuuurTheme.brandPurple,
+            width: 2,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: TuuurTheme.brandPurple.withOpacity(0.3),
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
         ),
       );
 }
 
-InputDecoration _input(String hint) => InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: TuuurTheme.brandGray.withOpacity(0.7)),
-      filled: true,
-      fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: TuuurTheme.brandPurple.withOpacity(0.3)),
+class _FieldLabel extends StatelessWidget {
+  final String label;
+
+  const _FieldLabel(this.label, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontWeight: FontWeight.w600,
+        color: TuuurTheme.brandLightGray,
+        fontSize: 14,
       ),
-      focusedBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-        borderSide: BorderSide(color: TuuurTheme.brandPurple, width: 2),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: TuuurTheme.brandPurple.withOpacity(0.3)),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
+  }
+}

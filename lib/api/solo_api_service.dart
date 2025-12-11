@@ -1,4 +1,4 @@
-import 'auth_api_service.dart';
+import 'api_client.dart';
 
 /// ----------------------------
 /// Helpers locaux de parsing

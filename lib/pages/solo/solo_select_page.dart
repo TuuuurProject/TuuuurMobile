@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-import '../../navigation/route_history.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/common_widgets.dart';
@@ -11,7 +10,7 @@ import '../../navigation/app_router.dart';
 
 import '../../api/theme_api_service.dart';
 import '../../api/difficulty_api_service.dart';
-import '../auth/auth_store.dart';
+import '../../stores/auth_store.dart';
 
 class SoloSelectPage extends StatefulWidget {
   const SoloSelectPage({super.key});
@@ -414,10 +413,10 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        RouteHistory.instance.navigateBack(context);
+        context.goBack(); 
       },
       child: Scaffold(
-        appBar: const NavigationHeader(),
+        appBar: const NavigationHeader(showBack: true,),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -489,11 +488,6 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 420;
 
-        final badge = BadgeSuccess(
-          text: 'Sélectionnez au moins une catégorie',
-          icon: FontAwesomeIcons.lightbulb,
-        ).animate(onPlay: (c) => c.repeat()).fade(duration: 2000.ms);
-
         if (narrow) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,7 +515,6 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 ],
               ),
               const SizedBox(height: 12),
-              badge,
             ],
           );
         }
@@ -547,13 +540,6 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               ),
             ),
             const SizedBox(width: 12),
-            Flexible(
-              fit: FlexFit.loose,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: badge,
-              ),
-            ),
           ],
         );
       },
@@ -850,39 +836,16 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         final veryNarrow = constraints.maxWidth < 320;
         final primaryText = veryNarrow ? 'Jouer' : 'Commencer l\'aventure';
 
-        final backBtn = SizedBox(
-          width: narrow ? double.infinity : null,
-          child: GamingButtonGhost(
-            text: '← Retour',
-            onPressed: () => context.goBack(),
+        return Align(
+          alignment: narrow ? Alignment.center : Alignment.centerRight,
+          child: SizedBox(
+            width: narrow ? double.infinity : null,
+            child: GamingButtonPrimary(
+              text: primaryText,
+              icon: FontAwesomeIcons.rocket,
+              onPressed: _startQuiz,
+            ),
           ),
-        );
-        final startBtn = SizedBox(
-          width: narrow ? double.infinity : null,
-          child: GamingButtonPrimary(
-            text: primaryText,
-            icon: FontAwesomeIcons.rocket,
-            onPressed: _startQuiz,
-          ),
-        );
-
-        if (narrow) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              backBtn,
-              const SizedBox(height: 12),
-              startBtn,
-            ],
-          );
-        }
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            backBtn,
-            const SizedBox(width: 16),
-            startBtn,
-          ],
         );
       },
     );

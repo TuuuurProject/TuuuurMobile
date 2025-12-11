@@ -1,13 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/auth_api_service.dart';
+import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
-import '../../navigation/app_router.dart';
-import '../../navigation/route_history.dart';
-import '../../api/auth_api_service.dart';
 
 class AuthRegisterPage extends StatefulWidget {
   const AuthRegisterPage({super.key});
@@ -17,98 +15,109 @@ class AuthRegisterPage extends StatefulWidget {
 }
 
 class _AuthRegisterPageState extends State<AuthRegisterPage> {
-  final usernameController = TextEditingController();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
-  final _auth = authApi;
+  // Controllers
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
-  bool isObscure1 = true;
-  bool isObscure2 = true;
-  bool isLoading = false;
+  // API
+  final _authApi = authApi;
+
+  // UI state
+  bool _isPasswordObscured = true;
+  bool _isConfirmPasswordObscured = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    usernameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // ---- Helpers UI -----------------------------------------------------------
+  // Helpers UI
 
-  void _toast(String msg, {Color color = TuuurTheme.brandOrange}) {
+  void _showToast(String msg, {Color color = TuuurTheme.brandOrange}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: color),
     );
   }
 
-  bool _clientValidate() {
-    final email = emailController.text.trim();
-    final nick = usernameController.text.trim();
-    final pass = passwordController.text;
-    final pass2 = confirmPasswordController.text;
+  bool _validateForm() {
+    final email = _emailController.text.trim();
+    final nick = _usernameController.text.trim();
+    final pass = _passwordController.text;
+    final pass2 = _confirmPasswordController.text;
 
     if (nick.isEmpty) {
-      _toast('Le pseudo est requis.');
+      _showToast('Le pseudo est requis.');
       return false;
     }
 
     if (email.isEmpty) {
-      _toast('L’email est requis.');
+      _showToast('L’email est requis.');
       return false;
     }
 
     if (pass.isEmpty) {
-      _toast('Le mot de passe est requis.');
+      _showToast('Le mot de passe est requis.');
       return false;
     }
-   
+
     if (pass != pass2) {
-      _toast('Les mots de passe ne correspondent pas.');
+      _showToast('Les mots de passe ne correspondent pas.');
       return false;
     }
 
     return true;
   }
 
-  // ---- API call -------------------------------------------------------------
+  // API call
 
   Future<void> handleRegister() async {
-  if (!_clientValidate()) return;
+    if (!_validateForm()) return;
 
-  setState(() => isLoading = true);
-  try {
-    final res = await _auth.register(
-      email: emailController.text.trim(),
-      nickName: usernameController.text.trim(),
-      password: passwordController.text,
-    );
+    setState(() => _isLoading = true);
+    try {
+      final res = await _authApi.register(
+        email: _emailController.text.trim(),
+        nickName: _usernameController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (res.ok) {
-      _toast('Un code de vérification vous a été envoyé.',
-          color: TuuurTheme.brandGreen);
+      if (res.ok) {
+        _showToast(
+          'Un code de vérification vous a été envoyé.',
+          color: TuuurTheme.brandGreen,
+        );
 
-      context.push('/verify', extra: {
-        'login': usernameController.text.trim(),
-        'email': emailController.text.trim(),
-      });
+        context.push(
+          '/verify',
+          extra: {
+            'login': _usernameController.text.trim(),
+            'email': _emailController.text.trim(),
+          },
+        );
 
-      return;
+        return;
+      }
+
+      _showToast(res.message ?? 'Échec de l’inscription.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-
-    _toast(res.message ?? 'Échec de l’inscription.');
-  } finally {
-    if (mounted) setState(() => isLoading = false);
   }
-}
 
-
-  // ---- UI -------------------------------------------------------------------
+  // UI
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +125,7 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        RouteHistory.instance.navigateBack(context);
+        context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,
@@ -136,8 +145,8 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
               // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
+                children: const [
+                  Row(
                     children: [
                       FaIcon(
                         FontAwesomeIcons.userPlus,
@@ -156,156 +165,180 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                     ],
                   ),
                 ],
-            ),
-            const SizedBox(height: 24),
+              ),
 
-            // Form
-            Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 500),
-                padding: const EdgeInsets.all(32),
-                decoration: TuuurStyles.gamingCard,
-                child: Column(
-                  children: [
-                    // Pseudo
-                    _LabeledField(
-                      label: 'Pseudo',
-                      child: TextField(
-                        controller: usernameController,
-                        style: const TextStyle(color: TuuurTheme.brandLightGray),
-                        decoration: _input('Choisissez un pseudo'),
+              const SizedBox(height: 24),
+
+              // Form
+              Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  padding: const EdgeInsets.all(32),
+                  decoration: TuuurStyles.gamingCard,
+                  child: Column(
+                    children: [
+                      // Pseudo
+                      _LabeledField(
+                        label: 'Pseudo',
+                        child: TextField(
+                          controller: _usernameController,
+                          style: const TextStyle(
+                            color: TuuurTheme.brandLightGray,
+                          ),
+                          decoration:
+                              _buildInputDecoration('Choisissez un pseudo'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Email
-                    _LabeledField(
-                      label: 'Email',
-                      child: TextField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        style: const TextStyle(color: TuuurTheme.brandLightGray),
-                        decoration: _input('vous@exemple.com'),
+                      // Email
+                      _LabeledField(
+                        label: 'Email',
+                        child: TextField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(
+                            color: TuuurTheme.brandLightGray,
+                          ),
+                          decoration:
+                              _buildInputDecoration('vous@exemple.com'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Password
-                    _LabeledField(
-                      label: 'Mot de passe',
-                      child: TextField(
-                        controller: passwordController,
-                        obscureText: isObscure1,
-                        style: const TextStyle(color: TuuurTheme.brandLightGray),
-                        decoration: _input('••••••••').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              isObscure1
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: TuuurTheme.brandGray,
+                      // Password
+                      _LabeledField(
+                        label: 'Mot de passe',
+                        child: TextField(
+                          controller: _passwordController,
+                          obscureText: _isPasswordObscured,
+                          style: const TextStyle(
+                            color: TuuurTheme.brandLightGray,
+                          ),
+                          decoration:
+                              _buildInputDecoration('••••••••').copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordObscured
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: TuuurTheme.brandGray,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordObscured = !_isPasswordObscured;
+                                });
+                              },
                             ),
-                            onPressed: () =>
-                                setState(() => isObscure1 = !isObscure1),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Confirm
-                    _LabeledField(
-                      label: 'Confirmer le mot de passe',
-                      child: TextField(
-                        controller: confirmPasswordController,
-                        obscureText: isObscure2,
-                        style: const TextStyle(color: TuuurTheme.brandLightGray),
-                        decoration: _input('••••••••').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              isObscure2
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: TuuurTheme.brandGray,
+                      // Confirm
+                      _LabeledField(
+                        label: 'Confirmer le mot de passe',
+                        child: TextField(
+                          controller: _confirmPasswordController,
+                          obscureText: _isConfirmPasswordObscured,
+                          style: const TextStyle(
+                            color: TuuurTheme.brandLightGray,
+                          ),
+                          decoration:
+                              _buildInputDecoration('••••••••').copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isConfirmPasswordObscured
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: TuuurTheme.brandGray,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isConfirmPasswordObscured =
+                                      !_isConfirmPasswordObscured;
+                                });
+                              },
                             ),
-                            onPressed: () =>
-                                setState(() => isObscure2 = !isObscure2),
                           ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                    // Actions
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        GamingButtonSecondary(
-                          text: 'Annuler',
-                          onPressed: () => context.goBack(),
-                        ),
-                        const SizedBox(width: 12),
-                        GamingButtonPrimary(
-                          text: isLoading ? 'Création...' : 'Créer le compte',
-                          onPressed: isLoading ? null : handleRegister,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Lien login
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Déjà inscrit ?',
-                          style: TextStyle(
-                            color: TuuurTheme.brandGray,
-                            fontSize: 14,
+                      // Actions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          GamingButtonSecondary(
+                            text: 'Annuler',
+                            onPressed: () => context.goBack(),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () => context.push('/login'),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                            backgroundColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color:
-                                    TuuurTheme.brandPurple.withOpacity(0.3),
+                          const SizedBox(width: 12),
+                          GamingButtonPrimary(
+                            text: _isLoading ? 'Création...' : 'Créer le compte',
+                            onPressed: _isLoading ? null : handleRegister,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Lien login
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Déjà inscrit ?',
+                            style: TextStyle(
+                              color: TuuurTheme.brandGray,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () => context.push('/login'),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              backgroundColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: TuuurTheme.brandPurple
+                                      .withOpacity(0.3),
+                                ),
+                              ),
+                            ),
+                            child: const Text(
+                              'Se connecter',
+                              style: TextStyle(
+                                color: TuuurTheme.brandLightGray,
+                                fontSize: 12,
                               ),
                             ),
                           ),
-                          child: const Text(
-                            'Se connecter',
-                            style: TextStyle(
-                              color: TuuurTheme.brandLightGray,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
   // Style d’input factorisé
-  InputDecoration _input(String hint) => InputDecoration(
+  InputDecoration _buildInputDecoration(String hint) => InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: TuuurTheme.brandGray.withOpacity(0.7)),
+        hintStyle: TextStyle(
+          color: TuuurTheme.brandGray.withOpacity(0.7),
+        ),
         filled: true,
         fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
         border: OutlineInputBorder(
@@ -316,7 +349,10 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: TuuurTheme.brandPurple, width: 2),
+          borderSide: const BorderSide(
+            color: TuuurTheme.brandPurple,
+            width: 2,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -334,7 +370,12 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
 class _LabeledField extends StatelessWidget {
   final String label;
   final Widget child;
-  const _LabeledField({required this.label, required this.child, super.key});
+
+  const _LabeledField({
+    required this.label,
+    required this.child,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
