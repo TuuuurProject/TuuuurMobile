@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../stores/auth_store.dart';
@@ -11,6 +12,7 @@ import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
+import '../../api/api_config.dart';
 import '../../api/auth_api_service.dart';
 import '../../api/history_api_service.dart';
 
@@ -321,6 +323,17 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _signOut() async {
     final store = MyAuthStore.of(context);
     await store.signOut();
+
+    final GoogleSignIn _googleSignIn = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: ApiConfig.googleWebClientId,
+    );
+
+    
+    if (await _googleSignIn.isSignedIn()) {
+      await _googleSignIn.signOut();
+    }
+
     if (!mounted) return;
 
     // Nettoie l’état local pour éviter un vieux rendu
