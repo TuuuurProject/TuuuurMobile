@@ -138,8 +138,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       FaIcon(
                         FontAwesomeIcons.rotateRight,
                         color: TuuurTheme.brandLightGray,
@@ -175,8 +175,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     keyboardType: TextInputType.number,
                     maxLength: 6,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration: _buildInputDecoration('••••••')
-                        .copyWith(counterText: ''),
+                    decoration:
+                        _buildInputDecoration('••••••').copyWith(counterText: ''),
                   ),
                   const SizedBox(height: 16),
 
@@ -185,8 +185,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     controller: _passwordController,
                     obscureText: _isPasswordObscured,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration:
-                        _buildInputDecoration('••••••••').copyWith(
+                    decoration: _buildInputDecoration('••••••••').copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordObscured
@@ -209,8 +208,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     controller: _confirmPasswordController,
                     obscureText: _isConfirmPasswordObscured,
                     style: const TextStyle(color: TuuurTheme.brandLightGray),
-                    decoration:
-                        _buildInputDecoration('••••••••').copyWith(
+                    decoration: _buildInputDecoration('••••••••').copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isConfirmPasswordObscured
@@ -289,7 +287,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 class _FieldLabel extends StatelessWidget {
   final String label;
 
-  const _FieldLabel(this.label, {super.key});
+  const _FieldLabel(this.label);
 
   @override
   Widget build(BuildContext context) {

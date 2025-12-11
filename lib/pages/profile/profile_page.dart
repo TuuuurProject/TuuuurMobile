@@ -98,9 +98,12 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             children: [
               const SizedBox(height: 24),
-              Row(
-                children: const [
-                  Text('👤', style: TextStyle(fontSize: 28)),
+              const Row(
+                children: [
+                  Text(
+                    '👤',
+                    style: TextStyle(fontSize: 28),
+                  ),
                   SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -255,6 +258,8 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() => _avatarBytes = bytes);
 
       final base64Str = base64Encode(bytes);
+
+      if (!mounted) return;
       final store = MyAuthStore.of(context);
 
       setState(() => _loading = true);
@@ -304,6 +309,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (confirm != true) return;
 
+    if (!mounted) return;
     final store = MyAuthStore.of(context);
     setState(() => _loading = true);
     final res = await authApi.deleteMe(headers: store.authHeaders);
@@ -329,7 +335,6 @@ class _ProfilePageState extends State<ProfilePage> {
       serverClientId: ApiConfig.googleWebClientId,
     );
 
-    
     if (await _googleSignIn.isSignedIn()) {
       await _googleSignIn.signOut();
     }
@@ -590,7 +595,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               _statsPill(
                 '${_historyTotalMatches} Partie${_historyTotalMatches > 1 ? 's' : ''}',
                 icon: FontAwesomeIcons.gamepad,
@@ -679,10 +684,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildHistoryList(List<HistoryMatchDto> matches) {
     if (matches.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
         child: Column(
-          children: const [
+          children: [
             Icon(
               FontAwesomeIcons.inbox,
               size: 32,
@@ -951,7 +956,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 TuuurTheme.brandPurple.withOpacity(0.3),
                             textColor: TuuurTheme.brandPurple,
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                 ],
@@ -1087,8 +1092,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 360),
-                child: Text(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: const Text(
                   '',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

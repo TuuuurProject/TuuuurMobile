@@ -95,8 +95,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       FaIcon(
                         FontAwesomeIcons.key,
                         color: TuuurTheme.brandLightGray,
@@ -195,7 +195,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 class _FieldLabel extends StatelessWidget {
   final String label;
 
-  const _FieldLabel(this.label, {super.key});
+  const _FieldLabel(this.label,);
 
   @override
   Widget build(BuildContext context) {

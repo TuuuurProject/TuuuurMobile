@@ -143,9 +143,9 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
               const SizedBox(height: 24),
 
               // Header
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Row(
                     children: [
                       FaIcon(
@@ -374,7 +374,6 @@ class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.child,
-    super.key,
   });
 
   @override

@@ -230,8 +230,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       if (!createRes.ok) {
         setState(() {
           _loading = false;
-          _error =
-              createRes.message ?? 'Impossible de démarrer la partie.';
+          _error = createRes.message ?? 'Impossible de démarrer la partie.';
           _unauthorized = createRes.statusCode == 401;
         });
         return;
@@ -302,8 +301,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       if (!res.ok || res.data == null) {
         setState(() {
           _loading = false;
-          _error =
-              res.message ?? 'Impossible de récupérer la partie.';
+          _error = res.message ?? 'Impossible de récupérer la partie.';
           _unauthorized = res.statusCode == 401;
         });
         return;
@@ -523,10 +521,6 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     _submitAnswer(answerId: 0);
   }
 
-  void _restart() {
-    _initGame();
-  }
-
   // ---------------------------------------------------------------------------
   // Helpers UI (couleurs boutons selon correction)
   // ---------------------------------------------------------------------------
@@ -689,11 +683,11 @@ class _SoloQuizPageState extends State<SoloQuizPage>
   }
 
   Widget _buildLoadingCard() {
-    return GamingCard(
+    return const GamingCard(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
-          children: const [
+          children: [
             CircularProgressIndicator(color: TuuurTheme.brandPurple),
             SizedBox(height: 12),
             Text(

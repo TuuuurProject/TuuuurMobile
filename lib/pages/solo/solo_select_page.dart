@@ -386,8 +386,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 onPressed: () {
                   final store = MyAuthStore.of(context);
                   _fetchThemes(
-                    headers:
-                        store.isAuthenticated ? store.authHeaders : null,
+                    headers: store.isAuthenticated ? store.authHeaders : null,
                   );
                 },
               ),
@@ -413,10 +412,12 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.goBack(); 
+        context.goBack();
       },
       child: Scaffold(
-        appBar: const NavigationHeader(showBack: true,),
+        appBar: const NavigationHeader(
+          showBack: true,
+        ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -425,12 +426,12 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               _buildHeader(),
               const SizedBox(height: 24),
               if (_loadingThemes)
-                GamingCard(
+                const GamingCard(
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(24),
                       child: Column(
-                        children: const [
+                        children: [
                           CircularProgressIndicator(
                             color: TuuurTheme.brandPurple,
                           ),
@@ -489,11 +490,11 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         final narrow = constraints.maxWidth < 420;
 
         if (narrow) {
-          return Column(
+          return const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
+                children: [
                   FaIcon(
                     FontAwesomeIcons.bullseye,
                     color: TuuurTheme.brandPurple,
@@ -514,20 +515,20 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
             ],
           );
         }
 
-        return Row(
+        return const Row(
           children: [
-            const FaIcon(
+            FaIcon(
               FontAwesomeIcons.bullseye,
               color: TuuurTheme.brandPurple,
               size: 28,
             ),
-            const SizedBox(width: 12),
-            const Expanded(
+            SizedBox(width: 12),
+            Expanded(
               child: Text(
                 'Mode Solo',
                 maxLines: 1,
@@ -539,7 +540,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
           ],
         );
       },
@@ -551,8 +552,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               FaIcon(
                 FontAwesomeIcons.gamepad,
                 color: TuuurTheme.brandPurple,
@@ -665,7 +666,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                     label: '$_questionCount',
                     onChanged: (value) {
                       setState(() {
-                        _questionCount = value.round(); // valeur entière, step 5 grâce à divisions
+                        _questionCount = value
+                            .round(); // valeur entière, step 5 grâce à divisions
                       });
                     },
                   ),
@@ -682,9 +684,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   Widget _buildDifficultySection() {
     if (_loadingDifficulties) {
-      return Column(
+      return const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Text(
             'Difficulté',
             style: TextStyle(
@@ -732,8 +734,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 onPressed: () {
                   final store = MyAuthStore.of(context);
                   _fetchDifficulties(
-                    headers:
-                        store.isAuthenticated ? store.authHeaders : null,
+                    headers: store.isAuthenticated ? store.authHeaders : null,
                   );
                 },
               ),

@@ -281,16 +281,16 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                               color: TuuurTheme.brandGreen.withOpacity(0.3),
                             ),
                           ),
-                          child: Row(
+                          child: const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const FaIcon(
+                              FaIcon(
                                 FontAwesomeIcons.lightbulb,
                                 color: TuuurTheme.brandGreen,
                                 size: 16,
                               ),
-                              const SizedBox(width: 10),
-                              const Expanded(
+                              SizedBox(width: 10),
+                              Expanded(
                                 child: Text(
                                   'Le code commence toujours par "TUR-" suivi de 4 chiffres',
                                   style: TextStyle(

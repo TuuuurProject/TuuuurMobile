@@ -93,7 +93,10 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
           color: TuuurTheme.brandGreen,
         );
 
-        context.go('/');
+        if (context.mounted) {
+          context.go('/');
+        }
+        
         return;
       }
 
@@ -297,7 +300,6 @@ class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.child,
-    super.key,
   });
 
   @override
