@@ -3,15 +3,12 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../api/api_config.dart';
 import '../../api/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../stores/auth_store.dart';
-
-const kGoogleWebClientId = String.fromEnvironment(
-  'GOOGLE_WEB_CLIENT_ID',
-);
 
 class AuthLoginPage extends StatefulWidget {
   const AuthLoginPage({super.key});
@@ -104,7 +101,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
     try {
       final google = GoogleSignIn(
         scopes: const ['email', 'profile'],
-        serverClientId: kGoogleWebClientId,
+        serverClientId: ApiConfig.googleWebClientId,
       );
 
       final account = await google.signIn();
