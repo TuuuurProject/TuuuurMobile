@@ -135,18 +135,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         _isLoading ? null : _handleForgotPassword(),
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
                       GamingButtonSecondary(
                         text: 'Annuler',
                         onPressed: () => context.goBack(),
                       ),
-                      const SizedBox(width: 12),
                       GamingButtonPrimary(
                         text: _isLoading ? 'Envoi...' : 'Envoyer le code',
-                        onPressed:
-                            _isLoading ? null : _handleForgotPassword,
+                        onPressed: _isLoading ? null : _handleForgotPassword,
                       ),
                     ],
                   ),

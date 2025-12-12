@@ -8,12 +8,39 @@ import '../../widgets/common_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../navigation/app_router.dart';
 
+import '../../api/api_client.dart' as api;
 import '../../api/theme_api_service.dart';
 import '../../api/difficulty_api_service.dart';
 import '../../stores/auth_store.dart';
 
+typedef ThemesFetcher = Future<api.ApiResponse<List<dynamic>>> Function({
+  Map<String, String>? headers,
+});
+
+typedef DifficultiesFetcher = Future<api.ApiResponse<List<dynamic>>> Function({
+  Map<String, String>? headers,
+});
+
+class _DifficultyItem {
+  final int id;
+  final String label;
+  const _DifficultyItem({required this.id, required this.label});
+}
+
 class SoloSelectPage extends StatefulWidget {
-  const SoloSelectPage({super.key});
+  final ThemesFetcher? fetchThemes;
+  final DifficultiesFetcher? fetchDifficulties;
+
+  final ThemeApi? themeApiOverride;
+  final DifficultyApi? difficultyApiOverride;
+
+  const SoloSelectPage({
+    super.key,
+    this.fetchThemes,
+    this.fetchDifficulties,
+    this.themeApiOverride,
+    this.difficultyApiOverride,
+  });
 
   @override
   State<SoloSelectPage> createState() => _SoloSelectPageState();
@@ -31,7 +58,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   bool _unauthorized = false;
 
   // Difficultés
-  List<DifficultyDto> _difficulties = [];
+  List<_DifficultyItem> _difficulties = [];
   bool _loadingDifficulties = false;
   String? _difficultyError;
   bool _difficultyUnauthorized = false;
@@ -39,6 +66,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   // Signature d'état d'auth
   String? _lastAuthSignature;
+
+  ThemeApi get _themeApi => widget.themeApiOverride ?? themeApi;
+  DifficultyApi get _difficultyApi => widget.difficultyApiOverride ?? difficultyApi;
 
   @override
   void initState() {
@@ -80,7 +110,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
     });
 
     try {
-      final res = await themeApi.getThemes(headers: headers);
+      final res = await _themesFetcher(headers: headers);
       if (!mounted) return;
 
       if (!res.ok) {
@@ -95,29 +125,27 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         return;
       }
 
-      final items = res.data ?? [];
+      final items = res.data ?? const <dynamic>[];
+
       final mapped = items.map((t) {
+        final key = _mString(t, 'key');
+        final id = _mInt(t, 'id');
+        final name = _mString(t, 'name');
+        final icon = _mString(t, 'icon');
+
         return QuizCategory(
-          id: (t.key.isNotEmpty
-                  ? t.key
-                  : (t.id?.toString() ?? 'theme_${t.hashCode}'))
+          id: (key.isNotEmpty ? key : (id?.toString() ?? 'theme_${t.hashCode}'))
               .toLowerCase(),
-          name: t.name,
-          icon: _iconForTheme(icon: t.icon, name: t.name),
+          name: name,
+          icon: _iconForTheme(icon: icon, name: name),
         );
       }).toList();
 
-      // Tri (Général en premier si présent)
       mapped.sort((a, b) {
         int p(String n) =>
-            n.toLowerCase().contains('général') ||
-                    n.toLowerCase().contains('general')
-                ? 0
-                : 1;
+            n.toLowerCase().contains('général') || n.toLowerCase().contains('general') ? 0 : 1;
         final pa = p(a.name), pb = p(b.name);
-        return pa != pb
-            ? (pa - pb)
-            : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return pa != pb ? (pa - pb) : a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
 
       setState(() {
@@ -208,7 +236,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       _difficultyUnauthorized = false;
     });
 
-    final res = await difficultyApi.getDifficulties(headers: headers);
+    final res = await _difficultiesFetcher(headers: headers);
     if (!mounted) return;
 
     if (!res.ok) {
@@ -223,13 +251,21 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       return;
     }
 
-    final items = res.data ?? [];
+    final items = res.data ?? const <dynamic>[];
+
+    final mapped = <_DifficultyItem>[];
+    for (final d in items) {
+      final id = _mInt(d, 'id');
+      final label = _mString(d, 'label');
+      if (id != null && label.isNotEmpty) {
+        mapped.add(_DifficultyItem(id: id, label: label));
+      }
+    }
 
     setState(() {
-      _difficulties = items;
+      _difficulties = mapped;
       _loadingDifficulties = false;
 
-      // Par défaut : Moyen (id=2) si présent, sinon le premier
       if (_selectedDifficultyId == null && _difficulties.isNotEmpty) {
         final def = _difficulties.firstWhere(
           (d) => d.id == 2,
@@ -242,9 +278,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   String _selectedDifficultyLabel() {
     if (_selectedDifficultyId == null) return '—';
-    final match = _difficulties
-        .where((d) => d.id == _selectedDifficultyId)
-        .toList(growable: false);
+    final match = _difficulties.where((d) => d.id == _selectedDifficultyId).toList(growable: false);
     return match.isNotEmpty ? match.first.label : '—';
   }
 
@@ -448,33 +482,13 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               else if (_loadError != null)
                 _buildThemesErrorCard()
               else
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (constraints.maxWidth > 900) {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _buildCategoriesSection(),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: _buildSettingsSection(),
-                          ),
-                        ],
-                      );
-                    } else {
-                      return Column(
-                        children: [
-                          _buildCategoriesSection(),
-                          const SizedBox(height: 24),
-                          _buildSettingsSection(),
-                        ],
-                      );
-                    }
-                  },
-                ),
+              Column(
+                children: [
+                  _buildCategoriesSection(),
+                  const SizedBox(height: 24),
+                  _buildSettingsSection(),
+                ],
+              ),
               const SizedBox(height: 32),
               _buildFooter(),
             ],
@@ -786,47 +800,19 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   }
 
   Widget _buildSettingItem(String label, Widget trailing) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 360;
-        if (narrow) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: TuuurTheme.brandLightGray,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: trailing,
-              ),
-            ],
-          );
-        }
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: TuuurTheme.brandLightGray,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            trailing,
-          ],
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: TuuurTheme.brandLightGray,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        trailing,
+      ],
     );
   }
 
@@ -850,6 +836,74 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         );
       },
     );
+  }
+
+  ThemesFetcher get _themesFetcher =>
+      widget.fetchThemes ??
+      ({headers}) async {
+        final res = await _themeApi.getThemes(headers: headers);
+        if (!res.ok) {
+          return api.ApiResponse.err(
+            message: res.message,
+            statusCode: res.statusCode,
+            raw: res.raw,
+          );
+        }
+        return api.ApiResponse.ok(
+          List<dynamic>.from(res.data ?? const []),
+          statusCode: res.statusCode,
+        );
+      };
+
+  DifficultiesFetcher get _difficultiesFetcher =>
+      widget.fetchDifficulties ??
+      ({headers}) async {
+        final res = await _difficultyApi.getDifficulties(headers: headers);
+        if (!res.ok) {
+          return api.ApiResponse.err(
+            message: res.message,
+            statusCode: res.statusCode,
+            raw: res.raw,
+          );
+        }
+        return api.ApiResponse.ok(
+          List<dynamic>.from(res.data ?? const []),
+          statusCode: res.statusCode,
+        );
+      };
+
+  String _mString(dynamic obj, String key) {
+    if (obj is Map) return obj[key]?.toString() ?? '';
+    try {
+      final o = obj as dynamic;
+      switch (key) {
+        case 'key':
+          return o.key?.toString() ?? '';
+        case 'name':
+          return o.name?.toString() ?? '';
+        case 'icon':
+          return o.icon?.toString() ?? '';
+        case 'label':
+          return o.label?.toString() ?? '';
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  int? _mInt(dynamic obj, String key) {
+    dynamic v;
+    if (obj is Map) {
+      v = obj[key];
+    } else {
+      try {
+        final o = obj as dynamic;
+        if (key == 'id') v = o.id;
+      } catch (_) {}
+    }
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
   }
 }
 

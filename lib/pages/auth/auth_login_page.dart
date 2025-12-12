@@ -104,6 +104,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
         serverClientId: ApiConfig.googleWebClientId,
       );
 
+      if (await google.isSignedIn()) {
+        await google.signOut();
+      }
+
       final account = await google.signIn();
 
       if (!mounted) return;

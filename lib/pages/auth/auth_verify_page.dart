@@ -220,18 +220,17 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
 
                       const SizedBox(height: 24),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 12,
+                        runSpacing: 12,
                         children: [
                           GamingButtonSecondary(
                             text: 'Annuler',
                             onPressed: () => context.goBack(),
                           ),
-                          const SizedBox(width: 12),
                           GamingButtonPrimary(
-                            text: _isLoading
-                                ? 'Vérification...'
-                                : 'Valider le code',
+                            text: _isLoading ? 'Vérification...' : 'Valider le code',
                             onPressed: _isLoading ? null : handleVerify,
                           ),
                         ],

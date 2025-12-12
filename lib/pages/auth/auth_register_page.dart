@@ -267,21 +267,21 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                       const SizedBox(height: 24),
 
                       // Actions
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 12,
+                        runSpacing: 12,
                         children: [
                           GamingButtonSecondary(
                             text: 'Annuler',
                             onPressed: () => context.goBack(),
                           ),
-                          const SizedBox(width: 12),
                           GamingButtonPrimary(
                             text: _isLoading ? 'Création...' : 'Créer le compte',
                             onPressed: _isLoading ? null : handleRegister,
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 24),
 
                       // Lien login

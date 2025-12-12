@@ -19,11 +19,15 @@ class SoloQuizPage extends StatefulWidget {
   final int questions;
   final int difficulty; // id de difficulté backend
 
+  /// ✅ Injection pour tests (ou override en prod si besoin)
+  final SoloApi? soloApiOverride;
+
   const SoloQuizPage({
     super.key,
     required this.categories,
     required this.questions,
     required this.difficulty,
+    this.soloApiOverride,
   });
 
   @override
@@ -33,6 +37,9 @@ class SoloQuizPage extends StatefulWidget {
 class _SoloQuizPageState extends State<SoloQuizPage>
     with WidgetsBindingObserver {
   static const int totalTime = 15; // secondes (juste pour l'UI)
+
+  /// ✅ API utilisée (singleton en prod, mock en tests)
+  SoloApi get _api => widget.soloApiOverride ?? soloApi;
 
   AppLifecycleState? _appLifecycleState;
   bool _pendingAutoSubmitOnResume = false;
@@ -218,7 +225,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       final difficultyIds = <int>[widget.difficulty];
 
       // 1) Création de la partie solo
-      final createRes = await soloApi.createSolo(
+      final createRes = await _api.createSolo(
         themeIds: themeIds,
         difficultyIds: difficultyIds,
         nbQuestions: widget.questions,
@@ -242,15 +249,14 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       if (partyId == null || partyId.isEmpty) {
         setState(() {
           _loading = false;
-          _error =
-              'Réponse inattendue du serveur (id de partie manquant).';
+          _error = 'Réponse inattendue du serveur (id de partie manquant).';
         });
         return;
       }
       _partyId = partyId;
 
       // 2) Récupération de l’état initial (première question)
-      final partyRes = await soloApi.getSolo(
+      final partyRes = await _api.getSolo(
         partyId: partyId,
         headers: headers,
       );
@@ -260,8 +266,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       if (!partyRes.ok || partyRes.data == null) {
         setState(() {
           _loading = false;
-          _error =
-              partyRes.message ?? 'Impossible de récupérer la partie.';
+          _error = partyRes.message ?? 'Impossible de récupérer la partie.';
           _unauthorized = partyRes.statusCode == 401;
         });
         return;
@@ -291,7 +296,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       final store = MyAuthStore.of(context);
       final headers = store.isAuthenticated ? store.authHeaders : null;
 
-      final res = await soloApi.getSolo(
+      final res = await _api.getSolo(
         partyId: _partyId!,
         headers: headers,
       );
@@ -438,7 +443,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       final store = MyAuthStore.of(context);
       final headers = store.isAuthenticated ? store.authHeaders : null;
 
-      final res = await soloApi.answerSolo(
+      final res = await _api.answerSolo(
         partyId: _partyId!,
         answerId: answerId,
         headers: headers,
@@ -449,8 +454,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       if (!res.ok || res.data == null) {
         setState(() {
           _submitting = false;
-          _error =
-              res.message ?? 'Erreur lors de l\'envoi de la réponse.';
+          _error = res.message ?? 'Erreur lors de l\'envoi de la réponse.';
         });
         ToastManager.show(
           context: context,

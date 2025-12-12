@@ -13,17 +13,27 @@ import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../api/api_config.dart';
-import '../../api/auth_api_service.dart';
-import '../../api/history_api_service.dart';
+import '../../api/auth_api_service.dart' as api_auth;
+import '../../api/history_api_service.dart' as api_hist;
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final api_auth.AuthApi? authApi;
+  final api_hist.HistoryApi? historyApi;
+
+  const ProfilePage({
+    super.key,
+    this.authApi,
+    this.historyApi,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  api_auth.AuthApi get _authApi => widget.authApi ?? api_auth.authApi;
+  api_hist.HistoryApi get _historyApi => widget.historyApi ?? api_hist.historyApi;
+
   bool _loading = false;
   String? _nickName;
   String? _email;
@@ -38,7 +48,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // --- Historique ---
   bool _historyLoading = false;
   String? _historyError;
-  List<HistoryMatchDto> _historyMatches = [];
+  List<api_hist.HistoryMatchDto> _historyMatches = [];
   int _historyTotalMatches = 0;
   int? _historyAvgPercent;
   String _historySelectedFilter = 'all';
@@ -52,8 +62,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return 'https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=$seed';
   }
 
-  List<HistoryMatchDto> get _visibleHistoryMatches {
-    var list = List<HistoryMatchDto>.from(_historyMatches);
+  List<api_hist.HistoryMatchDto> get _visibleHistoryMatches {
+    var list = List<api_hist.HistoryMatchDto>.from(_historyMatches);
 
     if (_historySelectedFilter == 'solo') {
       list = list
@@ -162,7 +172,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!store.isAuthenticated) return;
 
     setState(() => _loading = true);
-    final res = await authApi.me(headers: store.authHeaders);
+
+    final res = await _authApi.me(headers: store.authHeaders);
+
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -198,11 +210,12 @@ class _ProfilePageState extends State<ProfilePage> {
       _historyError = null;
     });
 
-    final res = await historyApi.getHistory(
+    final res = await _historyApi.getHistory(
       headers: store.authHeaders,
       page: page,
       size: _historyPageSize,
     );
+
     if (!mounted) return;
 
     if (!res.ok || res.data == null) {
@@ -263,10 +276,12 @@ class _ProfilePageState extends State<ProfilePage> {
       final store = MyAuthStore.of(context);
 
       setState(() => _loading = true);
-      final res = await authApi.updateAvatarBase64(
+
+      final res = await _authApi.updateAvatarBase64(
         base64: base64Str,
         headers: store.authHeaders,
       );
+
       if (!mounted) return;
       setState(() => _loading = false);
 
@@ -312,7 +327,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
     final store = MyAuthStore.of(context);
     setState(() => _loading = true);
-    final res = await authApi.deleteMe(headers: store.authHeaders);
+
+    final res = await _authApi.deleteMe(headers: store.authHeaders);
+
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -330,13 +347,13 @@ class _ProfilePageState extends State<ProfilePage> {
     final store = MyAuthStore.of(context);
     await store.signOut();
 
-    final GoogleSignIn _googleSignIn = GoogleSignIn(
+    final GoogleSignIn googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
       serverClientId: ApiConfig.googleWebClientId,
     );
 
-    if (await _googleSignIn.isSignedIn()) {
-      await _googleSignIn.signOut();
+    if (await googleSignIn.isSignedIn()) {
+      await googleSignIn.signOut();
     }
 
     if (!mounted) return;
@@ -682,7 +699,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildHistoryList(List<HistoryMatchDto> matches) {
+  Widget _buildHistoryList(List<api_hist.HistoryMatchDto> matches) {
     if (matches.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
@@ -715,7 +732,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildHistoryItem(HistoryMatchDto match) {
+  Widget _buildHistoryItem(api_hist.HistoryMatchDto match) {
     final percent = match.percent;
     final baseColor = _colorForPercent(percent);
     final bgScore = baseColor.withOpacity(0.2);
@@ -1069,8 +1086,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _profileCard() {
     final name = _nickName ?? 'Joueur';
-    final avatarUrl =
-        (_avatar != null && _avatar!.startsWith('http')) ? _avatar! : _fallbackAvatarUrl;
+    final avatarUrl = (_avatar != null && _avatar!.startsWith('http'))
+        ? _avatar!
+        : _fallbackAvatarUrl;
 
     return Container(
       padding: const EdgeInsets.all(24),
