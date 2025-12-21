@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'stores/auth_store.dart';
 import 'theme/tuuuur_theme.dart';
 import 'navigation/app_router.dart';
+import 'navigation/app_messengers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class TuuurApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: TuuurTheme.theme,
       routerConfig: appRouter,
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(

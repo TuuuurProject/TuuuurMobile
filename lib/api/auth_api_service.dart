@@ -318,4 +318,5 @@ class AuthApi {
   }
 }
 
-final authApi = AuthApi(apiClient);
+// final authApi = AuthApi(apiClient);
+AuthApi authApi = AuthApi(apiClient);

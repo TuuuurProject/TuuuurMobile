@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tuuuur_flutter/pages/auth/auth_verify_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
+import 'package:tuuuur_flutter/navigation/app_messengers.dart';
 
 void main() {
   group('AuthVerifyPage', () {
@@ -9,6 +10,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),
@@ -37,6 +39,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(initialLogin: initialLogin),
@@ -59,6 +62,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(emailHint: emailHint),
@@ -74,6 +78,7 @@ void main() {
     testWidgets('le champ code a maxLength = 6', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),
@@ -96,6 +101,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),
@@ -117,6 +123,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),
@@ -142,6 +149,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),
@@ -165,6 +173,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),
@@ -183,6 +192,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
             child: const AuthVerifyPage(),

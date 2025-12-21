@@ -99,22 +99,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             children: [
               // Particule 1
               Positioned(
-                top: MediaQuery.of(context).size.height * 0.25,
-                left: MediaQuery.of(context).size.width * 0.25,
-                child:
-                    Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: TuuurTheme.brandPurple.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                        )
-                        .animate(onPlay: (controller) => controller.repeat())
-                        .fade(duration: 3000.ms, curve: Curves.easeInOut),
-              ),
-              // Particule 2
-              Positioned(
                 top: MediaQuery.of(context).size.height * 0.75,
                 right: MediaQuery.of(context).size.width * 0.25,
                 child:
@@ -131,7 +115,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         .then()
                         .moveY(begin: -40, end: 0, duration: 2000.ms),
               ),
-              // Particule 3
+              // Particule 2
               Positioned(
                 top: MediaQuery.of(context).size.height * 0.5,
                 left: MediaQuery.of(context).size.width * 0.75,
@@ -159,7 +143,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           curve: Curves.easeInOut,
                         ),
               ),
-              // Particule 4
+              // Particule 3
               Positioned(
                 top: MediaQuery.of(context).size.height * 0.33,
                 right: MediaQuery.of(context).size.width * 0.33,
@@ -186,7 +170,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           duration: 2000.ms,
                         ),
               ),
-              // Particule 5
+              // Particule 4
               Positioned(
                 bottom: MediaQuery.of(context).size.height * 0.25,
                 left: MediaQuery.of(context).size.width * 0.5,
@@ -224,7 +208,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: TuuurTheme.purpleGradient,
+                    // gradient: TuuurTheme.purpleGradient,
                     boxShadow: [
                       BoxShadow(
                         color: TuuurTheme.brandPurple.withOpacity(
@@ -235,9 +219,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  child: const Center(
-                    child: Icon(Icons.quiz, size: 40, color: Colors.white),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover, // remplit le cercle sans déformer
+                      filterQuality: FilterQuality.high,
+                    ),
                   ),
+
                 );
               },
             ),
@@ -396,7 +387,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildFooter() {
     return const Text(
-      '© 2025 Tuuuur',
+      '© 2026 Tuuuur',
       style: TextStyle(fontSize: 12, color: TuuurTheme.brandGray),
     ).animate(delay: 1100.ms).fadeIn(duration: 600.ms);
   }
