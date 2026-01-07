@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+import '../../api/group_api_service.dart';
+import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import 'group_mode_page.dart';
@@ -9,20 +12,72 @@ import 'qr_preview_widget.dart';
 class GroupLobbyPage extends StatefulWidget {
   final GroupLobbyData lobby;
   final VoidCallback onBack;
+  final GroupApi? groupApiOverride;
 
-  const GroupLobbyPage({super.key, required this.lobby, required this.onBack});
+  const GroupLobbyPage({
+    super.key,
+    required this.lobby,
+    required this.onBack,
+    this.groupApiOverride,
+  });
 
   @override
   State<GroupLobbyPage> createState() => _GroupLobbyPageState();
 }
 
 class _GroupLobbyPageState extends State<GroupLobbyPage> {
+  GroupApi get _api => widget.groupApiOverride ?? groupApi;
+
+  bool _leaving = false;
+
+  void _snack(String message, {Color? color}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color ?? TuuurTheme.brandOrange,
+      ),
+    );
+  }
+
+  Future<void> _leave() async {
+    if (_leaving) return;
+
+    setState(() => _leaving = true);
+
+    try {
+      final store = MyAuthStore.of(context);
+      final headers = store.isAuthenticated ? store.authHeaders : null;
+
+      final res = await _api.leaveGroup(headers: headers);
+
+      if (!mounted) return;
+
+      if (!res.ok) {
+        setState(() => _leaving = false);
+        _snack(res.message ?? 'Impossible de quitter la partie.');
+        return;
+      }
+
+      setState(() => _leaving = false);
+      widget.onBack();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _leaving = false);
+      _snack('Erreur: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final statusLabel = widget.lobby.isHost ? 'Hôte' : 'En attente d\'hôte';
+    final statusColor =
+        widget.lobby.isHost ? TuuurTheme.brandPurple : TuuurTheme.brandGreen;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ---------- HEADER (responsive) ----------
+        // HEADER
         LayoutBuilder(
           builder: (context, constraints) {
             final narrow = constraints.maxWidth < 620;
@@ -31,7 +86,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 GestureDetector(
-                  onTap: widget.onBack,
+                  onTap: _leaving ? null : widget.onBack,
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: TuuurStyles.pill,
@@ -48,26 +103,24 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 26, // compact
+                    fontSize: 26,
                     fontWeight: FontWeight.w600,
                     color: TuuurTheme.brandLightGray,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: TuuurStyles.pill.copyWith(
-                    color: TuuurTheme.brandGreen.withOpacity(0.2),
+                    color: statusColor.withOpacity(0.2),
                   ),
-                  child: const Text(
-                    'En attente d\'hôte',
+                  child: Text(
+                    statusLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: TuuurTheme.brandGreen,
+                      color: statusColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -82,10 +135,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
               runSpacing: 8,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: TuuurStyles.pill,
                   child: const Text(
                     'Code',
@@ -97,10 +148,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     color: TuuurTheme.brandDarkGray.withOpacity(0.5),
@@ -113,10 +162,9 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: TuuurTheme.brandLightGray,
-                      letterSpacing: 2,
                     ),
                   ),
                 ),
@@ -144,25 +192,22 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
         ),
         const SizedBox(height: 20),
 
-        // ---------- PARAMETER CHIPS ----------
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildParameterChip(
-              'Catégories: ${widget.lobby.categories.join(', ')}',
-            ),
+            if (widget.lobby.categories.isNotEmpty)
+              _buildParameterChip(
+                'Catégories: ${widget.lobby.categories.join(', ')}',
+              ),
             _buildParameterChip('Questions: ${widget.lobby.questions}'),
-            _buildParameterChip(
-              'Mélanger: ${widget.lobby.shuffle ? 'Oui' : 'Non'}',
-            ),
+            _buildParameterChip('Mélanger: ${widget.lobby.shuffle ? 'Oui' : 'Non'}'),
             if (widget.lobby.specifics.isNotEmpty)
               _buildParameterChip('Spécifiques: ${widget.lobby.specifics}'),
           ],
         ),
         const SizedBox(height: 24),
 
-        // ---------- CONTENT (Left: players | Right: QR + actions) ----------
         LayoutBuilder(
           builder: (context, constraints) {
             final stack = constraints.maxWidth < 900;
@@ -202,21 +247,26 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ...widget.lobby.players.map((p) => _buildPlayerTile(p)),
+                  if (widget.lobby.players.isEmpty)
+                    const Text(
+                      'Démo sans websocket : pas de liste temps réel.',
+                      style: TextStyle(color: TuuurTheme.brandGray),
+                    )
+                  else
+                    ...widget.lobby.players.map((p) => _buildPlayerTile(p)),
                 ],
               ),
             );
 
             final rightPanelBox = Column(
               children: [
-                // QR card (inchangé)
                 LayoutBuilder(
                   builder: (context, box) {
                     final qrSize = box.maxWidth < 360
                         ? 140.0
                         : box.maxWidth < 460
-                        ? 180.0
-                        : 220.0;
+                            ? 180.0
+                            : 220.0;
                     return Container(
                       padding: const EdgeInsets.all(18),
                       decoration: TuuurStyles.gamingCard,
@@ -251,10 +301,9 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontSize: 24,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: TuuurTheme.brandLightGray,
-                                        letterSpacing: 2,
                                       ),
                                     ),
                                   ],
@@ -266,7 +315,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                                 child: GamingButtonSecondary(
                                   text: 'Copier',
                                   onPressed: () {
-                                    /* TODO: copier */
+                                    // TODO: Clipboard.setData
                                   },
                                 ),
                               ),
@@ -285,17 +334,19 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Actions card (inchangé)
+
                 LayoutBuilder(
                   builder: (context, box) {
                     final narrowButtons = box.maxWidth < 420;
+
                     final quitBtn = SizedBox(
                       width: narrowButtons ? double.infinity : null,
                       child: GamingButtonSecondary(
-                        text: 'Quitter',
-                        onPressed: widget.onBack,
+                        text: _leaving ? 'Quitte…' : 'Quitter',
+                        onPressed: _leaving ? null : _leave,
                       ),
                     );
+
                     final launchBtn = SizedBox(
                       width: narrowButtons ? double.infinity : null,
                       child: GamingButtonPrimary(
@@ -303,13 +354,14 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Fonctionnalité en démo'),
+                              content: Text('Websocket / lancement réel : à faire ensuite'),
                               backgroundColor: TuuurTheme.brandOrange,
                             ),
                           );
                         },
                       ),
                     );
+
                     return Container(
                       padding: const EdgeInsets.all(18),
                       decoration: TuuurStyles.gamingCard,
@@ -343,7 +395,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                             ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Lecture seule (démo) — l\'hôte peut lancer lorsqu\'il sera prêt.',
+                            'Sans websocket : lobby “statique”.',
                             style: TextStyle(
                               color: TuuurTheme.brandGray,
                               fontSize: 12,
@@ -383,7 +435,6 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
     );
   }
 
-  // ---------- helpers ----------
   Widget _buildParameterChip(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

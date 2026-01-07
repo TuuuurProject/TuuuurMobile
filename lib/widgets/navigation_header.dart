@@ -93,25 +93,14 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Logo
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [TuuurTheme.brandPurple, TuuurTheme.brandOrange],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: TuuurTheme.brandPurple.withOpacity(0.3),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(Icons.quiz, color: Colors.white, size: 16),
-              ),
+            ClipOval(
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 80,
+               height: 80,
+                fit: BoxFit.cover, // remplit le cercle sans déformer
+               filterQuality: FilterQuality.high,
+             ),
             ),
             const SizedBox(width: 8),
             const Text(
