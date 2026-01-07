@@ -54,19 +54,18 @@ class _Duel1v1PageState extends State<Duel1v1Page>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, outer) {
-        final isPhone = outer.maxWidth < 420;
         final isNarrow = outer.maxWidth < 600;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -------- Header responsive --------
-            _buildHeader(isPhone).animate().fadeIn().slideX(begin: -0.3),
-            SizedBox(height: isPhone ? 16 : 24),
+            // -------- Header --------
+            _buildHeader().animate().fadeIn().slideX(begin: -0.3),
+            const SizedBox(height: 16),
 
             // -------- Arène principale --------
             Container(
-              padding: EdgeInsets.all(isPhone ? 16 : 24),
+              padding: const EdgeInsets.all(16),
               decoration: TuuurStyles.gamingCard.copyWith(
                 border: Border.all(
                   color: TuuurTheme.brandOrange.withOpacity(0.3),
@@ -75,25 +74,24 @@ class _Duel1v1PageState extends State<Duel1v1Page>
               ),
               child: Column(
                 children: [
-                  // VS + joueurs : colonne sur mobile, rangée sur large
-                  _buildArena(isNarrow: isNarrow, isPhone: isPhone),
-                  SizedBox(height: isPhone ? 16 : 24),
+                  // VS + joueurs : colonne sur mobile
+                  _buildArena(isNarrow: isNarrow),
+                  const SizedBox(height: 16),
 
                   // Règles du jeu (Wrap => pas d'overflow)
-                  _buildRulesCard(
-                    isPhone,
-                  ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.2),
-                  SizedBox(height: isPhone ? 14 : 20),
+                  _buildRulesCard()
+                      .animate()
+                      .fadeIn(delay: 800.ms)
+                      .slideY(begin: 0.2),
+                  const SizedBox(height: 14),
 
                   // Catégories (Wrap chips)
-                  _buildCategoriesCard(
-                    isPhone,
-                  ).animate().fadeIn(delay: 1000.ms),
-                  SizedBox(height: isPhone ? 18 : 24),
+                  _buildCategoriesCard().animate().fadeIn(delay: 1000.ms),
+                  const SizedBox(height: 18),
 
                   // État prêt / pas prêt
                   if (!canStart) ...[
-                    _buildReadyHint(isPhone),
+                    _buildReadyHint(),
                     const SizedBox(height: 12),
                   ],
 
@@ -126,14 +124,7 @@ class _Duel1v1PageState extends State<Duel1v1Page>
 
   // ---------- UI blocks ----------
 
-  Widget _buildHeader(bool isPhone) {
-    final left = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: const [
-        // Back
-      ],
-    );
-
+  Widget _buildHeader() {
     final backBtn = GestureDetector(
       onTap: widget.onBack,
       child: Container(
@@ -147,10 +138,14 @@ class _Duel1v1PageState extends State<Duel1v1Page>
       ),
     );
 
-    final titleRow = Row(
+    const titleRow = Row(
       mainAxisSize: MainAxisSize.min,
-      children: const [
-        FaIcon(FontAwesomeIcons.fire, color: TuuurTheme.brandOrange, size: 22),
+      children: [
+        FaIcon(
+          FontAwesomeIcons.fire,
+          color: TuuurTheme.brandOrange,
+          size: 22,
+        ),
         SizedBox(width: 10),
         Flexible(
           child: Text(
@@ -194,35 +189,24 @@ class _Duel1v1PageState extends State<Duel1v1Page>
       ),
     );
 
-    if (isPhone) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              backBtn,
-              const SizedBox(width: 12),
-              Expanded(child: titleRow),
-            ],
-          ),
-          const SizedBox(height: 10),
-          rightPill,
-        ],
-      );
-    }
-
-    return Row(
+    // Mobile only : header en colonne
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        backBtn,
-        const SizedBox(width: 12),
-        Expanded(child: titleRow),
-        const SizedBox(width: 12),
+        Row(
+          children: [
+            backBtn,
+            const SizedBox(width: 12),
+            const Expanded(child: titleRow),
+          ],
+        ),
+        const SizedBox(height: 10),
         rightPill,
       ],
     );
   }
 
-  Widget _buildArena({required bool isNarrow, required bool isPhone}) {
+  Widget _buildArena({required bool isNarrow}) {
     final vsSize = isNarrow ? 64.0 : 80.0;
 
     final vsCircle = Padding(
@@ -302,9 +286,9 @@ class _Duel1v1PageState extends State<Duel1v1Page>
     );
   }
 
-  Widget _buildRulesCard(bool isPhone) {
+  Widget _buildRulesCard() {
     return Container(
-      padding: EdgeInsets.all(isPhone ? 14 : 20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: TuuurTheme.brandDarkGray.withOpacity(0.3),
@@ -373,9 +357,9 @@ class _Duel1v1PageState extends State<Duel1v1Page>
     );
   }
 
-  Widget _buildCategoriesCard(bool isPhone) {
+  Widget _buildCategoriesCard() {
     return Container(
-      padding: EdgeInsets.all(isPhone ? 12 : 16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: TuuurTheme.brandOrange.withOpacity(0.1),
@@ -431,7 +415,7 @@ class _Duel1v1PageState extends State<Duel1v1Page>
     );
   }
 
-  Widget _buildReadyHint(bool isPhone) {
+  Widget _buildReadyHint() {
     final ready = isReady;
     return Container(
       padding: const EdgeInsets.all(14),
@@ -463,7 +447,9 @@ class _Duel1v1PageState extends State<Duel1v1Page>
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: ready ? TuuurTheme.brandGreen : TuuurTheme.brandOrange,
+                color: ready
+                    ? TuuurTheme.brandGreen
+                    : TuuurTheme.brandOrange,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -481,101 +467,101 @@ class _Duel1v1PageState extends State<Duel1v1Page>
     required bool isPlayer,
   }) {
     return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: isPlayer
-                ? TuuurTheme.brandPurple.withOpacity(0.1)
-                : TuuurTheme.brandDarkGray.withOpacity(0.3),
-            border: Border.all(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isPlayer
+            ? TuuurTheme.brandPurple.withOpacity(0.1)
+            : TuuurTheme.brandDarkGray.withOpacity(0.3),
+        border: Border.all(
+          color: isPlayer
+              ? TuuurTheme.brandPurple.withOpacity(0.3)
+              : TuuurTheme.brandGray.withOpacity(0.3),
+          width: isReady ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Avatar
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(29),
               color: isPlayer
-                  ? TuuurTheme.brandPurple.withOpacity(0.3)
-                  : TuuurTheme.brandGray.withOpacity(0.3),
-              width: isReady ? 2 : 1,
+                  ? TuuurTheme.brandPurple.withOpacity(0.2)
+                  : TuuurTheme.brandGray.withOpacity(0.2),
+            ),
+            child: Center(
+              child: Text(emoji, style: const TextStyle(fontSize: 26)),
             ),
           ),
-          child: Column(
-            children: [
-              // Avatar
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(29),
-                  color: isPlayer
-                      ? TuuurTheme.brandPurple.withOpacity(0.2)
-                      : TuuurTheme.brandGray.withOpacity(0.2),
-                ),
-                child: Center(
-                  child: Text(emoji, style: const TextStyle(fontSize: 26)),
-                ),
-              ),
-              const SizedBox(height: 10),
+          const SizedBox(height: 10),
 
-              // Name
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 2),
-
-              // Level
-              Text(
-                level,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: TuuurTheme.brandGray,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Ready Status
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: TuuurStyles.pill.copyWith(
-                  color: isReady
-                      ? TuuurTheme.brandGreen.withOpacity(0.2)
-                      : TuuurTheme.brandOrange.withOpacity(0.2),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FaIcon(
-                      isReady ? FontAwesomeIcons.check : FontAwesomeIcons.clock,
-                      color: isReady
-                          ? TuuurTheme.brandGreen
-                          : TuuurTheme.brandOrange,
-                      size: 12,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isReady ? 'Prêt' : 'En attente',
-                      style: TextStyle(
-                        color: isReady
-                            ? TuuurTheme.brandGreen
-                            : TuuurTheme.brandOrange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // Name
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandLightGray,
+            ),
+            textAlign: TextAlign.center,
           ),
-        )
+          const SizedBox(height: 2),
+
+          // Level
+          Text(
+            level,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: TuuurTheme.brandGray,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Ready Status
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            decoration: TuuurStyles.pill.copyWith(
+              color: isReady
+                  ? TuuurTheme.brandGreen.withOpacity(0.2)
+                  : TuuurTheme.brandOrange.withOpacity(0.2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FaIcon(
+                  isReady ? FontAwesomeIcons.check : FontAwesomeIcons.clock,
+                  color: isReady
+                      ? TuuurTheme.brandGreen
+                      : TuuurTheme.brandOrange,
+                  size: 12,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isReady ? 'Prêt' : 'En attente',
+                  style: TextStyle(
+                    color: isReady
+                        ? TuuurTheme.brandGreen
+                        : TuuurTheme.brandOrange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    )
         .animate()
         .fadeIn(delay: (isPlayer ? 400 : 600).ms)
         .slideX(begin: isPlayer ? -0.25 : 0.25);
@@ -606,7 +592,10 @@ class _Duel1v1PageState extends State<Duel1v1Page>
           description,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: TuuurTheme.brandGray, fontSize: 12),
+          style: const TextStyle(
+            color: TuuurTheme.brandGray,
+            fontSize: 12,
+          ),
           textAlign: TextAlign.center,
         ),
       ],

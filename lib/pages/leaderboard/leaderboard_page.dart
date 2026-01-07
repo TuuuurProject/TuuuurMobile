@@ -430,7 +430,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           const SizedBox(height: 16),
 
           // Liste des joueurs 4-20
-          ...rest.map((player) => _buildPlayerRow(player)).toList(),
+          ...rest.map((player) => _buildPlayerRow(player)),
         ],
       ),
     );

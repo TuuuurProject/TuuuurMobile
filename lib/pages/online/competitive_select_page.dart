@@ -64,7 +64,11 @@ class _CompetitiveSelectPageState extends State<CompetitiveSelectPage> {
       name: 'Cinéma',
       icon: FontAwesomeIcons.film,
     ),
-    CompetitiveCategory(id: 'art', name: 'Art', icon: FontAwesomeIcons.palette),
+    CompetitiveCategory(
+      id: 'art',
+      name: 'Art',
+      icon: FontAwesomeIcons.palette,
+    ),
     CompetitiveCategory(
       id: 'geo',
       name: 'Géographie',
@@ -94,140 +98,110 @@ class _CompetitiveSelectPageState extends State<CompetitiveSelectPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, outer) {
-        final isPhone = outer.maxWidth < 420;
-        final isTablet = outer.maxWidth < 900;
-        final hPad = isPhone ? 12.0 : (isTablet ? 16.0 : 24.0);
-        final vGap = isPhone ? 16.0 : 24.0;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader()
+                .animate()
+                .fadeIn(duration: 600.ms)
+                .slideX(begin: -0.25),
+            const SizedBox(height: 16),
 
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ---------------- HEADER ----------------
-                _buildHeader(
-                  isPhone,
-                ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.25),
-                SizedBox(height: vGap),
+            // ---------------- MAIN CARD ----------------
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: TuuurStyles.gamingCard,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCardHeader(),
+                  const SizedBox(height: 16),
 
-                // ---------------- MAIN CARD ----------------
-                Container(
-                  padding: EdgeInsets.all(isPhone ? 16 : 24),
-                  decoration: TuuurStyles.gamingCard,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildCardHeader(isPhone),
-                      const SizedBox(height: 16),
-
-                      // Grid de catégories (Wrap = anti-overflow)
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: categories.map((category) {
-                          final isSelected = selectedCategories.contains(
-                            category.id,
-                          );
-                          return _CategoryChip(
-                            icon: category.icon,
-                            label: category.name,
-                            selected: isSelected,
-                            onTap: () => toggleCategory(category.id),
-                            selectedColor: TuuurTheme.brandOrange,
-                          ).animate().fadeIn(
+                  // Grid de catégories (Wrap = anti-overflow)
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: categories.map((category) {
+                      final isSelected = selectedCategories.contains(
+                        category.id,
+                      );
+                      return _CategoryChip(
+                        icon: category.icon,
+                        label: category.name,
+                        selected: isSelected,
+                        onTap: () => toggleCategory(category.id),
+                        selectedColor: TuuurTheme.brandOrange,
+                      ).animate().fadeIn(
                             delay: (categories.indexOf(category) * 70).ms,
                           );
-                        }).toList(),
-                      ),
-
-                      SizedBox(height: isPhone ? 18 : 24),
-
-                      // Info bloc compact
-                      _InfoBlockCompact(),
-                      SizedBox(height: isPhone ? 18 : 24),
-
-                      // Boutons d'action (responsive)
-                      LayoutBuilder(
-                        builder: (context, inner) {
-                          final narrow = inner.maxWidth < 420;
-
-                          final backBtn = SizedBox(
-                            width: narrow ? double.infinity : null,
-                            child: GamingButtonGhost(
-                              text: '← Retour',
-                              onPressed: widget.onBack,
-                            ),
-                          );
-
-                          final searchBtn = SizedBox(
-                            width: narrow ? double.infinity : null,
-                            child: GamingButtonSecondary(
-                              text: '🔍 Lancer la recherche',
-                              onPressed: selectedCategories.isNotEmpty
-                                  ? proceed
-                                  : null,
-                            ),
-                          );
-
-                          if (narrow) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                backBtn,
-                                const SizedBox(height: 10),
-                                searchBtn,
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              backBtn,
-                              const SizedBox(width: 12),
-                              searchBtn,
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                    }).toList(),
                   ),
-                ),
-                SizedBox(height: vGap),
-              ],
+
+                  const SizedBox(height: 18),
+
+                  // Info bloc compact
+                  _InfoBlockCompact(),
+                  const SizedBox(height: 18),
+
+                  // Boutons d'action (responsive sur largeur dispo)
+                  LayoutBuilder(
+                    builder: (context, inner) {
+                      final narrow = inner.maxWidth < 420;
+
+                      final backBtn = SizedBox(
+                        width: narrow ? double.infinity : null,
+                        child: GamingButtonGhost(
+                          text: '← Retour',
+                          onPressed: widget.onBack,
+                        ),
+                      );
+
+                      final searchBtn = SizedBox(
+                        width: narrow ? double.infinity : null,
+                        child: GamingButtonSecondary(
+                          text: '🔍 Lancer la recherche',
+                          onPressed:
+                              selectedCategories.isNotEmpty ? proceed : null,
+                        ),
+                      );
+
+                      if (narrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            backBtn,
+                            const SizedBox(height: 10),
+                            searchBtn,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          backBtn,
+                          const SizedBox(width: 12),
+                          searchBtn,
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 
   // ---------- widgets privés ----------
 
-  Widget _buildHeader(bool isPhone) {
-    final left = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: const [
-        FaIcon(FontAwesomeIcons.fire, color: TuuurTheme.brandOrange, size: 28),
-        SizedBox(width: 10),
-        Flexible(
-          child: Text(
-            'Mode Compétitif',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-              color: TuuurTheme.brandLightGray,
-            ),
-          ),
-        ),
-      ],
-    );
-
+  Widget _buildHeader() {
     final right = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: TuuurStyles.pill.copyWith(
@@ -243,30 +217,45 @@ class _CompetitiveSelectPageState extends State<CompetitiveSelectPage> {
       ),
     ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 2000.ms);
 
-    if (isPhone) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [left, const SizedBox(height: 10), right],
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Flexible(child: left),
-        const SizedBox(width: 12),
+        const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FaIcon(
+              FontAwesomeIcons.fire,
+              color: TuuurTheme.brandOrange,
+              size: 28,
+            ),
+            SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Mode Compétitif',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandLightGray,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
         right,
       ],
     );
   }
 
-  Widget _buildCardHeader(bool isPhone) {
+  Widget _buildCardHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: isPhone ? 42 : 48,
-          height: isPhone ? 42 : 48,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: TuuurTheme.brandOrange.withOpacity(0.2),
@@ -280,12 +269,12 @@ class _CompetitiveSelectPageState extends State<CompetitiveSelectPage> {
           ),
         ).animate().rotate(duration: 3000.ms, curve: Curves.linear),
         const SizedBox(width: 14),
-        Expanded(
+        const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
+                children: [
                   FaIcon(
                     FontAwesomeIcons.trophy,
                     color: TuuurTheme.brandOrange,
@@ -306,10 +295,13 @@ class _CompetitiveSelectPageState extends State<CompetitiveSelectPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4),
+              Text(
                 'Sélectionnez vos domaines d\'expertise pour des duels équilibrés.',
-                style: TextStyle(color: TuuurTheme.brandGray, fontSize: 14),
+                style: TextStyle(
+                  color: TuuurTheme.brandGray,
+                  fontSize: 14,
+                ),
               ),
             ],
           ),
@@ -394,13 +386,13 @@ class _InfoBlockCompact extends StatelessWidget {
         color: TuuurTheme.brandOrange.withOpacity(0.1),
         border: Border.all(color: TuuurTheme.brandOrange.withOpacity(0.2)),
       ),
-      child: Wrap(
+      child: const Wrap(
         spacing: 16,
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          const _InfoDot(color: TuuurTheme.brandOrange),
-          const Text(
+          _InfoDot(color: TuuurTheme.brandOrange),
+          Text(
             'Mode Compétitif',
             style: TextStyle(
               fontSize: 14,
@@ -408,8 +400,8 @@ class _InfoBlockCompact extends StatelessWidget {
               color: TuuurTheme.brandOrange,
             ),
           ),
-          const SizedBox(width: 12),
-          const Text(
+          SizedBox(width: 12),
+          Text(
             'Affrontez des joueurs de niveau similaire dans des duels rapides. Plus vous gagnez, plus votre rang augmente !',
             style: TextStyle(
               fontSize: 13,
@@ -417,16 +409,19 @@ class _InfoBlockCompact extends StatelessWidget {
               height: 1.2,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Wrap(
             spacing: 12,
             runSpacing: 8,
-            children: const [
+            children: [
               _InfoTag(
                 text: 'Matchmaking équilibré',
                 color: TuuurTheme.brandGreen,
               ),
-              _InfoTag(text: 'Rang dynamique', color: TuuurTheme.brandPurple),
+              _InfoTag(
+                text: 'Rang dynamique',
+                color: TuuurTheme.brandPurple,
+              ),
             ],
           ),
         ],
@@ -473,7 +468,10 @@ class _InfoTag extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(color: TuuurTheme.brandGray, fontSize: 12),
+          style: const TextStyle(
+            color: TuuurTheme.brandGray,
+            fontSize: 12,
+          ),
         ),
       ],
     );

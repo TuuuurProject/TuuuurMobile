@@ -1,5 +1,3 @@
-// auth_api_service.dart
-
 import 'api_client.dart'; // <-- au lieu d'avoir ApiClient/ApiResponse définis ici
 
 /// Helpers parsing simples
@@ -320,4 +318,5 @@ class AuthApi {
   }
 }
 
-final authApi = AuthApi(apiClient);
+// final authApi = AuthApi(apiClient);
+AuthApi authApi = AuthApi(apiClient);

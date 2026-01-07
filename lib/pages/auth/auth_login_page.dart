@@ -104,6 +104,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
         serverClientId: ApiConfig.googleWebClientId,
       );
 
+      if (await google.isSignedIn()) {
+        await google.signOut();
+      }
+
       final account = await google.signIn();
 
       if (!mounted) return;
@@ -401,11 +405,8 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                           ),
                           const SizedBox(width: 12),
                           GamingButtonPrimary(
-                            text: _isLoading
-                                ? 'Connexion...'
-                                : 'Se connecter',
-                            onPressed:
-                                _isLoading ? null : handleLogin,
+                            text: _isLoading ? 'Connexion...' : 'Se connecter',
+                            onPressed: _isLoading ? null : handleLogin,
                           ),
                         ],
                       ),
@@ -413,16 +414,15 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       const SizedBox(height: 24),
 
                       // Séparateur
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Expanded(
                             child: Divider(
                               color: TuuurTheme.brandGray,
                             ),
                           ),
                           Padding(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: 8),
+                            padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'ou',
                               style: TextStyle(
@@ -444,9 +444,8 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: _isGoogleLoading
-                              ? null
-                              : handleGoogleLogin,
+                          onPressed:
+                              _isGoogleLoading ? null : handleGoogleLogin,
                           icon: const FaIcon(
                             FontAwesomeIcons.google,
                             size: 16,
@@ -463,8 +462,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                               horizontal: 16,
                               vertical: 12,
                             ),
-                            backgroundColor:
-                                const Color(0xFF4285F4),
+                            backgroundColor: const Color(0xFF4285F4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
