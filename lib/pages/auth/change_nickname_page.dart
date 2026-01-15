@@ -42,6 +42,8 @@ class _ChangeNicknamePageState extends State<ChangeNicknamePage> {
 
     if (res.ok) {
       await store.updateUser(res.data!);
+
+      if (!mounted) return;
       AuthSnackbars.show('Pseudo mis à jour ✅', color: TuuurTheme.brandGreen);
       context.pop(_nickController.text);
     } else {
