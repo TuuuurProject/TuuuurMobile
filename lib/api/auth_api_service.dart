@@ -2,7 +2,7 @@ import 'api_client.dart'; // <-- au lieu d'avoir ApiClient/ApiResponse définis 
 
 /// Helpers parsing simples
 dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
-String? _asString(dynamic v) => v == null ? null : v.toString();
+String? _asString(dynamic v) => v?.toString();
 int? _asInt(dynamic v) {
   if (v is int) return v;
   if (v is num) return v.toInt();
@@ -265,8 +265,10 @@ class AuthApi {
   }
 
   // --- Me ---
-  Future<ApiResponse<UserDto>> me({Map<String, String>? headers}) async {
-    final res = await _api.getJson('/api/v1/me', headers: headers);
+  /// Récupère les informations de l'utilisateur connecté.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  Future<ApiResponse<UserDto>> me() async {
+    final res = await _api.getJson('/api/v1/me', auth: true);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
@@ -274,13 +276,14 @@ class AuthApi {
     return ApiResponse.ok(UserDto.fromJson(m), statusCode: res.statusCode);
   }
 
+  /// Mise à jour de l'avatar en base64.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<bool>> updateAvatarBase64({
     required String base64,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.putJson(
       '/api/v1/me/avatar',
-      headers: headers,
+      auth: true,
       body: {'avatar': base64},
     );
     if (!res.ok) {
@@ -292,38 +295,42 @@ class AuthApi {
         : ApiResponse.err(message: res.data?['message']?.toString());
   }
 
+  /// Change le mot de passe de l'utilisateur.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<bool>> changePassword({
     required String currentPassword,
     required String newPassword,
-    Map<String, String>? headers,
   }) async {
     final body = {
       'currentPassword': currentPassword,
       'oldPassword': currentPassword,
       'newPassword': newPassword,
     };
-    final res = await _api.putJson('/api/v1/me/change-password', headers: headers, body: body);
+    final res = await _api.putJson('/api/v1/me/change-password', auth: true, body: body);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
 
-  Future<ApiResponse<bool>> deleteMe({Map<String, String>? headers}) async {
-    final res = await _api.delete('/api/v1/me', headers: headers);
+  /// Supprime le compte utilisateur.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  Future<ApiResponse<bool>> deleteMe() async {
+    final res = await _api.delete('/api/v1/me', auth: true);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
 
+  /// Met à jour le pseudo de l'utilisateur.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<UserDto>> updateNickname({
     required String nickname,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.putJson(
       '/api/v1/me/nickname',
-      headers: headers,
+      auth: true,
       body: {'nickname': nickname.trim()},
     );
 
@@ -370,5 +377,6 @@ class AuthApi {
   }
 }
 
-// final authApi = AuthApi(apiClient);
-AuthApi authApi = AuthApi(apiClient);
+// Instance globale maintenue pour compatibilité - redirige vers ApiModule
+// Ne pas utiliser directement, préférer ApiModule.instance.authApi
+late final AuthApi authApi;

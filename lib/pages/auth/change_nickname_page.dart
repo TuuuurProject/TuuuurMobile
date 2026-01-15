@@ -34,7 +34,6 @@ class _ChangeNicknamePageState extends State<ChangeNicknamePage> {
 
     final res = await authApi.updateNickname(
       nickname: _nickController.text,
-      headers: store.authHeaders,
     );
 
     if (!mounted) return;

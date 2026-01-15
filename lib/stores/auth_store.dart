@@ -111,9 +111,9 @@ class AuthStore extends ChangeNotifier {
 class MyAuthStore extends InheritedNotifier<AuthStore> {
   const MyAuthStore({
     super.key,
-    required AuthStore notifier,
-    required Widget child,
-  }) : super(notifier: notifier, child: child);
+    required AuthStore super.notifier,
+    required super.child,
+  });
 
   static AuthStore of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<MyAuthStore>();

@@ -41,13 +41,14 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
   _i3.Future<_i2.ApiResponse<Map<String, dynamic>>> getJson(
     String? path, {
     Map<String, String>? headers,
+    bool? auth = false,
     Duration? timeout = const Duration(seconds: 10),
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #getJson,
               [path],
-              {#headers: headers, #timeout: timeout},
+              {#headers: headers, #auth: auth, #timeout: timeout},
             ),
             returnValue:
                 _i3.Future<_i2.ApiResponse<Map<String, dynamic>>>.value(
@@ -56,7 +57,7 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
                     Invocation.method(
                       #getJson,
                       [path],
-                      {#headers: headers, #timeout: timeout},
+                      {#headers: headers, #auth: auth, #timeout: timeout},
                     ),
                   ),
                 ),
@@ -68,13 +69,14 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
     String? path, {
     Object? body,
     Map<String, String>? headers,
+    bool? auth = false,
     Duration? timeout = const Duration(seconds: 10),
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #postJson,
               [path],
-              {#body: body, #headers: headers, #timeout: timeout},
+              {#body: body, #headers: headers, #auth: auth, #timeout: timeout},
             ),
             returnValue:
                 _i3.Future<_i2.ApiResponse<Map<String, dynamic>>>.value(
@@ -83,7 +85,12 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
                     Invocation.method(
                       #postJson,
                       [path],
-                      {#body: body, #headers: headers, #timeout: timeout},
+                      {
+                        #body: body,
+                        #headers: headers,
+                        #auth: auth,
+                        #timeout: timeout,
+                      },
                     ),
                   ),
                 ),
@@ -95,13 +102,14 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
     String? path, {
     Object? body,
     Map<String, String>? headers,
+    bool? auth = false,
     Duration? timeout = const Duration(seconds: 10),
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #putJson,
               [path],
-              {#body: body, #headers: headers, #timeout: timeout},
+              {#body: body, #headers: headers, #auth: auth, #timeout: timeout},
             ),
             returnValue:
                 _i3.Future<_i2.ApiResponse<Map<String, dynamic>>>.value(
@@ -110,7 +118,12 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
                     Invocation.method(
                       #putJson,
                       [path],
-                      {#body: body, #headers: headers, #timeout: timeout},
+                      {
+                        #body: body,
+                        #headers: headers,
+                        #auth: auth,
+                        #timeout: timeout,
+                      },
                     ),
                   ),
                 ),
@@ -121,13 +134,14 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
   _i3.Future<_i2.ApiResponse<Map<String, dynamic>>> delete(
     String? path, {
     Map<String, String>? headers,
+    bool? auth = false,
     Duration? timeout = const Duration(seconds: 10),
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #delete,
               [path],
-              {#headers: headers, #timeout: timeout},
+              {#headers: headers, #auth: auth, #timeout: timeout},
             ),
             returnValue:
                 _i3.Future<_i2.ApiResponse<Map<String, dynamic>>>.value(
@@ -136,7 +150,7 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
                     Invocation.method(
                       #delete,
                       [path],
-                      {#headers: headers, #timeout: timeout},
+                      {#headers: headers, #auth: auth, #timeout: timeout},
                     ),
                   ),
                 ),

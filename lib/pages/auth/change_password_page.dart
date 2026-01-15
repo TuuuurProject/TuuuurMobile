@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/auth_api_service.dart';
-import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import 'auth_shared.dart';
@@ -57,13 +56,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _handleChangePassword() async {
     if (!_validateForm()) return;
 
-    final store = MyAuthStore.of(context);
     setState(() => _isLoading = true);
 
     final res = await authApi.changePassword(
       currentPassword: _oldPasswordController.text,
       newPassword: _newPasswordController.text,
-      headers: store.authHeaders,
     );
 
     if (!mounted) return;

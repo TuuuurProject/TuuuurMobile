@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,44 +21,44 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // ✅ Mock FlutterSecureStorage (sinon MissingPluginException)
-  const MethodChannel _secureStorageChannel =
+  const MethodChannel secureStorageChannel =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
 
-  final Map<String, String> _secureStore = <String, String>{};
+  final Map<String, String> secureStore = <String, String>{};
 
   setUpAll(() async {
-    _secureStorageChannel.setMockMethodCallHandler((MethodCall call) async {
+    secureStorageChannel.setMockMethodCallHandler((MethodCall call) async {
       final args = (call.arguments as Map?)?.cast<String, dynamic>() ?? {};
 
       switch (call.method) {
         case 'write':
           final key = args['key'] as String?;
           final value = args['value'] as String?;
-          if (key != null && value != null) _secureStore[key] = value;
+          if (key != null && value != null) secureStore[key] = value;
           return null;
 
         case 'read':
           final key = args['key'] as String?;
-          return key == null ? null : _secureStore[key];
+          return key == null ? null : secureStore[key];
 
         case 'delete':
           final key = args['key'] as String?;
-          if (key != null) _secureStore.remove(key);
+          if (key != null) secureStore.remove(key);
           return null;
 
         case 'deleteAll':
-          _secureStore.clear();
+          secureStore.clear();
           return null;
 
         case 'containsKey':
           final key = args['key'] as String?;
-          return key != null && _secureStore.containsKey(key);
+          return key != null && secureStore.containsKey(key);
 
         case 'readAll':
-          return Map<String, String>.from(_secureStore);
+          return Map<String, String>.from(secureStore);
 
         case 'keys':
-          return _secureStore.keys.toList();
+          return secureStore.keys.toList();
 
         default:
           // Si ton AuthStore appelle une méthode non gérée, tu la verras ici
@@ -69,14 +68,14 @@ void main() {
   });
 
   tearDownAll(() async {
-    _secureStorageChannel.setMockMethodCallHandler(null);
+    secureStorageChannel.setMockMethodCallHandler(null);
   });
 
   // PNG 1x1 base64 valide (évite Image.network en tests)
   const tinyPngBase64 =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+lmfkAAAAASUVORK5CYII=';
 
-  api_auth.AuthSession _session() {
+  api_auth.AuthSession session() {
     return api_auth.AuthSession(
       user: api_auth.UserDto(
         id: 1,
@@ -92,7 +91,7 @@ void main() {
     );
   }
 
-  Future<void> _forceSignOut() async {
+  Future<void> forceSignOut() async {
     await AuthStore.instance.signOut();
   }
 
@@ -103,13 +102,13 @@ void main() {
     setUp(() async {
       mockAuth = MockAuthApi();
       mockHistory = MockHistoryApi();
-      await _forceSignOut();
-      _secureStore.clear();
+      await forceSignOut();
+      secureStore.clear();
     });
 
     tearDown(() async {
-      await _forceSignOut();
-      _secureStore.clear();
+      await forceSignOut();
+      secureStore.clear();
     });
 
     testWidgets("non connecté: affiche la carte 'Vous n’êtes pas connecté'",
@@ -141,7 +140,7 @@ void main() {
     testWidgets(
         "connecté: affiche 1 match dans l'historique (mock HistoryMatchDto)",
         (WidgetTester tester) async {
-      await AuthStore.instance.signInWithSession(_session());
+      await AuthStore.instance.signInWithSession(session());
 
       // /me => ok
       when(() => mockAuth.me(headers: any(named: 'headers'))).thenAnswer(
@@ -275,7 +274,7 @@ void main() {
     testWidgets(
         "bouton 'Changer le pseudo' ouvre la navigation et met à jour l'affichage",
         (WidgetTester tester) async {
-      await AuthStore.instance.signInWithSession(_session());
+      await AuthStore.instance.signInWithSession(session());
 
       // /me => ok
       when(() => mockAuth.me(headers: any(named: 'headers'))).thenAnswer(

@@ -15,7 +15,7 @@ class _DummyPage extends StatelessWidget {
   final String label;
   final Key pageKey;
 
-  const _DummyPage(this.label, {required this.pageKey, super.key});
+  const _DummyPage(this.label, {required this.pageKey});
 
   @override
   Widget build(BuildContext context) {
@@ -152,11 +152,11 @@ Future<void> _tapPrimaryButton(WidgetTester tester, String label) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AuthApi _originalAuthApi;
+  late AuthApi originalAuthApi;
   late _FakeAuthApi fake;
 
   setUpAll(() {
-    _originalAuthApi = authApi;
+    originalAuthApi = authApi;
   });
 
   setUp(() {
@@ -165,7 +165,7 @@ void main() {
   });
 
   tearDownAll(() {
-    authApi = _originalAuthApi;
+    authApi = originalAuthApi;
   });
 
   group('ResetPasswordPage - rendu', () {

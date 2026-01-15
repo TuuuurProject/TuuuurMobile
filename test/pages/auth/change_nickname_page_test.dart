@@ -19,7 +19,7 @@ class _DummyPage extends StatelessWidget {
   final String label;
   final Key pageKey;
 
-  const _DummyPage(this.label, {required this.pageKey, super.key});
+  const _DummyPage(this.label, {required this.pageKey});
 
   @override
   Widget build(BuildContext context) {
@@ -135,12 +135,12 @@ Finder _snackBarWithMessage(String msg) {
 }
 
 void main() {
-  const MethodChannel _secureStorageChannel =
+  const MethodChannel secureStorageChannel =
     MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
 
   setUpAll(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_secureStorageChannel, (call) async {
+        .setMockMethodCallHandler(secureStorageChannel, (call) async {
       switch (call.method) {
         case 'write':
         case 'delete':
@@ -160,16 +160,16 @@ void main() {
 
   tearDownAll(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_secureStorageChannel, null);
+        .setMockMethodCallHandler(secureStorageChannel, null);
   });
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AuthApi _originalAuthApi;
+  late AuthApi originalAuthApi;
   late _FakeAuthApi fake;
 
   setUpAll(() {
-    _originalAuthApi = authApi;
+    originalAuthApi = authApi;
   });
 
   setUp(() {
@@ -178,7 +178,7 @@ void main() {
   });
 
   tearDownAll(() {
-    authApi = _originalAuthApi;
+    authApi = originalAuthApi;
   });
 
   group('ChangeNicknamePage - rendu', () {

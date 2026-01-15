@@ -6,7 +6,7 @@ import 'api_client.dart';
 
 dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
 
-String? _asString(dynamic v) => v == null ? null : v.toString();
+String? _asString(dynamic v) => v?.toString();
 
 int? _asInt(dynamic v) {
   if (v is int) return v;
@@ -284,15 +284,15 @@ class SoloApi {
   /// }
   ///
   /// Réponse : une string UUID, que l’ApiClient met dans data['data'].
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<SoloCreateResult>> createSolo({
     required List<int> themeIds,
     required List<int> difficultyIds,
     required int nbQuestions,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.postJson(
       '/api/v1/solo',
-      headers: headers,
+      auth: true,
       body: {
         'themes': themeIds,
         'difficulties': difficultyIds,
@@ -330,13 +330,13 @@ class SoloApi {
   /// Récupère l’état d’une partie solo.
   ///
   /// Swagger : GET /api/v1/solo/{p_PartyId}
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<SoloPartyDto>> getSolo({
     required String partyId,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.getJson(
       '/api/v1/solo/$partyId',
-      headers: headers,
+      auth: true,
     );
 
     if (!res.ok) {
@@ -365,14 +365,14 @@ class SoloApi {
   /// }
   ///
   /// Réponse : même modèle que GET /api/v1/solo/{id}
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<SoloPartyDto>> answerSolo({
     required String partyId,
     required int answerId,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.postJson(
       '/api/v1/solo/$partyId',
-      headers: headers,
+      auth: true,
       body: {
         'answerId': answerId,
       },
@@ -400,12 +400,11 @@ class SoloApi {
   ///
   /// Attention : l’ApiClient ne gère pas encore les query params,
   /// donc on laisse le backend appliquer ses valeurs par défaut pour Page/Size.
-  Future<ApiResponse<List<SoloPartyDto>>> getHistory({
-    Map<String, String>? headers,
-  }) async {
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  Future<ApiResponse<List<SoloPartyDto>>> getHistory() async {
     final res = await _api.getJson(
       '/api/v1/solo/history',
-      headers: headers,
+      auth: true,
     );
 
     if (!res.ok) {
@@ -424,7 +423,7 @@ class SoloApi {
     }
 
     final items = <SoloPartyDto>[];
-    for (final e in list as List) {
+    for (final e in list) {
       if (e is Map<String, dynamic>) {
         items.add(SoloPartyDto.fromJson(e));
       }
@@ -437,5 +436,6 @@ class SoloApi {
   }
 }
 
-/// Instance prête à l’emploi, comme pour authApi / themeApi / difficultyApi.
-final soloApi = SoloApi(ApiClient());
+/// Instance globale maintenue pour compatibilité - redirige vers ApiModule
+/// Ne pas utiliser directement, préférer ApiModule.instance.soloApi
+late final SoloApi soloApi;

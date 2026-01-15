@@ -27,7 +27,7 @@ class DifficultyDto {
   }
 
   // Helpers locaux (comme dans ThemeDto)
-  static String? _asString(dynamic v) => v == null ? null : v.toString();
+  static String? _asString(dynamic v) => v?.toString();
 
   static int? _asInt(dynamic v) {
     if (v is int) return v;
@@ -52,12 +52,11 @@ class DifficultyApi {
   /// - { items: [...] }
   /// - { value: [...] }
   /// - { difficulties: [...] }
-  Future<ApiResponse<List<DifficultyDto>>> getDifficulties({
-    Map<String, String>? headers,
-  }) async {
+  /// Cette méthode nécessite l'authentification.
+  Future<ApiResponse<List<DifficultyDto>>> getDifficulties() async {
     final res = await _api.getJson(
       '/api/v1/difficulty',
-      headers: headers,
+      auth: true,
     );
 
     if (!res.ok) {
@@ -79,7 +78,7 @@ class DifficultyApi {
     }
 
     final difficulties = <DifficultyDto>[];
-    for (final e in list as List) {
+    for (final e in list) {
       if (e is Map<String, dynamic>) {
         difficulties.add(DifficultyDto.fromJson(e));
       }
@@ -99,5 +98,6 @@ class DifficultyApi {
   }
 }
 
-/// Instance prête à l'emploi (comme themeApi / authApi)
-final difficultyApi = DifficultyApi(ApiClient());
+/// Instance globale maintenue pour compatibilité - redirige vers ApiModule
+/// Ne pas utiliser directement, préférer ApiModule.instance.difficultyApi
+late final DifficultyApi difficultyApi;

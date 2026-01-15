@@ -6,7 +6,7 @@ import 'api_client.dart';
 
 dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
 
-String? _asString(dynamic v) => v == null ? null : v.toString();
+String? _asString(dynamic v) => v?.toString();
 
 int? _asInt(dynamic v) {
   if (v is int) return v;
@@ -262,7 +262,7 @@ class HistoryPageDto {
     }
 
     final items = <HistoryMatchDto>[];
-    for (final e in list as List) {
+    for (final e in list) {
       if (e is Map<String, dynamic>) {
         items.add(HistoryMatchDto.fromJson(e));
       }
@@ -294,8 +294,8 @@ class HistoryApi {
   /// Récupère l'historique du joueur connecté.
   ///
   /// Swagger : GET /api/v1/history?page=1&size=10
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<HistoryPageDto>> getHistory({
-    Map<String, String>? headers,
     int page = 1,
     int size = 10,
   }) async {
@@ -303,7 +303,7 @@ class HistoryApi {
 
     final res = await _api.getJson(
       path,
-      headers: headers,
+      auth: true,
     );
 
     if (!res.ok) {
@@ -321,5 +321,6 @@ class HistoryApi {
 }
 
 
-/// Instance prête à l’emploi, comme authApi / soloApi.
-final historyApi = HistoryApi(ApiClient());
+/// Instance globale maintenue pour compatibilité - redirige vers ApiModule
+/// Ne pas utiliser directement, préférer ApiModule.instance.historyApi
+late final HistoryApi historyApi;

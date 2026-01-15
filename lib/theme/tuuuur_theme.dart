@@ -120,8 +120,6 @@ class TuuurTheme {
         secondary: brandOrange,
         surface: brandDarkGray,
         onSurface: brandLightGray,
-        background: brandDark,
-        onBackground: brandLightGray,
         error: brandOrange,
         onError: brandWhite,
       ),

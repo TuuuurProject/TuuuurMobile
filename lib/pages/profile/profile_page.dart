@@ -174,7 +174,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _loading = true);
 
-    final res = await _authApi.me(headers: store.authHeaders);
+    final res = await _authApi.me();
 
     if (!mounted) return;
     setState(() => _loading = false);
@@ -186,9 +186,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       setState(() {
         _nickName = u.nickName;
-        _email = u.email;
         _avatar = val;
-        _userId = u.id;
         _avatarBytes = decoded ?? _avatarBytes;
       });
 
@@ -212,7 +210,6 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     final res = await _historyApi.getHistory(
-      headers: store.authHeaders,
       page: page,
       size: _historyPageSize,
     );
@@ -252,7 +249,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _historyError = null;
       _historyMatches = matches;
       _historyTotalMatches = historyPage.totalCount ?? matches.length;
-      _historyAvgPercent = avgPercent;
       _historyCurrentPage = historyPage.currentPage ?? page;
       _historyTotalPages = historyPage.totalPages ?? 1;
     });
@@ -274,13 +270,11 @@ class _ProfilePageState extends State<ProfilePage> {
       final base64Str = base64Encode(bytes);
 
       if (!mounted) return;
-      final store = MyAuthStore.of(context);
 
       setState(() => _loading = true);
 
       final res = await _authApi.updateAvatarBase64(
         base64: base64Str,
-        headers: store.authHeaders,
       );
 
       if (!mounted) return;
@@ -329,7 +323,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final store = MyAuthStore.of(context);
     setState(() => _loading = true);
 
-    final res = await _authApi.deleteMe(headers: store.authHeaders);
+    final res = await _authApi.deleteMe();
 
     if (!mounted) return;
     setState(() => _loading = false);
@@ -615,7 +609,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(width: 8),
               _statsPill(
-                '${_historyTotalMatches} Partie${_historyTotalMatches > 1 ? 's' : ''}',
+                '$_historyTotalMatches Partie${_historyTotalMatches > 1 ? 's' : ''}',
                 icon: FontAwesomeIcons.gamepad,
                 color: TuuurTheme.brandPurple,
               ),
