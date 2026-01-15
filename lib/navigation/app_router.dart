@@ -13,6 +13,7 @@ import '../pages/auth/auth_register_page.dart';
 import '../pages/auth/auth_verify_page.dart';
 import '../pages/auth/forgot_password_page.dart';
 import '../pages/auth/reset_password_page.dart';
+import '../pages/auth/change_nickname_page.dart';
 import '../pages/auth/change_password_page.dart';
 import '../pages/leaderboard/leaderboard_page.dart';
 
@@ -142,6 +143,13 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
         return ResetPasswordPage(initialLogin: extra?['login'] as String?);
+      },
+    ),
+    GoRoute(
+      path: '/change-nickname',
+      builder: (context, state) {
+        final initial = state.extra as String?;
+        return ChangeNicknamePage(initialNickname: initial);
       },
     ),
   ],

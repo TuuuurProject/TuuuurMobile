@@ -81,6 +81,24 @@ class AuthStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateUser(UserDto user) async {
+    _user = user;
+
+    await _storage.write(
+      key: _userStorageKey,
+      value: jsonEncode({
+        'id': _user?.id,
+        'nickName': _user?.nickName,
+        'email': _user?.email,
+        'avatar': _user?.avatar,
+        'isAdmin': _user?.isAdmin,
+        'isNew': _user?.isNew,
+      }),
+    );
+
+    notifyListeners();
+  }
+
   /// Entêtes utiles pour des appels authentifiés.
   Map<String, String> get authHeaders {
     final t = _token?.token;

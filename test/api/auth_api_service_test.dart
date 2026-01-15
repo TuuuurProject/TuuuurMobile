@@ -448,5 +448,230 @@ void main() {
         expect(result.message, equals('Invalid Google token'));
       });
     });
+
+    group('updateNickname', () {
+      test('retourne succès pour une mise à jour valide', () async {
+        final responseData = {
+          'success': true,
+          'value': {
+            'id': 1,
+            'nickName': 'NewNickname',
+            'email': 'test@example.com',
+          },
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'NewNickname',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data?.nickName, equals('NewNickname'));
+        expect(result.statusCode, equals(200));
+      });
+
+      test('trim le nickname', () async {
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(
+            {'success': true, 'value': {'id': 1, 'nickName': 'TestNick'}},
+            statusCode: 200,
+          ),
+        );
+
+        await authApi.updateNickname(
+          nickname: '  TestNick  ',
+        );
+
+        final captured = verify(mockApiClient.putJson(
+          captureAny,
+          body: captureAnyNamed('body'),
+          headers: anyNamed('headers'),
+        )).captured;
+
+        final body = captured[1] as Map<String, dynamic>;
+        expect(body['nickname'], equals('TestNick'));
+      });
+
+      test('gère une réponse avec value en Map', () async {
+        final responseData = {
+          'success': true,
+          'value': {
+            'id': 123,
+            'nickName': 'UpdatedUser',
+            'email': 'user@test.com',
+            'avatar': 'pic.png',
+          },
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'UpdatedUser',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data?.id, equals(123));
+        expect(result.data?.nickName, equals('UpdatedUser'));
+        expect(result.data?.email, equals('user@test.com'));
+      });
+
+      test('gère une réponse avec value en List', () async {
+        final responseData = {
+          'success': true,
+          'value': [
+            {
+              'id': 456,
+              'nickName': 'ListUser',
+              'email': 'list@test.com',
+            }
+          ],
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'ListUser',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data?.id, equals(456));
+        expect(result.data?.nickName, equals('ListUser'));
+      });
+
+      test('retourne erreur en cas d\'échec', () async {
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Pseudo déjà utilisé',
+            statusCode: 409,
+          ),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'existing',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Pseudo déjà utilisé'));
+        expect(result.statusCode, equals(409));
+      });
+
+      test('retourne erreur si success est false', () async {
+        final responseData = {
+          'success': false,
+          'message': 'Échec de la validation',
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'invalid',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Échec de la validation'));
+      });
+
+      test('extrait le message d\'erreur depuis errors', () async {
+        final responseData = {
+          'success': false,
+          'errors': [
+            {'description': 'Pseudo trop court'}
+          ],
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'ab',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Pseudo trop court'));
+      });
+
+      test('utilise message par défaut si extraction échoue', () async {
+        final responseData = {
+          'success': false,
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'test',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Échec de la mise à jour du pseudo.'));
+      });
+
+      test('utilise success true par défaut si non fourni', () async {
+        final responseData = {
+          'value': {
+            'id': 1,
+            'nickName': 'DefaultSuccess',
+          },
+        };
+
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          headers: anyNamed('headers'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.updateNickname(
+          nickname: 'DefaultSuccess',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data?.nickName, equals('DefaultSuccess'));
+      });
+    });
   });
 }

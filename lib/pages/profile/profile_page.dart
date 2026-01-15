@@ -110,9 +110,10 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 24),
               const Row(
                 children: [
-                  Text(
-                    '👤',
-                    style: TextStyle(fontSize: 28),
+                  FaIcon(
+                    FontAwesomeIcons.user,
+                    color: TuuurTheme.brandLightGray,
+                    size: 22,
                   ),
                   SizedBox(width: 8),
                   Flexible(
@@ -1140,17 +1141,36 @@ class _ProfilePageState extends State<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               GamingButtonPrimary(
-                text: '🔑 Réinitialiser le mot de passe',
+                text: 'Changer le pseudo',
+                icon: FontAwesomeIcons.penToSquare,
+                onPressed: () async {
+                  final updatedUsername = await context.push<String>(
+                    '/change-nickname',
+                  );
+
+                  if (!mounted || updatedUsername == null) return;
+
+                  setState(() {
+                    _nickName = updatedUsername;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              GamingButtonPrimary(
+                text: 'Changer le mot de passe',
+                icon: FontAwesomeIcons.key,
                 onPressed: () => context.push('/change-password'),
               ),
               const SizedBox(height: 12),
               GamingButtonSecondary(
-                text: '🚪 Se déconnecter',
+                text: 'Se déconnecter',
+                icon: FontAwesomeIcons.rightFromBracket,
                 onPressed: _signOut,
               ),
               const SizedBox(height: 12),
               GamingButtonSecondary(
-                text: '🗑️ Supprimer mon compte',
+                text: 'Supprimer mon compte',
+                icon: FontAwesomeIcons.trash,
                 onPressed: _deleteAccount,
               ),
             ],

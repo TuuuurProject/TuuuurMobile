@@ -316,6 +316,58 @@ class AuthApi {
     }
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
+
+  Future<ApiResponse<UserDto>> updateNickname({
+    required String nickname,
+    Map<String, String>? headers,
+  }) async {
+    final res = await _api.putJson(
+      '/api/v1/me/nickname',
+      headers: headers,
+      body: {'nickname': nickname.trim()},
+    );
+
+    if (!res.ok) {
+      return ApiResponse.err(
+        message: res.message,
+        statusCode: res.statusCode,
+        raw: res.raw,
+      );
+    }
+
+    final m = res.data ?? <String, dynamic>{};
+
+    final success = (m['success'] as bool?) ?? true;
+    if (success != true) {
+      String? msg = m['message']?.toString();
+
+      final errors = m['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        if (first is Map && first['description'] != null) {
+          msg = first['description'].toString();
+        }
+      }
+
+      return ApiResponse.err(
+        message: msg ?? 'Échec de la mise à jour du pseudo.',
+        statusCode: res.statusCode,
+        raw: m,
+      );
+    }
+
+    Map<String, dynamic>? userMap;
+    final value = m['value'];
+
+    if (value is List && value.isNotEmpty && value.first is Map) {
+      userMap = Map<String, dynamic>.from(value.first as Map);
+    } else if (value is Map) {
+      userMap = Map<String, dynamic>.from(value);
+    }
+
+    final user = UserDto.fromJson(userMap);
+    return ApiResponse.ok(user, statusCode: res.statusCode);
+  }
 }
 
 // final authApi = AuthApi(apiClient);
