@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../api/auth_api_service.dart';
+import '../../api/api_module.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -67,7 +67,7 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
 
     setState(() => _isLoading = true);
     try {
-      final res = await authApi.verify2fa(
+      final res = await ApiModule.instance.authApi.verify2fa(
         login: _loginController.text.trim(),
         code: _codeController.text.trim(),
       );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/api_module.dart';
 import '../../api/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
@@ -9,13 +10,17 @@ import '../../widgets/gaming_widgets.dart';
 import 'auth_shared.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final AuthApi? authApiOverride;
+
+  const ForgotPasswordPage({super.key, this.authApiOverride});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
+  AuthApi get _authApi => widget.authApiOverride ?? ApiModule.instance.authApi;
+
   final TextEditingController _loginController = TextEditingController();
   bool _isLoading = false;
 
@@ -40,7 +45,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
     final login = _loginController.text.trim();
 
-    final res = await authApi.passwordForgot(login: login);
+    final res = await _authApi.passwordForgot(login: login);
 
     if (!mounted) return;
     setState(() => _isLoading = false);

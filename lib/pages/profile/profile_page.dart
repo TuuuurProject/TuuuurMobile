@@ -13,6 +13,7 @@ import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../api/api_config.dart';
+import '../../api/api_module.dart';
 import '../../api/auth_api_service.dart' as api_auth;
 import '../../api/history_api_service.dart' as api_hist;
 
@@ -31,8 +32,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  api_auth.AuthApi get _authApi => widget.authApi ?? api_auth.authApi;
-  api_hist.HistoryApi get _historyApi => widget.historyApi ?? api_hist.historyApi;
+  api_auth.AuthApi get _authApi => widget.authApi ?? ApiModule.instance.authApi;
+  api_hist.HistoryApi get _historyApi => widget.historyApi ?? ApiModule.instance.historyApi;
 
   bool _loading = false;
   String? _nickName;

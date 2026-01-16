@@ -75,7 +75,7 @@ void main() {
 
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.ok(responseData, statusCode: 200),
       );
@@ -98,7 +98,7 @@ void main() {
 
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.ok(responseData, statusCode: 200),
       );
@@ -114,7 +114,7 @@ void main() {
 
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.ok(responseData, statusCode: 200),
       );
@@ -128,7 +128,7 @@ void main() {
     test('getDifficulties propage les erreurs', () async {
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.err(
           message: 'Server error',
@@ -263,7 +263,7 @@ void main() {
 
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.ok(responseData, statusCode: 200),
       );
@@ -285,7 +285,7 @@ void main() {
 
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.ok(responseData, statusCode: 200),
       );
@@ -301,7 +301,7 @@ void main() {
 
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.ok(responseData, statusCode: 200),
       );
@@ -315,7 +315,7 @@ void main() {
     test('getThemes propage les erreurs', () async {
       when(mockApiClient.getJson(
         any,
-        headers: anyNamed('headers'),
+        auth: anyNamed('auth'),
       )).thenAnswer(
         (_) async => ApiResponse.err(
           message: 'Not found',
@@ -329,20 +329,6 @@ void main() {
       expect(result.message, equals('Not found'));
     });
 
-    test('getThemes utilise les headers personnalisés', () async {
-      when(mockApiClient.getJson(
-        any,
-        headers: anyNamed('headers'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok({'data': []}, statusCode: 200),
-      );
 
-      await themeApi.getThemes(headers: {'Authorization': 'Bearer token'});
-
-      verify(mockApiClient.getJson(
-        any,
-        headers: {'Authorization': 'Bearer token'},
-      )).called(1);
-    });
   });
 }

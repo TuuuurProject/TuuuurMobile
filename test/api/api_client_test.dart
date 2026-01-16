@@ -311,7 +311,7 @@ void main() {
         expect(uri.toString(), equals('https://api.test.com/test'));
       });
 
-      test('supprime les trailing slashes de la base URL', () {
+      test('supprime les trailing slashes de la base URL', () async {
         final client = ApiClient(
           httpClient: mockHttpClient,
           baseUrl: 'https://api.test.com///',
@@ -324,7 +324,7 @@ void main() {
           (_) async => http.Response('{}', 200),
         );
 
-        client.getJson('/test');
+        await client.getJson('/test');
 
         final captured = verify(mockHttpClient.get(
           captureAny,

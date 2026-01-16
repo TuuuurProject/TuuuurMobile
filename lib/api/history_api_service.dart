@@ -319,8 +319,3 @@ class HistoryApi {
     return ApiResponse.ok(pageDto, statusCode: res.statusCode);
   }
 }
-
-
-/// Instance globale maintenue pour compatibilité - redirige vers ApiModule
-/// Ne pas utiliser directement, préférer ApiModule.instance.historyApi
-late final HistoryApi historyApi;

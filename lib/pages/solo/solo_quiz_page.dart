@@ -5,6 +5,7 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../api/api_module.dart';
 import '../../api/solo_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/navigation_utils.dart';
@@ -38,7 +39,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
   static const int totalTime = 15; // secondes (juste pour l'UI)
 
   /// ✅ API utilisée (singleton en prod, mock en tests)
-  SoloApi get _api => widget.soloApiOverride ?? soloApi;
+  SoloApi get _api => widget.soloApiOverride ?? ApiModule.instance.soloApi;
 
   AppLifecycleState? _appLifecycleState;
   bool _pendingAutoSubmitOnResume = false;

@@ -143,7 +143,7 @@ void main() {
       await AuthStore.instance.signInWithSession(session());
 
       // /me => ok
-      when(() => mockAuth.me(headers: any(named: 'headers'))).thenAnswer(
+      when(() => mockAuth.me()).thenAnswer(
         (_) async => api.ApiResponse.ok(
           api_auth.UserDto(
             id: 1,
@@ -183,7 +183,6 @@ void main() {
 
       // Historique => 1 item
       when(() => mockHistory.getHistory(
-            headers: any(named: 'headers'),
             page: any(named: 'page'),
             size: any(named: 'size'),
           )).thenAnswer(
@@ -237,9 +236,8 @@ void main() {
       expect(find.text('pts'), findsOneWidget);
       expect(find.text('7'), findsOneWidget);
 
-      verify(() => mockAuth.me(headers: any(named: 'headers'))).called(1);
+      verify(() => mockAuth.me()).called(1);
       verify(() => mockHistory.getHistory(
-            headers: any(named: 'headers'),
             page: any(named: 'page'),
             size: any(named: 'size'),
           )).called(1);
@@ -277,7 +275,7 @@ void main() {
       await AuthStore.instance.signInWithSession(session());
 
       // /me => ok
-      when(() => mockAuth.me(headers: any(named: 'headers'))).thenAnswer(
+      when(() => mockAuth.me()).thenAnswer(
         (_) async => api.ApiResponse.ok(
           api_auth.UserDto(
             id: 1,
@@ -293,7 +291,6 @@ void main() {
 
       // Historique vide
       when(() => mockHistory.getHistory(
-            headers: any(named: 'headers'),
             page: any(named: 'page'),
             size: any(named: 'size'),
           )).thenAnswer(
@@ -333,3 +330,4 @@ void main() {
     });
   });
 }
+

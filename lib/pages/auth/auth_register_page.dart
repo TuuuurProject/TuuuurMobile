@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../api/auth_api_service.dart';
+import '../../api/api_module.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -23,7 +23,7 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
       TextEditingController();
 
   // API
-  final _authApi = authApi;
+  final _authApi = ApiModule.instance.authApi;
 
   // UI state
   bool _isPasswordObscured = true;

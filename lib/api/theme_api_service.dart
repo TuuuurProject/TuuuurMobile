@@ -89,7 +89,3 @@ class ThemeApi {
     return ApiResponse.ok(items, statusCode: res.statusCode);
   }
 }
-
-// Instance globale maintenue pour compatibilité - redirige vers ApiModule
-// Ne pas utiliser directement, préférer ApiModule.instance.themeApi
-late final ThemeApi themeApi;

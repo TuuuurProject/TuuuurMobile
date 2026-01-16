@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/api_module.dart';
 import '../../api/auth_api_service.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import 'auth_shared.dart';
 
 class ChangePasswordPage extends StatefulWidget {
-  const ChangePasswordPage({super.key});
+  final AuthApi? authApiOverride;
+
+  const ChangePasswordPage({super.key, this.authApiOverride});
 
   @override
   State<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
 
 class _ChangePasswordPageState extends State<ChangePasswordPage> {
+  AuthApi get _authApi => widget.authApiOverride ?? ApiModule.instance.authApi;
+
   final TextEditingController _oldPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -58,7 +63,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
     setState(() => _isLoading = true);
 
-    final res = await authApi.changePassword(
+    final res = await _authApi.changePassword(
       currentPassword: _oldPasswordController.text,
       newPassword: _newPasswordController.text,
     );

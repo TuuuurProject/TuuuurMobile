@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
+import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
 import 'package:tuuuur_flutter/api/auth_api_service.dart';
 import 'package:tuuuur_flutter/navigation/app_messengers.dart'
     show rootScaffoldMessengerKey;
@@ -62,7 +63,7 @@ class _FakeAuthApi extends AuthApi {
   }
 }
 
-GoRouter _createRouter({String initialLocation = '/'}) {
+GoRouter _createRouter({String initialLocation = '/', AuthApi? authApi}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [
@@ -73,7 +74,7 @@ GoRouter _createRouter({String initialLocation = '/'}) {
       ),
       GoRoute(
         path: '/change-password',
-        builder: (_, __) => const ChangePasswordPage(),
+        builder: (_, __) => ChangePasswordPage(authApiOverride: authApi),
       ),
     ],
   );
@@ -139,25 +140,21 @@ Finder _snackBarWithMessage(String msg) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AuthApi originalAuthApi;
   late _FakeAuthApi fake;
 
   setUpAll(() {
-    originalAuthApi = authApi;
+    try {
+      api_module.ApiModule.instance.initialize(authStore: AuthStore.instance);
+    } catch (_) {}
   });
 
   setUp(() {
     fake = _FakeAuthApi();
-    authApi = fake;
-  });
-
-  tearDownAll(() {
-    authApi = originalAuthApi;
   });
 
   group('ChangePasswordPage - rendu', () {
     testWidgets('affiche les éléments essentiels', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -179,7 +176,7 @@ void main() {
 
   group('ChangePasswordPage - validations', () {
     testWidgets('champs requis', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -190,7 +187,7 @@ void main() {
     });
 
     testWidgets('mots de passe différents', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -208,7 +205,7 @@ void main() {
     });
 
     testWidgets('complexité non respectée', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -231,7 +228,7 @@ void main() {
 
   group('ChangePasswordPage - interactions', () {
     testWidgets('bascule la visibilité (icône oeil)', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -245,7 +242,7 @@ void main() {
     });
 
     testWidgets('submit clavier (done) sur confirm déclenche changePassword', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -268,7 +265,7 @@ void main() {
     });
 
     testWidgets('loading: "Mise à jour…" + champs désactivés', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -298,7 +295,7 @@ void main() {
 
   group('ChangePasswordPage - API & navigation', () {
     testWidgets('erreur API => affiche message et reste sur la page', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -322,13 +319,11 @@ void main() {
     });
 
     testWidgets('succès API => SnackBar vert + pop vers home', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
       fake.immediateResponse = ApiResponse.ok(true, statusCode: 200);
-
-      final expectedHeaders = AuthStore.instance.authHeaders;
 
       await _fillForm(
         tester,
@@ -343,7 +338,7 @@ void main() {
       expect(fake.callCount, 1);
       expect(fake.lastCurrentPassword, 'OldPass123');
       expect(fake.lastNewPassword, 'NewPass123');
-      expect(fake.lastHeaders, expectedHeaders);
+      // Les headers ne sont plus passés directement - gérés par ApiClient avec auth: true
 
       // SnackBar (peut être doublé pendant transition)
       final sbFinder = _snackBarWithMessage('Mot de passe mis à jour ✅');
@@ -359,7 +354,7 @@ void main() {
 
   group('ChangePasswordPage - navigation', () {
     testWidgets('Annuler => pop vers home', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -370,7 +365,7 @@ void main() {
     });
 
     testWidgets('AppBar back => pop vers home', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -383,7 +378,7 @@ void main() {
 
   group('ChangePasswordPage - cycle de vie', () {
     testWidgets('dispose correctement', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
@@ -400,3 +395,4 @@ void main() {
     });
   });
 }
+

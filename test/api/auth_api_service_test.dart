@@ -463,7 +463,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -481,7 +481,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(
             {'success': true, 'value': {'id': 1, 'nickName': 'TestNick'}},
@@ -496,7 +496,7 @@ void main() {
         final captured = verify(mockApiClient.putJson(
           captureAny,
           body: captureAnyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).captured;
 
         final body = captured[1] as Map<String, dynamic>;
@@ -517,7 +517,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -547,7 +547,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -565,7 +565,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.err(
             message: 'Pseudo déjà utilisé',
@@ -591,7 +591,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -615,7 +615,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -636,7 +636,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -660,7 +660,7 @@ void main() {
         when(mockApiClient.putJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
@@ -672,6 +672,161 @@ void main() {
         expect(result.ok, isTrue);
         expect(result.data?.nickName, equals('DefaultSuccess'));
       });
+    });
+
+    group('refreshToken', () {
+      test('retourne succès avec nouvelle session', () async {
+        final responseData = {
+          'user': {
+            'id': 1,
+            'nickName': 'testUser',
+            'email': 'test@example.com',
+          },
+          'token': {
+            'token': 'new_access_token',
+            'validFrom': '2026-01-15T10:00:00Z',
+            'validTo': '2026-01-15T11:00:00Z',
+            'refreshToken': 'new_refresh_token',
+            'refreshTokenExpiresAt': '2026-01-22T10:00:00Z',
+          },
+          'isGoogleUser': false,
+        };
+
+        when(mockApiClient.postJson(
+          '/api/v1/auth/refresh',
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.refreshToken(
+          bearer: 'old_access_token',
+          refreshToken: 'old_refresh_token',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data!.token.token, equals('new_access_token'));
+        expect(result.data!.token.refreshToken, equals('new_refresh_token'));
+        expect(result.data!.user.nickName, equals('testUser'));
+        expect(result.data!.isGoogleUser, isFalse);
+
+        final capturedCall = verify(mockApiClient.postJson(
+          '/api/v1/auth/refresh',
+          body: captureAnyNamed('body'),
+        )).captured;
+
+        expect(capturedCall.length, equals(1));
+        final body = capturedCall[0] as Map<String, dynamic>;
+        expect(body['bearer'], equals('old_access_token'));
+        expect(body['refreshToken'], equals('old_refresh_token'));
+      });
+
+      test('retourne erreur si refresh échoue', () async {
+        when(mockApiClient.postJson(
+          '/api/v1/auth/refresh',
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Refresh token expired',
+            statusCode: 401,
+          ),
+        );
+
+        final result = await authApi.refreshToken(
+          bearer: 'old_access_token',
+          refreshToken: 'expired_refresh_token',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Refresh token expired'));
+        expect(result.statusCode, equals(401));
+      });
+
+      test('gère les tokens manquants dans la réponse', () async {
+        final responseData = {
+          'user': {'id': 1},
+          'token': {},
+          'isGoogleUser': false,
+        };
+
+        when(mockApiClient.postJson(
+          '/api/v1/auth/refresh',
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.refreshToken(
+          bearer: 'token',
+          refreshToken: 'refresh',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data!.token.token, equals(''));
+        expect(result.data!.token.refreshToken, isNull);
+      });
+    });
+  });
+
+  group('AuthToken avec refreshToken', () {
+    test('fromJson crée un token avec refresh token', () {
+      final json = {
+        'token': 'access_token',
+        'validFrom': '2026-01-15T10:00:00Z',
+        'validTo': '2026-01-15T11:00:00Z',
+        'refreshToken': 'refresh_token',
+        'refreshTokenExpiresAt': '2026-01-22T10:00:00Z',
+      };
+
+      final token = AuthToken.fromJson(json);
+
+      expect(token.token, equals('access_token'));
+      expect(token.refreshToken, equals('refresh_token'));
+      expect(token.refreshTokenExpiresAt, isNotNull);
+    });
+
+    test('toJson sérialise tous les champs', () {
+      final token = AuthToken(
+        token: 'access_token',
+        validFrom: DateTime.parse('2026-01-15T10:00:00Z'),
+        validTo: DateTime.parse('2026-01-15T11:00:00Z'),
+        refreshToken: 'refresh_token',
+        refreshTokenExpiresAt: DateTime.parse('2026-01-22T10:00:00Z'),
+      );
+
+      final json = token.toJson();
+
+      expect(json['token'], equals('access_token'));
+      expect(json['validFrom'], equals('2026-01-15T10:00:00.000Z'));
+      expect(json['validTo'], equals('2026-01-15T11:00:00.000Z'));
+      expect(json['refreshToken'], equals('refresh_token'));
+      expect(json['refreshTokenExpiresAt'], equals('2026-01-22T10:00:00.000Z'));
+    });
+
+    test('fromJson gère un token sans refreshToken', () {
+      final json = {
+        'token': 'access_only',
+        'validTo': '2026-01-15T11:00:00Z',
+      };
+
+      final token = AuthToken.fromJson(json);
+
+      expect(token.token, equals('access_only'));
+      expect(token.refreshToken, isNull);
+      expect(token.refreshTokenExpiresAt, isNull);
+    });
+
+    test('toJson gère les champs null', () {
+      final token = AuthToken(token: 'basic_token');
+
+      final json = token.toJson();
+
+      expect(json['token'], equals('basic_token'));
+      expect(json['validFrom'], isNull);
+      expect(json['validTo'], isNull);
+      expect(json['refreshToken'], isNull);
+      expect(json['refreshTokenExpiresAt'], isNull);
     });
   });
 }

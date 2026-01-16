@@ -435,7 +435,3 @@ class SoloApi {
     );
   }
 }
-
-/// Instance globale maintenue pour compatibilité - redirige vers ApiModule
-/// Ne pas utiliser directement, préférer ApiModule.instance.soloApi
-late final SoloApi soloApi;

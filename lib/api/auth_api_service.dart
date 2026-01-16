@@ -92,14 +92,32 @@ class AuthToken {
   final String token;
   final DateTime? validFrom;
   final DateTime? validTo;
+  final String? refreshToken;
+  final DateTime? refreshTokenExpiresAt;
 
-  AuthToken({required this.token, this.validFrom, this.validTo});
+  AuthToken({
+    required this.token,
+    this.validFrom,
+    this.validTo,
+    this.refreshToken,
+    this.refreshTokenExpiresAt,
+  });
 
   factory AuthToken.fromJson(Map<String, dynamic>? j) => AuthToken(
         token: _asString(_get(j, 'token')) ?? '',
         validFrom: _asDateTime(_get(j, 'validFrom')),
         validTo: _asDateTime(_get(j, 'validTo')),
+        refreshToken: _asString(_get(j, 'refreshToken')),
+        refreshTokenExpiresAt: _asDateTime(_get(j, 'refreshTokenExpiresAt')),
       );
+
+  Map<String, dynamic> toJson() => {
+        'token': token,
+        'validFrom': validFrom?.toIso8601String(),
+        'validTo': validTo?.toIso8601String(),
+        'refreshToken': refreshToken,
+        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toIso8601String(),
+      };
 }
 
 class AuthSession {
@@ -190,8 +208,11 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final user = UserDto.fromJson(_get(m, 'user') as Map<String, dynamic>?);
-    final token = AuthToken.fromJson(_get(m, 'token') as Map<String, dynamic>?);
+    final userData = _get(m, 'user');
+    final tokenData = _get(m, 'token');
+    
+    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
+    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
     final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? true;
 
     return ApiResponse.ok(
@@ -254,8 +275,40 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final user = UserDto.fromJson(_get(m, 'user') as Map<String, dynamic>?);
-    final token = AuthToken.fromJson(_get(m, 'token') as Map<String, dynamic>?);
+    final userData = _get(m, 'user');
+    final tokenData = _get(m, 'token');
+    
+    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
+    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
+    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? false;
+
+    return ApiResponse.ok(
+      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
+      statusCode: res.statusCode,
+    );
+  }
+
+  /// Refresh le token d'authentification.
+  Future<ApiResponse<AuthSession>> refreshToken({
+    required String bearer,
+    required String refreshToken,
+  }) async {
+    final res = await _api.postJson(
+      '/api/v1/auth/refresh',
+      body: {
+        'bearer': bearer,
+        'refreshToken': refreshToken,
+      },
+    );
+    if (!res.ok) {
+      return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
+    }
+    final m = res.data ?? <String, dynamic>{};
+    final userData = _get(m, 'user');
+    final tokenData = _get(m, 'token');
+    
+    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
+    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
     final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? false;
 
     return ApiResponse.ok(
@@ -376,7 +429,3 @@ class AuthApi {
     return ApiResponse.ok(user, statusCode: res.statusCode);
   }
 }
-
-// Instance globale maintenue pour compatibilité - redirige vers ApiModule
-// Ne pas utiliser directement, préférer ApiModule.instance.authApi
-late final AuthApi authApi;

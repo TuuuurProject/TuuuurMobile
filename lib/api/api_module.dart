@@ -1,12 +1,6 @@
 import 'package:http/http.dart' as http;
 
 import '../stores/auth_store.dart';
-import 'api_client.dart' as api_client_file;
-import 'auth_api_service.dart' as auth_api_file;
-import 'difficulty_api_service.dart' as difficulty_api_file;
-import 'history_api_service.dart' as history_api_file;
-import 'solo_api_service.dart' as solo_api_file;
-import 'theme_api_service.dart' as theme_api_file;
 import 'api_client.dart';
 import 'auth_api_service.dart';
 import 'difficulty_api_service.dart';
@@ -18,8 +12,12 @@ import 'token_provider.dart';
 /// Implémentation de TokenProvider qui utilise AuthStore.
 class _AuthStoreTokenProvider implements TokenProvider {
   final AuthStore _authStore;
+  final AuthApi Function() _authApiGetter;
+  
+  // Future pour gérer les appels concurrents au refresh
+  Future<void>? _refreshInProgress;
 
-  _AuthStoreTokenProvider(this._authStore);
+  _AuthStoreTokenProvider(this._authStore, this._authApiGetter);
 
   @override
   String? get accessToken => _authStore.token?.token;
@@ -29,8 +27,68 @@ class _AuthStoreTokenProvider implements TokenProvider {
 
   @override
   Future<void> refreshIfNeeded() async {
-    // TODO: implémenter la logique de refresh token
-    // Pour l'instant, cette méthode ne fait rien (placeholder).
+    // Si un refresh est déjà en cours, attendre qu'il se termine
+    if (_refreshInProgress != null) {
+      print('[DEBUG] Refresh already in progress, waiting...');
+      await _refreshInProgress;
+      return;
+    }
+
+    final token = _authStore.token;
+    if (token == null) return;
+
+    final now = DateTime.now();
+    final expiresAt = token.validTo;
+    
+    // Si le token n'a pas de date d'expiration, on ne fait rien
+    if (expiresAt == null) return;
+
+    // Si le token expire dans moins de 5 minutes, on le rafraîchit
+    final shouldRefresh = now.isAfter(expiresAt.subtract(const Duration(minutes: 5)));
+    
+    if (!shouldRefresh) return;
+
+    // Vérifier qu'on a bien un refresh token
+    final refreshToken = token.refreshToken;
+    if (refreshToken == null || refreshToken.isEmpty) return;
+
+    // Vérifier que le refresh token n'est pas expiré
+    final refreshExpiresAt = token.refreshTokenExpiresAt;
+    if (refreshExpiresAt != null && now.isAfter(refreshExpiresAt)) {
+      // Le refresh token est expiré, on ne peut plus rafraîchir
+      // L'utilisateur devra se reconnecter
+      return;
+    }
+
+    // Lancer le refresh et stocker le Future
+    _refreshInProgress = _performRefresh(token.token, refreshToken);
+    
+    try {
+      await _refreshInProgress;
+    } finally {
+      _refreshInProgress = null;
+    }
+  }
+
+  Future<void> _performRefresh(String bearer, String refreshToken) async {
+    try {
+      print('[DEBUG] Refreshing token...');
+      final authApi = _authApiGetter();
+      final res = await authApi.refreshToken(
+        bearer: bearer,
+        refreshToken: refreshToken,
+      );
+
+      if (res.ok && res.data != null) {
+        print('[DEBUG] Token refreshed successfully');
+        await _authStore.signInWithSession(res.data!);
+      } else {
+        print('[DEBUG] Token refresh failed: ${res.message}');
+      }
+    } catch (e) {
+      print('[DEBUG] Error refreshing token: $e');
+      // En cas d'erreur, on ne fait rien pour éviter de bloquer les requêtes
+    }
   }
 }
 
@@ -60,7 +118,7 @@ class ApiModule {
     if (_initialized) return;
 
     _httpClient = http.Client();
-    _tokenProvider = _AuthStoreTokenProvider(authStore);
+    _tokenProvider = _AuthStoreTokenProvider(authStore, () => _authApi);
     _apiClient = ApiClient(
       httpClient: _httpClient,
       tokenProvider: _tokenProvider,
@@ -71,14 +129,6 @@ class ApiModule {
     _themeApi = ThemeApi(_apiClient);
     _difficultyApi = DifficultyApi(_apiClient);
     _historyApi = HistoryApi(_apiClient);
-
-    // Initialise les instances globales pour compatibilité
-    api_client_file.apiClient = _apiClient;
-    auth_api_file.authApi = _authApi;
-    solo_api_file.soloApi = _soloApi;
-    theme_api_file.themeApi = _themeApi;
-    difficulty_api_file.difficultyApi = _difficultyApi;
-    history_api_file.historyApi = _historyApi;
 
     _initialized = true;
   }

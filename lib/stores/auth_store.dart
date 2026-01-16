@@ -48,23 +48,12 @@ class AuthStore extends ChangeNotifier {
 
     await _storage.write(
       key: _tokenStorageKey,
-      value: jsonEncode({
-        'token': _token?.token ?? '',
-        'validFrom': _token?.validFrom?.toIso8601String(),
-        'validTo': _token?.validTo?.toIso8601String(),
-      }),
+      value: jsonEncode(_token?.toJson() ?? {}),
     );
 
     await _storage.write(
       key: _userStorageKey,
-      value: jsonEncode({
-        'id': _user?.id,
-        'nickName': _user?.nickName,
-        'email': _user?.email,
-        'avatar': _user?.avatar,
-        'isAdmin': _user?.isAdmin,
-        'isNew': _user?.isNew,
-      }),
+      value: jsonEncode(_user?.toJson() ?? {}),
     );
 
     notifyListeners();

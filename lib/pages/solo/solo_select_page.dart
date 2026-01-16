@@ -9,6 +9,7 @@ import '../../widgets/navigation_header.dart';
 import '../../navigation/app_router.dart';
 
 import '../../api/api_client.dart' as api;
+import '../../api/api_module.dart';
 import '../../api/theme_api_service.dart';
 import '../../api/difficulty_api_service.dart';
 import '../../stores/auth_store.dart';
@@ -63,8 +64,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   // Signature d'état d'auth
   String? _lastAuthSignature;
 
-  ThemeApi get _themeApi => widget.themeApiOverride ?? themeApi;
-  DifficultyApi get _difficultyApi => widget.difficultyApiOverride ?? difficultyApi;
+  ThemeApi get _themeApi => widget.themeApiOverride ?? ApiModule.instance.themeApi;
+  DifficultyApi get _difficultyApi => widget.difficultyApiOverride ?? ApiModule.instance.difficultyApi;
 
   @override
   void initState() {
