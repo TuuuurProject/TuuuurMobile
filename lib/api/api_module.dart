@@ -14,7 +14,6 @@ class _AuthStoreTokenProvider implements TokenProvider {
   final AuthStore _authStore;
   final AuthApi Function() _authApiGetter;
   
-  // Future pour gérer les appels concurrents au refresh
   Future<void>? _refreshInProgress;
 
   _AuthStoreTokenProvider(this._authStore, this._authApiGetter);
@@ -27,7 +26,6 @@ class _AuthStoreTokenProvider implements TokenProvider {
 
   @override
   Future<void> refreshIfNeeded() async {
-    // Si un refresh est déjà en cours, attendre qu'il se termine
     if (_refreshInProgress != null) {
       print('[DEBUG] Refresh already in progress, waiting...');
       await _refreshInProgress;
@@ -40,27 +38,20 @@ class _AuthStoreTokenProvider implements TokenProvider {
     final now = DateTime.now();
     final expiresAt = token.validTo;
     
-    // Si le token n'a pas de date d'expiration, on ne fait rien
     if (expiresAt == null) return;
 
-    // Si le token expire dans moins de 5 minutes, on le rafraîchit
     final shouldRefresh = now.isAfter(expiresAt.subtract(const Duration(minutes: 5)));
     
     if (!shouldRefresh) return;
 
-    // Vérifier qu'on a bien un refresh token
     final refreshToken = token.refreshToken;
     if (refreshToken == null || refreshToken.isEmpty) return;
 
-    // Vérifier que le refresh token n'est pas expiré
     final refreshExpiresAt = token.refreshTokenExpiresAt;
     if (refreshExpiresAt != null && now.isAfter(refreshExpiresAt)) {
-      // Le refresh token est expiré, on ne peut plus rafraîchir
-      // L'utilisateur devra se reconnecter
       return;
     }
 
-    // Lancer le refresh et stocker le Future
     _refreshInProgress = _performRefresh(token.token, refreshToken);
     
     try {

@@ -1,66 +1,11 @@
 import 'api_client.dart';
+import 'api_helpers.dart';
 
-/// ----------------------------
-/// Helpers parsing locaux
-/// ----------------------------
-
-dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
-
-String? _asString(dynamic v) => v?.toString();
-
-int? _asInt(dynamic v) {
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v);
-  return null;
-}
-
-bool? _asBool(dynamic v) {
-  if (v is bool) return v;
-  if (v is String) return v.toLowerCase() == 'true';
-  if (v is num) return v != 0;
-  return null;
-}
-
-DateTime? _asDateTime(dynamic v) {
-  if (v == null) return null;
-  if (v is DateTime) return v;
-
-  if (v is String) {
-    try {
-      // Si la string contient déjà un fuseau (Z ou +hh:mm / -hh:mm en fin de chaîne),
-      // on laisse Dart gérer normalement et on passe juste en local.
-      final hasTzInfo =
-          v.endsWith('Z') ||
-          v.contains(RegExp(r'[+-]\d{2}:\d{2}$'));
-
-      final parsed = DateTime.parse(v);
-
-      if (hasTzInfo) {
-        return parsed.toLocal();
-      }
-
-      // Le back envoie une date en UTC "naïf" (sans info de fuseau).
-      // On réinterprète l'heure lue comme UTC, puis on convertit en local.
-      final asUtc = DateTime.utc(
-        parsed.year,
-        parsed.month,
-        parsed.day,
-        parsed.hour,
-        parsed.minute,
-        parsed.second,
-        parsed.millisecond,
-        parsed.microsecond,
-      );
-
-      return asUtc.toLocal();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  return null;
-}
+dynamic _get(Map<String, dynamic>? j, String key) => get(j, key);
+String? _asString(dynamic v) => asString(v);
+int? _asInt(dynamic v) => asInt(v);
+bool? _asBool(dynamic v) => asBool(v);
+DateTime? _asDateTime(dynamic v) => asDateTime(v);
 
 
 /// ----------------------------

@@ -767,6 +767,381 @@ void main() {
         expect(result.data!.token.refreshToken, isNull);
       });
     });
+
+    group('passwordReset', () {
+      test('retourne succès pour un reset valide', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok({}, statusCode: 200),
+        );
+
+        final result = await authApi.passwordReset(
+          login: 'test@example.com',
+          code: '123456',
+          password: 'NewPassword123!',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data, isTrue);
+        expect(result.statusCode, equals(200));
+      });
+
+      test('trim le login et le code', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok({}, statusCode: 200),
+        );
+
+        await authApi.passwordReset(
+          login: '  user@test.com  ',
+          code: '  123456  ',
+          password: 'pass',
+        );
+
+        final captured = verify(mockApiClient.postJson(
+          captureAny,
+          body: captureAnyNamed('body'),
+        )).captured;
+
+        final body = captured[1] as Map<String, dynamic>;
+        expect(body['login'], equals('user@test.com'));
+        expect(body['code'], equals('123456'));
+      });
+
+      test('retourne erreur pour un code invalide', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Code invalide ou expiré',
+            statusCode: 400,
+          ),
+        );
+
+        final result = await authApi.passwordReset(
+          login: 'test@example.com',
+          code: 'wrongcode',
+          password: 'NewPass',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Code invalide ou expiré'));
+        expect(result.statusCode, equals(400));
+      });
+
+      test('utilise message par défaut si non fourni', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(statusCode: 500),
+        );
+
+        final result = await authApi.passwordReset(
+          login: 'test@example.com',
+          code: '123456',
+          password: 'pass',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Réinitialisation impossible.'));
+      });
+    });
+
+    group('verify2fa', () {
+      test('retourne une session valide pour un code correct', () async {
+        final responseData = {
+          'user': {
+            'id': 1,
+            'nickName': 'testUser',
+            'email': 'test@example.com',
+          },
+          'token': {
+            'token': '2fa_verified_token',
+            'validTo': '2026-01-16T12:00:00Z',
+            'refreshToken': 'refresh_token_2fa',
+          },
+          'isGoogleUser': false,
+        };
+
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.verify2fa(
+          login: 'test@example.com',
+          code: '123456',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data!.token.token, equals('2fa_verified_token'));
+        expect(result.data!.user.nickName, equals('testUser'));
+        expect(result.data!.isGoogleUser, isFalse);
+      });
+
+      test('trim le login et le code', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(
+            {
+              'user': {'id': 1},
+              'token': {'token': 'token'},
+            },
+            statusCode: 200,
+          ),
+        );
+
+        await authApi.verify2fa(
+          login: '  user@test.com  ',
+          code: '  654321  ',
+        );
+
+        final captured = verify(mockApiClient.postJson(
+          captureAny,
+          body: captureAnyNamed('body'),
+        )).captured;
+
+        final body = captured[1] as Map<String, dynamic>;
+        expect(body['login'], equals('user@test.com'));
+        expect(body['code'], equals('654321'));
+      });
+
+      test('retourne erreur pour un code incorrect', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Code 2FA invalide',
+            statusCode: 401,
+          ),
+        );
+
+        final result = await authApi.verify2fa(
+          login: 'test@example.com',
+          code: 'wrong',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Code 2FA invalide'));
+        expect(result.statusCode, equals(401));
+      });
+
+      test('utilise isGoogleUser false par défaut', () async {
+        final responseData = {
+          'user': {'id': 1},
+          'token': {'token': 'token'},
+        };
+
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.verify2fa(
+          login: 'test@example.com',
+          code: '123456',
+        );
+
+        expect(result.data?.isGoogleUser, isFalse);
+      });
+
+      test('gère les données manquantes gracieusement', () async {
+        final responseData = {
+          'user': {},
+          'token': {},
+        };
+
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.verify2fa(
+          login: 'test@example.com',
+          code: '123456',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data!.token.token, equals(''));
+      });
+    });
+
+    group('me', () {
+      test('retourne les informations de l\'utilisateur connecté', () async {
+        final responseData = {
+          'id': 42,
+          'nickName': 'CurrentUser',
+          'email': 'current@example.com',
+          'avatar': 'avatar.png',
+          'isAdmin': false,
+          'isNew': false,
+        };
+
+        when(mockApiClient.getJson(
+          any,
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.me();
+
+        expect(result.ok, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data!.id, equals(42));
+        expect(result.data!.nickName, equals('CurrentUser'));
+        expect(result.data!.email, equals('current@example.com'));
+
+        verify(mockApiClient.getJson('/api/v1/me', auth: true)).called(1);
+      });
+
+      test('retourne erreur si non authentifié', () async {
+        when(mockApiClient.getJson(
+          any,
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Non authentifié',
+            statusCode: 401,
+          ),
+        );
+
+        final result = await authApi.me();
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Non authentifié'));
+        expect(result.statusCode, equals(401));
+      });
+
+      test('gère les réponses vides', () async {
+        when(mockApiClient.getJson(
+          any,
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok({}, statusCode: 200),
+        );
+
+        final result = await authApi.me();
+
+        expect(result.ok, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data!.id, isNull);
+      });
+    });
+
+    group('changePassword', () {
+      test('retourne succès pour un changement valide', () async {
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok({}, statusCode: 200),
+        );
+
+        final result = await authApi.changePassword(
+          currentPassword: 'OldPassword123',
+          newPassword: 'NewPassword456',
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data, isTrue);
+        expect(result.statusCode, equals(200));
+
+        verify(mockApiClient.putJson(
+          '/api/v1/me/change-password',
+          body: anyNamed('body'),
+          auth: true,
+        )).called(1);
+      });
+
+      test('envoie currentPassword et oldPassword dans le body', () async {
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok({}, statusCode: 200),
+        );
+
+        await authApi.changePassword(
+          currentPassword: 'current',
+          newPassword: 'new',
+        );
+
+        final captured = verify(mockApiClient.putJson(
+          captureAny,
+          body: captureAnyNamed('body'),
+          auth: anyNamed('auth'),
+        )).captured;
+
+        final body = captured[1] as Map<String, dynamic>;
+        expect(body['currentPassword'], equals('current'));
+        expect(body['oldPassword'], equals('current'));
+        expect(body['newPassword'], equals('new'));
+      });
+
+      test('retourne erreur si le mot de passe actuel est incorrect', () async {
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Mot de passe actuel incorrect',
+            statusCode: 400,
+          ),
+        );
+
+        final result = await authApi.changePassword(
+          currentPassword: 'wrong',
+          newPassword: 'new',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Mot de passe actuel incorrect'));
+        expect(result.statusCode, equals(400));
+      });
+
+      test('retourne erreur si non authentifié', () async {
+        when(mockApiClient.putJson(
+          any,
+          body: anyNamed('body'),
+          auth: anyNamed('auth'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Non authentifié',
+            statusCode: 401,
+          ),
+        );
+
+        final result = await authApi.changePassword(
+          currentPassword: 'current',
+          newPassword: 'new',
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Non authentifié'));
+        expect(result.statusCode, equals(401));
+      });
+    });
   });
 
   group('AuthToken avec refreshToken', () {

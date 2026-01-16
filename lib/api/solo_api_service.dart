@@ -1,33 +1,11 @@
 import 'api_client.dart';
+import 'api_helpers.dart';
 
-/// ----------------------------
-/// Helpers locaux de parsing
-/// ----------------------------
-
-dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
-
-String? _asString(dynamic v) => v?.toString();
-
-int? _asInt(dynamic v) {
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v);
-  return null;
-}
-
-bool? _asBool(dynamic v) {
-  if (v is bool) return v;
-  if (v is String) return v.toLowerCase() == 'true';
-  if (v is num) return v != 0;
-  return null;
-}
-
-DateTime? _asDateTime(dynamic v) {
-  if (v == null) return null;
-  if (v is DateTime) return v;
-  if (v is String) return DateTime.tryParse(v);
-  return null;
-}
+dynamic _get(Map<String, dynamic>? j, String key) => get(j, key);
+String? _asString(dynamic v) => asString(v);
+int? _asInt(dynamic v) => asInt(v);
+bool? _asBool(dynamic v) => asBool(v);
+DateTime? _asDateTime(dynamic v) => asDateTime(v);
 
 /// ----------------------------
 /// DTOs Solo

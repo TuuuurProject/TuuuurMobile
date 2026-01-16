@@ -1,26 +1,11 @@
-import 'api_client.dart'; // <-- au lieu d'avoir ApiClient/ApiResponse définis ici
+import 'api_client.dart';
+import 'api_helpers.dart';
 
-/// Helpers parsing simples
-dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
-String? _asString(dynamic v) => v?.toString();
-int? _asInt(dynamic v) {
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v);
-  return null;
-}
-bool? _asBool(dynamic v) {
-  if (v is bool) return v;
-  if (v is String) return v.toLowerCase() == 'true';
-  if (v is num) return v != 0;
-  return null;
-}
-DateTime? _asDateTime(dynamic v) {
-  if (v == null) return null;
-  if (v is DateTime) return v;
-  if (v is String) return DateTime.tryParse(v);
-  return null;
-}
+dynamic _get(Map<String, dynamic>? j, String key) => get(j, key);
+String? _asString(dynamic v) => asString(v);
+int? _asInt(dynamic v) => asInt(v);
+bool? _asBool(dynamic v) => asBool(v);
+DateTime? _asDateTime(dynamic v) => asDateTime(v);
 
 /// Résultat d'inscription (2FA attendu).
 class RegisterResult {
@@ -39,8 +24,8 @@ class RegisterResult {
 class LoginResult {
   final bool requires2fa;
   final AuthSession? session;
-  final String? delivery;   // 'email' / 'sms' ...
-  final String? emailHint;  // si le back renvoie une cible (ex: adresse)
+  final String? delivery;
+  final String? emailHint;
   const LoginResult({
     required this.requires2fa,
     this.session,
@@ -139,6 +124,19 @@ class AuthApi {
   final ApiClient _api;
   AuthApi(this._api);
 
+  ApiResponse<AuthSession> _buildAuthSession(Map<String, dynamic> m, int? statusCode, {bool defaultIsGoogleUser = false}) {
+    final userData = _get(m, 'user');
+    final tokenData = _get(m, 'token');
+    
+    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
+    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
+    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? defaultIsGoogleUser;
+
+    return ApiResponse.ok(
+      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
+      statusCode: statusCode,
+    );
+  }
   // --- Register & 2FA ---
   Future<ApiResponse<RegisterResult>> register({
     required String email,
@@ -208,17 +206,7 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final userData = _get(m, 'user');
-    final tokenData = _get(m, 'token');
-    
-    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
-    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
-    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? true;
-
-    return ApiResponse.ok(
-      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
-      statusCode: res.statusCode,
-    );
+    return _buildAuthSession(m, res.statusCode, defaultIsGoogleUser: true);
   }
 
   Future<ApiResponse<bool>> passwordForgot({
@@ -275,17 +263,7 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final userData = _get(m, 'user');
-    final tokenData = _get(m, 'token');
-    
-    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
-    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
-    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? false;
-
-    return ApiResponse.ok(
-      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
-      statusCode: res.statusCode,
-    );
+    return _buildAuthSession(m, res.statusCode);
   }
 
   /// Refresh le token d'authentification.
@@ -304,17 +282,7 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final userData = _get(m, 'user');
-    final tokenData = _get(m, 'token');
-    
-    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
-    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
-    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? false;
-
-    return ApiResponse.ok(
-      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
-      statusCode: res.statusCode,
-    );
+    return _buildAuthSession(m, res.statusCode);
   }
 
   // --- Me ---

@@ -46,8 +46,6 @@ class ApiClient {
     return Uri.parse('$_base$normalized').replace(queryParameters: query);
   }
 
-  /// Prépare les headers pour une requête en ajoutant automatiquement
-  /// le header Authorization si auth=true et qu'un token est disponible.
   Future<Map<String, String>> _prepareHeaders({
     Map<String, String>? headers,
     bool auth = false,
@@ -55,7 +53,6 @@ class ApiClient {
     final result = <String, String>{...?headers};
 
     if (auth && _tokenProvider != null) {
-      // Appel du placeholder refresh (ne fait rien pour l'instant)
       await _tokenProvider.refreshIfNeeded();
 
       final token = _tokenProvider.accessToken;
@@ -67,30 +64,54 @@ class ApiClient {
     return result;
   }
 
-  Future<ApiResponse<Map<String, dynamic>>> getJson(
+  Future<ApiResponse<Map<String, dynamic>>> _executeRequest(
+    String method,
     String path, {
+    Object? body,
     Map<String, String>? headers,
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
     try {
-      print('[DEBUG] GET $path');
+      print('[DEBUG] $method $path');
       print('[DEBUG] Headers: $headers');
       final allHeaders = await _prepareHeaders(headers: headers, auth: auth);
       print('[DEBUG] AllHeaders: $allHeaders');
-      final res = await _http
-          .get(
-            _uri(path),
-            headers: {
-              'Accept': 'application/json',
-              'Accept-Language': 'fr-FR',
-              ...allHeaders,
-            },
-          )
-          .timeout(timeout);
 
-      print('[DEBUG] GET Response Status: ${res.statusCode}');
-      print('[DEBUG] GET Response Body: ${res.body}');
+      final requestHeaders = <String, String>{
+        'Accept': 'application/json',
+        'Accept-Language': 'fr-FR',
+        ...allHeaders,
+      };
+
+      String? bodyStr;
+      if (body != null) {
+        requestHeaders['Content-Type'] = 'application/json';
+        bodyStr = body is String ? body : jsonEncode(body);
+        print('[DEBUG] Request Body: $bodyStr');
+      }
+
+      final http.Response res;
+      switch (method.toUpperCase()) {
+        case 'GET':
+          res = await _http.get(_uri(path), headers: requestHeaders).timeout(timeout);
+          break;
+        case 'POST':
+          res = await _http.post(_uri(path), headers: requestHeaders, body: bodyStr).timeout(timeout);
+          break;
+        case 'PUT':
+          res = await _http.put(_uri(path), headers: requestHeaders, body: bodyStr).timeout(timeout);
+          break;
+        case 'DELETE':
+          res = await _http.delete(_uri(path), headers: requestHeaders).timeout(timeout);
+          break;
+        default:
+          throw ArgumentError('Méthode HTTP non supportée: $method');
+      }
+
+      print('[DEBUG] $method Response Status: ${res.statusCode}');
+      print('[DEBUG] $method Response Body: ${res.body}');
+      
       final decoded = _parseBody(res.body);
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return ApiResponse.ok(decoded, statusCode: res.statusCode);
@@ -103,6 +124,15 @@ class ApiClient {
     } catch (e) {
       return ApiResponse.err(message: 'Impossible de contacter le serveur : $e');
     }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> getJson(
+    String path, {
+    Map<String, String>? headers,
+    bool auth = false,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    return _executeRequest('GET', path, headers: headers, auth: auth, timeout: timeout);
   }
 
   Future<ApiResponse<Map<String, dynamic>>> postJson(
@@ -112,40 +142,7 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    try {
-      print('[DEBUG] POST $path');
-      print('[DEBUG] Headers: $headers');
-      final allHeaders = await _prepareHeaders(headers: headers, auth: auth);
-      print('[DEBUG] AllHeaders: $allHeaders');
-      final bodyStr = body is String ? body : jsonEncode(body ?? <String, dynamic>{});
-      print('[DEBUG] Request Body: $bodyStr');
-      final res = await _http
-          .post(
-            _uri(path),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'Accept-Language': 'fr-FR',
-              ...allHeaders,
-            },
-            body: bodyStr,
-          )
-          .timeout(timeout);
-
-      print('[DEBUG] POST Response Status: ${res.statusCode}');
-      print('[DEBUG] POST Response Body: ${res.body}');
-      final decoded = _parseBody(res.body);
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        return ApiResponse.ok(decoded, statusCode: res.statusCode);
-      }
-      return ApiResponse.err(
-        statusCode: res.statusCode,
-        message: _humanizeError(decoded, res.statusCode) ?? 'Erreur ${res.statusCode}.',
-        raw: _rawForErr(decoded),
-      );
-    } catch (e) {
-      return ApiResponse.err(message: 'Impossible de contacter le serveur : $e');
-    }
+    return _executeRequest('POST', path, body: body, headers: headers, auth: auth, timeout: timeout);
   }
 
   Future<ApiResponse<Map<String, dynamic>>> putJson(
@@ -155,40 +152,7 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    try {
-      print('[DEBUG] PUT $path');
-      print('[DEBUG] Headers: $headers');
-      final allHeaders = await _prepareHeaders(headers: headers, auth: auth);
-      print('[DEBUG] AllHeaders: $allHeaders');
-      final bodyStr = body is String ? body : jsonEncode(body ?? <String, dynamic>{});
-      print('[DEBUG] Request Body: $bodyStr');
-      final res = await _http
-          .put(
-            _uri(path),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'Accept-Language': 'fr-FR',
-              ...allHeaders,
-            },
-            body: bodyStr,
-          )
-          .timeout(timeout);
-
-      print('[DEBUG] PUT Response Status: ${res.statusCode}');
-      print('[DEBUG] PUT Response Body: ${res.body}');
-      final decoded = _parseBody(res.body);
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        return ApiResponse.ok(decoded, statusCode: res.statusCode);
-      }
-      return ApiResponse.err(
-        statusCode: res.statusCode,
-        message: _humanizeError(decoded, res.statusCode) ?? 'Erreur ${res.statusCode}.',
-        raw: _rawForErr(decoded),
-      );
-    } catch (e) {
-      return ApiResponse.err(message: 'Impossible de contacter le serveur : $e');
-    }
+    return _executeRequest('PUT', path, body: body, headers: headers, auth: auth, timeout: timeout);
   }
 
   Future<ApiResponse<Map<String, dynamic>>> delete(
@@ -197,36 +161,7 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    try {
-      print('[DEBUG] DELETE $path');
-      print('[DEBUG] Headers: $headers');
-      final allHeaders = await _prepareHeaders(headers: headers, auth: auth);
-      print('[DEBUG] AllHeaders: $allHeaders');
-      final res = await _http
-          .delete(
-            _uri(path),
-            headers: {
-              'Accept': 'application/json',
-              'Accept-Language': 'fr-FR',
-              ...allHeaders,
-            },
-          )
-          .timeout(timeout);
-
-      print('[DEBUG] DELETE Response Status: ${res.statusCode}');
-      print('[DEBUG] DELETE Response Body: ${res.body}');
-      final decoded = _parseBody(res.body);
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        return ApiResponse.ok(decoded, statusCode: res.statusCode);
-      }
-      return ApiResponse.err(
-        statusCode: res.statusCode,
-        message: _humanizeError(decoded, res.statusCode) ?? 'Erreur ${res.statusCode}.',
-        raw: _rawForErr(decoded),
-      );
-    } catch (e) {
-      return ApiResponse.err(message: 'Impossible de contacter le serveur : $e');
-    }
+    return _executeRequest('DELETE', path, headers: headers, auth: auth, timeout: timeout);
   }
 
   void dispose() {
@@ -291,7 +226,3 @@ class ApiClient {
     return null;
   }
 }
-
-// Instance globale maintenue pour compatibilité - redirige vers ApiModule
-// Ne pas utiliser directement, préférer ApiModule.instance.*Api
-late final ApiClient apiClient;
