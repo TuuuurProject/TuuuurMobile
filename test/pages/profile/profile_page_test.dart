@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:tuuuur_flutter/pages/profile/profile_page.dart';
@@ -133,8 +134,8 @@ void main() {
 
       expect(find.text('Profil'), findsOneWidget);
       expect(find.text('Vous n’êtes pas connecté'), findsOneWidget);
-      expect(find.text('🚀 Se connecter'), findsOneWidget);
-      expect(find.text('🔗 Créer un compte'), findsOneWidget);
+      expect(find.text('Se connecter'), findsOneWidget);
+      expect(find.text('Créer un compte'), findsOneWidget);
     });
 
     testWidgets(
@@ -323,10 +324,586 @@ void main() {
       await tester.pumpAndSettle();
 
       // Vérifie que le bouton existe
-      expect(find.text('Changer le pseudo'), findsOneWidget);
+      expect(find.byTooltip('Modifier le pseudo'), findsOneWidget);
 
       // Vérifie que le pseudo actuel est affiché
       expect(find.text('OldNickname'), findsOneWidget);
+    });
+
+    testWidgets('_deleteAccount confirme et appelle l\'API',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockAuth.deleteMe()).thenAnswer(
+        (_) async => api.ApiResponse.err(message: 'Test: API mockée'),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Appuie sur le bouton supprimer
+      await tester.tap(find.text('Supprimer mon compte'));
+      await tester.pumpAndSettle();
+
+      // Dialogue de confirmation
+      expect(find.text('Supprimer le compte'), findsOneWidget);
+      expect(
+          find.text('Cette action est irréversible. Confirmer ?'),
+          findsOneWidget);
+
+      // Confirme la suppression
+      await tester.tap(find.text('Supprimer'));
+      await tester.pumpAndSettle();
+
+      // Vérifie que l'API a été appelée
+      verify(() => mockAuth.deleteMe()).called(1);
+    });
+
+    testWidgets('_deleteAccount annulé ne supprime pas',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Supprimer mon compte'));
+      await tester.pumpAndSettle();
+
+      // Annule
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+
+      verifyNever(() => mockAuth.deleteMe());
+    });
+
+    testWidgets('_signOut déconnecte l\'utilisateur',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(AuthStore.instance.isAuthenticated, isTrue);
+
+      await tester.tap(find.text('Se déconnecter'));
+      await tester.pumpAndSettle();
+
+      expect(AuthStore.instance.isAuthenticated, isFalse);
+    });
+
+    testWidgets('_changeHistoryPage appelle l\'API avec la bonne page',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      // Page 1
+      when(() => mockHistory.getHistory(page: 1, size: 10)).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 25,
+            currentPage: 1,
+            totalPages: 3,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      // Page 2
+      when(() => mockHistory.getHistory(page: 2, size: 10)).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 25,
+            currentPage: 2,
+            totalPages: 3,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page 1 / 3'), findsOneWidget);
+
+      // Vérifie que l'API a été appelée pour la page 1
+      verify(() => mockHistory.getHistory(page: 1, size: 10)).called(1);
+
+      // Cherche les boutons de navigation de pagination
+      final nextTextButton = find.widgetWithIcon(TextButton, FontAwesomeIcons.chevronRight);
+      
+      if (nextTextButton.evaluate().isNotEmpty) {
+        await tester.tap(nextTextButton.first);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Page 2 / 3'), findsOneWidget);
+        verify(() => mockHistory.getHistory(page: 2, size: 10)).called(1);
+      }
+    });
+
+    testWidgets('_startEditingNickname active le mode édition',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Appuie sur le bouton modifier
+      await tester.tap(find.byTooltip('Modifier le pseudo'));
+      await tester.pumpAndSettle();
+
+      // TextField apparaît
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byTooltip('Valider'), findsOneWidget);
+      expect(find.byTooltip('Annuler'), findsOneWidget);
+    });
+
+    testWidgets('_cancelEditingNickname annule l\'édition',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Modifier le pseudo'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsOneWidget);
+
+      // Annule
+      await tester.tap(find.byTooltip('Annuler'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('TestUser'), findsOneWidget);
+    });
+
+    testWidgets('_saveNickname met à jour le pseudo avec succès',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'OldNickname',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockAuth.updateNickname(nickname: 'NewNickname')).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'NewNickname',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Modifier le pseudo'));
+      await tester.pumpAndSettle();
+
+      // Entre un nouveau pseudo
+      await tester.enterText(find.byType(TextField), 'NewNickname');
+      await tester.pumpAndSettle();
+
+      // Valide
+      await tester.tap(find.byTooltip('Valider'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockAuth.updateNickname(nickname: 'NewNickname')).called(1);
+      expect(find.text('NewNickname'), findsOneWidget);
+    });
+
+    testWidgets('_saveNickname rejette un pseudo vide',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Modifier le pseudo'));
+      await tester.pumpAndSettle();
+
+      // Entre un pseudo vide
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Valider'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Le pseudo ne peut pas être vide.'), findsOneWidget);
+      verifyNever(() => mockAuth.updateNickname(nickname: any(named: 'nickname')));
+    });
+
+    testWidgets('_formatRelative formate correctement les dates dans l\'UI',
+        (WidgetTester tester) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: 1,
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: tinyPngBase64,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      // Match avec une date récente (2 minutes)
+      final twoMinutesAgo = DateTime.now().subtract(const Duration(minutes: 2));
+      final match = api_hist.HistoryMatchDto(
+        id: 'm1',
+        dt: twoMinutesAgo,
+        finish: true,
+        nbQuestions: 10,
+        score: 7,
+        time: 65,
+        percent: 70,
+        partyType: const api_hist.HistoryPartyTypeDto(id: 1, label: 'Solo'),
+        partyDifficulty: const <api_hist.HistoryPartyDifficultyDto>[],
+        partyTheme: const <api_hist.HistoryPartyThemeDto>[],
+      );
+
+      when(() => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          )).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[match],
+            totalCount: 1,
+            currentPage: 1,
+            totalPages: 1,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(
+              authApi: mockAuth,
+              historyApi: mockHistory,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Vérifie que la date relative est affichée
+      expect(find.textContaining('Il y a'), findsOneWidget);
     });
   });
 }

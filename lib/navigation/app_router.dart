@@ -13,7 +13,6 @@ import '../pages/auth/auth_register_page.dart';
 import '../pages/auth/auth_verify_page.dart';
 import '../pages/auth/forgot_password_page.dart';
 import '../pages/auth/reset_password_page.dart';
-import '../pages/auth/change_nickname_page.dart';
 import '../pages/auth/change_password_page.dart';
 import '../pages/leaderboard/leaderboard_page.dart';
 
@@ -101,7 +100,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       name: 'login',
-      builder: (context, state) => const AuthLoginPage(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return AuthLoginPage(returnTo: extra?['returnTo'] as String?);
+      },
     ),
 
     GoRoute(
@@ -111,6 +113,7 @@ final GoRouter appRouter = GoRouter(
         return AuthVerifyPage(
           initialLogin: extra?['login'] as String?,
           emailHint: extra?['email'] as String?,
+          returnTo: extra?['returnTo'] as String?,
         );
       },
     ),
@@ -124,7 +127,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/register',
       name: 'register',
-      builder: (context, state) => const AuthRegisterPage(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return AuthRegisterPage(returnTo: extra?['returnTo'] as String?);
+      },
     ),
 
     // Classement
@@ -136,20 +142,19 @@ final GoRouter appRouter = GoRouter(
 
     GoRoute(
       path: '/forgot-password',
-      builder: (context, state) => const ForgotPasswordPage(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ForgotPasswordPage(returnTo: extra?['returnTo'] as String?);
+      },
     ),
     GoRoute(
       path: '/reset-password',
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
-        return ResetPasswordPage(initialLogin: extra?['login'] as String?);
-      },
-    ),
-    GoRoute(
-      path: '/change-nickname',
-      builder: (context, state) {
-        final initial = state.extra as String?;
-        return ChangeNicknamePage(initialNickname: initial);
+        return ResetPasswordPage(
+          initialLogin: extra?['login'] as String?,
+          returnTo: extra?['returnTo'] as String?,
+        );
       },
     ),
   ],

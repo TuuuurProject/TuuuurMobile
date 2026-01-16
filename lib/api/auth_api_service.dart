@@ -98,10 +98,10 @@ class AuthToken {
 
   Map<String, dynamic> toJson() => {
         'token': token,
-        'validFrom': validFrom?.toIso8601String(),
-        'validTo': validTo?.toIso8601String(),
+        'validFrom': validFrom?.toUtc().toIso8601String(),
+        'validTo': validTo?.toUtc().toIso8601String(),
         'refreshToken': refreshToken,
-        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toIso8601String(),
+        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toUtc().toIso8601String(),
       };
 }
 

@@ -33,22 +33,36 @@ class _AuthStoreTokenProvider implements TokenProvider {
     }
 
     final token = _authStore.token;
-    if (token == null) return;
+    if (token == null) {
+      print('[DEBUG] No token available, skipping refresh');
+      return;
+    }
 
     final now = DateTime.now();
     final expiresAt = token.validTo;
     
-    if (expiresAt == null) return;
+    if (expiresAt == null) {
+      print('[DEBUG] Token has no expiration date, skipping refresh');
+      return;
+    }
 
     final shouldRefresh = now.isAfter(expiresAt.subtract(const Duration(minutes: 5)));
+    
+    print('[DEBUG] Token expires at: $expiresAt');
+    print('[DEBUG] Current time: $now');
+    print('[DEBUG] Should refresh: $shouldRefresh');
     
     if (!shouldRefresh) return;
 
     final refreshToken = token.refreshToken;
-    if (refreshToken == null || refreshToken.isEmpty) return;
+    if (refreshToken == null || refreshToken.isEmpty) {
+      print('[DEBUG] No refresh token available');
+      return;
+    }
 
     final refreshExpiresAt = token.refreshTokenExpiresAt;
     if (refreshExpiresAt != null && now.isAfter(refreshExpiresAt)) {
+      print('[DEBUG] Refresh token has expired at $refreshExpiresAt');
       return;
     }
 

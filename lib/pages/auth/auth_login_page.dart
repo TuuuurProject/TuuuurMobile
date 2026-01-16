@@ -5,19 +5,25 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../api/api_config.dart';
 import '../../api/api_module.dart';
+import '../../api/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../stores/auth_store.dart';
 
 class AuthLoginPage extends StatefulWidget {
-  const AuthLoginPage({super.key});
+  final String? returnTo;
+  final AuthApi? authApi;
+  final GoogleSignIn? googleSignIn;
+  
+  const AuthLoginPage({super.key, this.returnTo, this.authApi, this.googleSignIn});
 
   @override
   State<AuthLoginPage> createState() => _AuthLoginPageState();
 }
 
 class _AuthLoginPageState extends State<AuthLoginPage> {
+  AuthApi get _authApi => widget.authApi ?? ApiModule.instance.authApi;
   // Controllers
   final TextEditingController _pseudoController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -71,7 +77,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       final login = _pseudoController.text.trim();
       final password = _passwordController.text;
 
-      final res = await ApiModule.instance.authApi.login(login: login, password: password);
+      final res = await _authApi.login(login: login, password: password);
 
       if (!mounted) return;
 
@@ -87,7 +93,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
         'Code envoyé par email. Vérifiez votre boîte 📬',
         color: TuuurTheme.brandCyan,
       );
-      context.push('/verify', extra: {'login': login});
+      context.push('/verify', extra: {
+        'login': login,
+        'returnTo': widget.returnTo,
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -99,7 +108,8 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
     setState(() => _isGoogleLoading = true);
 
     try {
-      final google = GoogleSignIn(
+      final google = widget.googleSignIn ??
+      GoogleSignIn(
         scopes: const ['email', 'profile'],
         serverClientId: ApiConfig.googleWebClientId,
       );
@@ -126,7 +136,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
         );
       }
 
-      final res = await ApiModule.instance.authApi.loginWithGoogle(idToken: idToken);
+      final res = await _authApi.loginWithGoogle(idToken: idToken);
 
       if (!mounted) return;
 
@@ -146,7 +156,14 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       );
 
       if (!mounted) return;
-      context.go('/');
+      // Utiliser returnTo si spécifié, sinon retourner à la page précédente ou à l'accueil
+      if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
+        context.go(widget.returnTo!);
+      } else if (Navigator.of(context).canPop()) {
+        context.goBack();
+      } else {
+        context.go('/');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isGoogleLoading = false);
@@ -366,7 +383,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton(
-                              onPressed: () => context.push('/forgot-password'),
+                              onPressed: () => context.push(
+                                '/forgot-password',
+                                extra: {'returnTo': widget.returnTo},
+                              ),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,

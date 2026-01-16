@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -21,11 +22,7 @@ class ProfilePage extends StatefulWidget {
   final api_auth.AuthApi? authApi;
   final api_hist.HistoryApi? historyApi;
 
-  const ProfilePage({
-    super.key,
-    this.authApi,
-    this.historyApi,
-  });
+  const ProfilePage({super.key, this.authApi, this.historyApi});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -33,7 +30,8 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   api_auth.AuthApi get _authApi => widget.authApi ?? ApiModule.instance.authApi;
-  api_hist.HistoryApi get _historyApi => widget.historyApi ?? ApiModule.instance.historyApi;
+  api_hist.HistoryApi get _historyApi =>
+      widget.historyApi ?? ApiModule.instance.historyApi;
 
   bool _loading = false;
   String? _nickName;
@@ -41,10 +39,17 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _avatar; // valeur renvoyée par l’API (url, base64, data-uri…)
   int? _userId;
 
-  Uint8List? _avatarBytes; // bytes à afficher (aperçu local OU décodage base64 serveur)
+  Uint8List?
+  _avatarBytes; // bytes à afficher (aperçu local OU décodage base64 serveur)
   final _picker = ImagePicker();
 
   bool _fetched = false;
+  bool _wasAuthenticated = false;
+
+  // --- Édition inline du pseudo ---
+  bool _isEditingNickname = false;
+  final TextEditingController _nicknameController = TextEditingController();
+  bool _isSavingNickname = false;
 
   // --- Historique ---
   bool _historyLoading = false;
@@ -83,8 +88,24 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    
+    final store = MyAuthStore.of(context);
+    final isAuthenticated = store.isAuthenticated;
+    
+    // Si l'utilisateur vient de se connecter, on recharge les données
+    if (isAuthenticated && !_wasAuthenticated) {
+      _fetched = false;
+    }
+    
+    _wasAuthenticated = isAuthenticated;
     _fetchMeOnce();
   }
 
@@ -101,9 +122,7 @@ class _ProfilePageState extends State<ProfilePage> {
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,
-        appBar: const NavigationHeader(
-          showBack: true,
-        ),
+        appBar: const NavigationHeader(showBack: true),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -192,10 +211,6 @@ class _ProfilePageState extends State<ProfilePage> {
       });
 
       await _fetchHistory();
-    } else if (res.statusCode == 401) {
-      await store.signOut();
-      if (!mounted) return;
-      _showToast('Session expirée. Veuillez vous reconnecter.');
     } else {
       _showToast(res.message ?? 'Impossible de charger le profil.');
     }
@@ -274,9 +289,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       setState(() => _loading = true);
 
-      final res = await _authApi.updateAvatarBase64(
-        base64: base64Str,
-      );
+      final res = await _authApi.updateAvatarBase64(base64: base64Str);
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -383,6 +396,63 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // -----------------------------
+  // Édition du pseudo
+  // -----------------------------
+
+  void _startEditingNickname() {
+    _nicknameController.text = _nickName ?? '';
+    setState(() {
+      _isEditingNickname = true;
+    });
+  }
+
+  void _cancelEditingNickname() {
+    setState(() {
+      _isEditingNickname = false;
+      _nicknameController.clear();
+    });
+  }
+
+  Future<void> _saveNickname() async {
+    final newNickname = _nicknameController.text.trim();
+
+    if (newNickname.isEmpty) {
+      _showToast('Le pseudo ne peut pas être vide.');
+      return;
+    }
+
+    if (newNickname == _nickName) {
+      _cancelEditingNickname();
+      return;
+    }
+
+    setState(() => _isSavingNickname = true);
+
+    try {
+      final res = await _authApi.updateNickname(nickname: newNickname);
+
+      if (!mounted) return;
+
+      setState(() => _isSavingNickname = false);
+
+      if (res.ok) {
+        setState(() {
+          _nickName = newNickname;
+          _isEditingNickname = false;
+        });
+        _nicknameController.clear();
+        _showToast('Pseudo mis à jour ✅', color: TuuurTheme.brandGreen);
+      } else {
+        _showToast(res.message ?? 'Échec de la mise à jour du pseudo.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSavingNickname = false);
+      _showToast('Erreur : $e');
+    }
+  }
+
+  // -----------------------------
   // Helpers / formatting
   // -----------------------------
 
@@ -448,9 +518,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _showToast(String message, {Color color = TuuurTheme.brandOrange}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   // -----------------------------
@@ -554,16 +624,22 @@ class _ProfilePageState extends State<ProfilePage> {
               SizedBox(
                 width: double.infinity,
                 child: GamingButtonPrimary(
-                  text: '🚀 Se connecter',
-                  onPressed: () => context.push('/login'),
+                  text: 'Se connecter',
+                  icon: FontAwesomeIcons.rightToBracket,
+                  onPressed: () =>
+                      context.push('/login', extra: {'returnTo': '/profile'}),
                 ),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: GamingButtonSecondary(
-                  text: '🔗 Créer un compte',
-                  onPressed: () => context.push('/register'),
+                  text: 'Créer un compte',
+                  icon: FontAwesomeIcons.userPlus,
+                  onPressed: () => context.push(
+                    '/register',
+                    extra: {'returnTo': '/profile'},
+                  ),
                 ),
               ),
             ],
@@ -621,16 +697,12 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 16),
           if (_historyLoading) ...[
             const Center(
-              child: CircularProgressIndicator(
-                color: TuuurTheme.brandPurple,
-              ),
+              child: CircularProgressIndicator(color: TuuurTheme.brandPurple),
             ),
           ] else if (_historyError != null) ...[
             Text(
               _historyError!,
-              style: const TextStyle(
-                color: TuuurTheme.brandOrange,
-              ),
+              style: const TextStyle(color: TuuurTheme.brandOrange),
             ),
           ] else ...[
             _buildHistoryList(matches),
@@ -666,8 +738,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final border = selected
         ? TuuurTheme.brandPurple
         : TuuurTheme.brandGray.withOpacity(0.3);
-    final textColor =
-        selected ? TuuurTheme.brandPurple : TuuurTheme.brandGray;
+    final textColor = selected ? TuuurTheme.brandPurple : TuuurTheme.brandGray;
 
     return InkWell(
       borderRadius: BorderRadius.circular(999),
@@ -701,11 +772,7 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Column(
           children: [
-            Icon(
-              FontAwesomeIcons.inbox,
-              size: 32,
-              color: TuuurTheme.brandGray,
-            ),
+            Icon(FontAwesomeIcons.inbox, size: 32, color: TuuurTheme.brandGray),
             SizedBox(height: 8),
             Text(
               'Aucune partie trouvée',
@@ -746,9 +813,7 @@ class _ProfilePageState extends State<ProfilePage> {
         decoration: BoxDecoration(
           color: TuuurTheme.brandDarkGray.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: TuuurTheme.brandPurple.withOpacity(0.2),
-          ),
+          border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.2)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -760,10 +825,7 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
-                  colors: [
-                    bgScore,
-                    baseColor.withOpacity(0.05),
-                  ],
+                  colors: [bgScore, baseColor.withOpacity(0.05)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -817,20 +879,24 @@ class _ProfilePageState extends State<ProfilePage> {
                             if (!match.finish)
                               _pill(
                                 label: 'En cours',
-                                bgColor: TuuurTheme.brandOrange
-                                    .withOpacity(0.15),
-                                borderColor: TuuurTheme.brandOrange
-                                    .withOpacity(0.4),
+                                bgColor: TuuurTheme.brandOrange.withOpacity(
+                                  0.15,
+                                ),
+                                borderColor: TuuurTheme.brandOrange.withOpacity(
+                                  0.4,
+                                ),
                                 textColor: TuuurTheme.brandOrange,
                                 icon: FontAwesomeIcons.hourglassHalf,
                               )
                             else
                               _pill(
                                 label: 'Terminer',
-                                bgColor:
-                                    TuuurTheme.brandGreen.withOpacity(0.15),
-                                borderColor:
-                                    TuuurTheme.brandGreen.withOpacity(0.4),
+                                bgColor: TuuurTheme.brandGreen.withOpacity(
+                                  0.15,
+                                ),
+                                borderColor: TuuurTheme.brandGreen.withOpacity(
+                                  0.4,
+                                ),
                                 textColor: TuuurTheme.brandGreen,
                                 icon: FontAwesomeIcons.check,
                               ),
@@ -965,8 +1031,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           return _pill(
                             label: label,
                             bgColor: TuuurTheme.brandPurple.withOpacity(0.1),
-                            borderColor:
-                                TuuurTheme.brandPurple.withOpacity(0.3),
+                            borderColor: TuuurTheme.brandPurple.withOpacity(
+                              0.3,
+                            ),
                             textColor: TuuurTheme.brandPurple,
                           );
                         }),
@@ -998,10 +1065,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Text(
           'Affichage de $start à $end sur $_historyTotalMatches '
           'partie${_historyTotalMatches > 1 ? 's' : ''}',
-          style: const TextStyle(
-            fontSize: 12,
-            color: TuuurTheme.brandGray,
-          ),
+          style: const TextStyle(fontSize: 12, color: TuuurTheme.brandGray),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
@@ -1015,10 +1079,7 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: (!isFirstPage && !_historyLoading)
                   ? () => _changeHistoryPage(1)
                   : null,
-              icon: const Icon(
-                FontAwesomeIcons.anglesLeft,
-                size: 12,
-              ),
+              icon: const Icon(FontAwesomeIcons.anglesLeft, size: 12),
               tooltip: 'Première page',
               visualDensity: VisualDensity.compact,
             ),
@@ -1026,17 +1087,10 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: (!isFirstPage && !_historyLoading)
                   ? () => _changeHistoryPage(_historyCurrentPage - 1)
                   : null,
-              icon: const Icon(
-                FontAwesomeIcons.chevronLeft,
-                size: 12,
-              ),
-              label: const Text(
-                '',
-                style: TextStyle(fontSize: 12),
-              ),
+              icon: const Icon(FontAwesomeIcons.chevronLeft, size: 12),
+              label: const Text('', style: TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               ),
             ),
             Text(
@@ -1050,27 +1104,17 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: (!isLastPage && !_historyLoading)
                   ? () => _changeHistoryPage(_historyCurrentPage + 1)
                   : null,
-              icon: const Icon(
-                FontAwesomeIcons.chevronRight,
-                size: 12,
-              ),
-              label: const Text(
-                '',
-                style: TextStyle(fontSize: 12),
-              ),
+              icon: const Icon(FontAwesomeIcons.chevronRight, size: 12),
+              label: const Text('', style: TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               ),
             ),
             IconButton(
               onPressed: (!isLastPage && !_historyLoading)
                   ? () => _changeHistoryPage(_historyTotalPages)
                   : null,
-              icon: const Icon(
-                FontAwesomeIcons.anglesRight,
-                size: 12,
-              ),
+              icon: const Icon(FontAwesomeIcons.anglesRight, size: 12),
               tooltip: 'Dernière page',
               visualDensity: VisualDensity.compact,
             ),
@@ -1107,27 +1151,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 360),
-                child: const Text(
-                  '',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
-                  ),
-                ),
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: Text(
-                  name,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
-                  ),
-                ),
+                child: _isEditingNickname
+                    ? _buildNicknameEditor()
+                    : _buildNicknameDisplay(name),
               ),
             ],
           ),
@@ -1135,22 +1161,6 @@ class _ProfilePageState extends State<ProfilePage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GamingButtonPrimary(
-                text: 'Changer le pseudo',
-                icon: FontAwesomeIcons.penToSquare,
-                onPressed: () async {
-                  final updatedUsername = await context.push<String>(
-                    '/change-nickname',
-                  );
-
-                  if (!mounted || updatedUsername == null) return;
-
-                  setState(() {
-                    _nickName = updatedUsername;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
               GamingButtonPrimary(
                 text: 'Changer le mot de passe',
                 icon: FontAwesomeIcons.key,
@@ -1174,6 +1184,119 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  Widget _buildNicknameDisplay(String name) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: name));
+            },
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: TuuurTheme.brandLightGray,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(
+            FontAwesomeIcons.pencil,
+            size: 18,
+            color: TuuurTheme.brandPurple,
+          ),
+          onPressed: _startEditingNickname,
+          tooltip: 'Modifier le pseudo',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNicknameEditor() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _nicknameController,
+            autofocus: true,
+            enabled: !_isSavingNickname,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandLightGray,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: TuuurTheme.brandPurple,
+                  width: 1,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: TuuurTheme.brandPurple.withOpacity(0.5),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: TuuurTheme.brandPurple,
+                  width: 2,
+                ),
+              ),
+            ),
+            onSubmitted: (_) => _saveNickname(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (_isSavingNickname)
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: TuuurTheme.brandPurple,
+            ),
+          )
+        else ...[
+          IconButton(
+            icon: const Icon(
+              FontAwesomeIcons.check,
+              size: 18,
+              color: TuuurTheme.brandGreen,
+            ),
+            onPressed: _saveNickname,
+            tooltip: 'Valider',
+          ),
+          IconButton(
+            icon: const Icon(
+              FontAwesomeIcons.xmark,
+              size: 18,
+              color: Colors.redAccent,
+            ),
+            onPressed: _cancelEditingNickname,
+            tooltip: 'Annuler',
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _Avatar extends StatelessWidget {
@@ -1181,11 +1304,7 @@ class _Avatar extends StatelessWidget {
   final Uint8List? bytes; // priorité d’affichage
   final String? base64OrDataUri; // si présent, tentative de décodage interne
 
-  const _Avatar({
-    required this.avatarUrl,
-    this.bytes,
-    this.base64OrDataUri,
-  });
+  const _Avatar({required this.avatarUrl, this.bytes, this.base64OrDataUri});
 
   Uint8List? _decode(String? s) {
     if (s == null || s.isEmpty) return null;
@@ -1236,10 +1355,7 @@ class _Avatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: TuuurTheme.brandPurple, width: 2),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: img,
-      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(30), child: img),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -64,8 +65,10 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   // Signature d'état d'auth
   String? _lastAuthSignature;
 
-  ThemeApi get _themeApi => widget.themeApiOverride ?? ApiModule.instance.themeApi;
-  DifficultyApi get _difficultyApi => widget.difficultyApiOverride ?? ApiModule.instance.difficultyApi;
+  ThemeApi get _themeApi =>
+      widget.themeApiOverride ?? ApiModule.instance.themeApi;
+  DifficultyApi get _difficultyApi =>
+      widget.difficultyApiOverride ?? ApiModule.instance.difficultyApi;
 
   @override
   void initState() {
@@ -82,8 +85,11 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
     if (sig != _lastAuthSignature) {
       _lastAuthSignature = sig;
 
-      _fetchThemes();
-      _fetchDifficulties();
+      // Ne charge les données que si l'utilisateur est authentifié
+      if (store.isAuthenticated) {
+        _fetchThemes();
+        _fetchDifficulties();
+      }
     }
   }
 
@@ -111,7 +117,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         setState(() {
           _loadingThemes = false;
           _unauthorized = res.statusCode == 401;
-          _loadError = res.message ??
+          _loadError =
+              res.message ??
               (_unauthorized
                   ? 'Session expirée ou non authentifié.'
                   : 'Impossible de charger les thèmes.');
@@ -137,9 +144,14 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
       mapped.sort((a, b) {
         int p(String n) =>
-            n.toLowerCase().contains('général') || n.toLowerCase().contains('general') ? 0 : 1;
+            n.toLowerCase().contains('général') ||
+                n.toLowerCase().contains('general')
+            ? 0
+            : 1;
         final pa = p(a.name), pb = p(b.name);
-        return pa != pb ? (pa - pb) : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return pa != pb
+            ? (pa - pb)
+            : a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
 
       setState(() {
@@ -237,7 +249,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       setState(() {
         _loadingDifficulties = false;
         _difficultyUnauthorized = res.statusCode == 401;
-        _difficultyError = res.message ??
+        _difficultyError =
+            res.message ??
             (_difficultyUnauthorized
                 ? 'Session expirée ou non authentifié.'
                 : 'Impossible de charger les difficultés.');
@@ -272,7 +285,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   String _selectedDifficultyLabel() {
     if (_selectedDifficultyId == null) return '—';
-    final match = _difficulties.where((d) => d.id == _selectedDifficultyId).toList(growable: false);
+    final match = _difficulties
+        .where((d) => d.id == _selectedDifficultyId)
+        .toList(growable: false);
     return match.isNotEmpty ? match.first.label : '—';
   }
 
@@ -320,14 +335,16 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
             'Catégories:',
             _selectedCategories
                 .map(
-                  (id) => _categories.firstWhere(
-                    (c) => c.id == id,
-                    orElse: () => QuizCategory(
-                      id: id,
-                      name: id,
-                      icon: FontAwesomeIcons.shapes,
-                    ),
-                  ).name,
+                  (id) => _categories
+                      .firstWhere(
+                        (c) => c.id == id,
+                        orElse: () => QuizCategory(
+                          id: id,
+                          name: id,
+                          icon: FontAwesomeIcons.shapes,
+                        ),
+                      )
+                      .name,
                 )
                 .join(', '),
           ),
@@ -358,11 +375,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
     );
   }
 
-  Widget _buildConfirmationRow(
-    IconData icon,
-    String label,
-    String value,
-  ) {
+  Widget _buildConfirmationRow(IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -383,6 +396,63 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAuthRequiredCard() {
+    return GamingCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
+            FontAwesomeIcons.userLock,
+            color: TuuurTheme.brandPurple,
+            size: 48,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Connexion requise',
+            style: TextStyle(
+              color: TuuurTheme.brandLightGray,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Vous devez être connecté pour jouer en mode solo.',
+            style: TextStyle(color: TuuurTheme.brandGray, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: GamingButtonPrimary(
+                      text: "Se connecter",
+                      icon: FontAwesomeIcons.rightToBracket,
+                      onPressed: () => GoRouter.of(context).push('/login', extra: {'returnTo': '/solo'}),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GamingButtonSecondary(
+                      text: "Créer un compte",
+                      icon: FontAwesomeIcons.userPlus,
+                      onPressed: () => GoRouter.of(context).push('/register', extra: {'returnTo': '/solo'}),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -418,7 +488,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               if (_unauthorized)
                 GamingButtonPrimary(
                   text: 'Se connecter',
-                  onPressed: () => context.goLogin(),
+                  onPressed: () => GoRouter.of(context).push('/login', extra: {'returnTo': '/solo'}),
                 ),
             ],
           ),
@@ -433,6 +503,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   @override
   Widget build(BuildContext context) {
+    final store = MyAuthStore.of(context);
+    final isAuthenticated = store.isAuthenticated;
+
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
@@ -440,9 +513,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         context.goBack();
       },
       child: Scaffold(
-        appBar: const NavigationHeader(
-          showBack: true,
-        ),
+        appBar: const NavigationHeader(showBack: true),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -450,7 +521,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
             children: [
               _buildHeader(),
               const SizedBox(height: 24),
-              if (_loadingThemes)
+              if (!isAuthenticated)
+                _buildAuthRequiredCard()
+              else if (_loadingThemes)
                 const GamingCard(
                   child: Center(
                     child: Padding(
@@ -473,15 +546,15 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               else if (_loadError != null)
                 _buildThemesErrorCard()
               else
-              Column(
-                children: [
-                  _buildCategoriesSection(),
-                  const SizedBox(height: 24),
-                  _buildSettingsSection(),
-                ],
-              ),
-              const SizedBox(height: 32),
-              _buildFooter(),
+                Column(
+                  children: [
+                    _buildCategoriesSection(),
+                    const SizedBox(height: 24),
+                    _buildSettingsSection(),
+                    const SizedBox(height: 32),
+                    _buildFooter(),
+                  ],
+                ),
             ],
           ),
         ),
@@ -598,11 +671,11 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 final index = entry.key;
                 final category = entry.value;
                 return CategoryButton(
-                  text: category.name,
-                  icon: category.icon,
-                  selected: _selectedCategories.contains(category.id),
-                  onTap: () => _toggleCategory(category.id),
-                )
+                      text: category.name,
+                      icon: category.icon,
+                      selected: _selectedCategories.contains(category.id),
+                      onTap: () => _toggleCategory(category.id),
+                    )
                     .animate(delay: (100 * index).ms)
                     .fadeIn(duration: 400.ms)
                     .slideX(begin: -0.2);
@@ -659,20 +732,20 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 ),
                 const SizedBox(height: 8),
                 SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    showValueIndicator: ShowValueIndicator.onDrag,
-                  ),
+                  data: SliderTheme.of(
+                    context,
+                  ).copyWith(showValueIndicator: ShowValueIndicator.onDrag),
                   child: Slider(
                     value: _questionCount.toDouble(),
                     min: 5,
-                    max: 100,
+                    max: 20,
                     // de 5 en 5
-                    divisions: (100 - 5) ~/ 5, // 19 divisions
+                    divisions: (20 - 5) ~/ 5,
                     label: '$_questionCount',
                     onChanged: (value) {
                       setState(() {
                         _questionCount = value
-                            .round(); // valeur entière, step 5 grâce à divisions
+                            .round();
                       });
                     },
                   ),
@@ -724,10 +797,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
           const SizedBox(height: 8),
           Text(
             _difficultyError!,
-            style: const TextStyle(
-              color: TuuurTheme.brandOrange,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: TuuurTheme.brandOrange, fontSize: 14),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -743,7 +813,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               if (_difficultyUnauthorized)
                 GamingButtonPrimary(
                   text: 'Se connecter',
-                  onPressed: () => context.goLogin(),
+                  onPressed: () => GoRouter.of(context).push('/login', extra: {'returnTo': '/solo'}),
                 ),
             ],
           ),
@@ -900,9 +970,5 @@ class QuizCategory {
   final String name;
   final IconData icon;
 
-  QuizCategory({
-    required this.id,
-    required this.name,
-    required this.icon,
-  });
+  QuizCategory({required this.id, required this.name, required this.icon});
 }

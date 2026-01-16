@@ -8,7 +8,9 @@ import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 
 class AuthRegisterPage extends StatefulWidget {
-  const AuthRegisterPage({super.key});
+  final String? returnTo;
+  
+  const AuthRegisterPage({super.key, this.returnTo});
 
   @override
   State<AuthRegisterPage> createState() => _AuthRegisterPageState();
@@ -103,6 +105,7 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
           extra: {
             'login': _usernameController.text.trim(),
             'email': _emailController.text.trim(),
+            'returnTo': widget.returnTo ?? '/profile',
           },
         );
 

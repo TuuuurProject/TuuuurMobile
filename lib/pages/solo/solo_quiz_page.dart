@@ -636,7 +636,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
+            Expanded(
               child: Align(
                 alignment: Alignment.centerRight,
                 child: right,

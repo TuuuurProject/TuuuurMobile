@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/api_module.dart';
+import '../../api/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -12,11 +13,15 @@ import 'auth_shared.dart';
 class AuthVerifyPage extends StatefulWidget {
   final String? initialLogin;
   final String? emailHint;
+  final String? returnTo;
+  final AuthApi? authApi;
 
   const AuthVerifyPage({
     super.key,
     this.initialLogin,
     this.emailHint,
+    this.returnTo,
+    this.authApi,
   });
 
   @override
@@ -28,6 +33,8 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
   final TextEditingController _codeController = TextEditingController();
 
   bool _isLoading = false;
+
+  AuthApi get _authApi => widget.authApi ?? ApiModule.instance.authApi;
 
   @override
   void initState() {
@@ -67,7 +74,7 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
 
     setState(() => _isLoading = true);
     try {
-      final res = await ApiModule.instance.authApi.verify2fa(
+      final res = await _authApi.verify2fa(
         login: _loginController.text.trim(),
         code: _codeController.text.trim(),
       );
@@ -76,24 +83,31 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
 
       if (res.ok && res.data != null) {
         final session = res.data!;
+
+        final router = GoRouter.of(context);
+        final returnTo = widget.returnTo;
+
         await MyAuthStore.of(context).signInWithSession(session);
+        if (!mounted) return;
 
         AuthSnackbars.show(
           'Compte vérifié, connexion réussie !',
           color: TuuurTheme.brandGreen,
         );
 
-        if (context.mounted) {
-          context.go('/');
+        if (returnTo != null && returnTo.isNotEmpty) {
+          router.go(returnTo);
+        } else if (router.canPop()) {
+          router.pop();
+        } else {
+          router.go('/');
         }
         return;
       }
 
       AuthSnackbars.show(res.message ?? 'Vérification impossible.');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
