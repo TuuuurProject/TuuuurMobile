@@ -13,6 +13,7 @@ import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../api/api_config.dart';
+import '../../api/api_module.dart';
 import '../../api/auth_api_service.dart' as api_auth;
 import '../../api/history_api_service.dart' as api_hist;
 
@@ -31,8 +32,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  api_auth.AuthApi get _authApi => widget.authApi ?? api_auth.authApi;
-  api_hist.HistoryApi get _historyApi => widget.historyApi ?? api_hist.historyApi;
+  api_auth.AuthApi get _authApi => widget.authApi ?? ApiModule.instance.authApi;
+  api_hist.HistoryApi get _historyApi => widget.historyApi ?? ApiModule.instance.historyApi;
 
   bool _loading = false;
   String? _nickName;
@@ -174,7 +175,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _loading = true);
 
-    final res = await _authApi.me(headers: store.authHeaders);
+    final res = await _authApi.me();
 
     if (!mounted) return;
     setState(() => _loading = false);
@@ -186,9 +187,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       setState(() {
         _nickName = u.nickName;
-        _email = u.email;
         _avatar = val;
-        _userId = u.id;
         _avatarBytes = decoded ?? _avatarBytes;
       });
 
@@ -212,7 +211,6 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     final res = await _historyApi.getHistory(
-      headers: store.authHeaders,
       page: page,
       size: _historyPageSize,
     );
@@ -252,7 +250,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _historyError = null;
       _historyMatches = matches;
       _historyTotalMatches = historyPage.totalCount ?? matches.length;
-      _historyAvgPercent = avgPercent;
       _historyCurrentPage = historyPage.currentPage ?? page;
       _historyTotalPages = historyPage.totalPages ?? 1;
     });
@@ -274,13 +271,11 @@ class _ProfilePageState extends State<ProfilePage> {
       final base64Str = base64Encode(bytes);
 
       if (!mounted) return;
-      final store = MyAuthStore.of(context);
 
       setState(() => _loading = true);
 
       final res = await _authApi.updateAvatarBase64(
         base64: base64Str,
-        headers: store.authHeaders,
       );
 
       if (!mounted) return;
@@ -329,7 +324,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final store = MyAuthStore.of(context);
     setState(() => _loading = true);
 
-    final res = await _authApi.deleteMe(headers: store.authHeaders);
+    final res = await _authApi.deleteMe();
 
     if (!mounted) return;
     setState(() => _loading = false);
@@ -615,7 +610,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(width: 8),
               _statsPill(
-                '${_historyTotalMatches} Partie${_historyTotalMatches > 1 ? 's' : ''}',
+                '$_historyTotalMatches Partie${_historyTotalMatches > 1 ? 's' : ''}',
                 icon: FontAwesomeIcons.gamepad,
                 color: TuuurTheme.brandPurple,
               ),

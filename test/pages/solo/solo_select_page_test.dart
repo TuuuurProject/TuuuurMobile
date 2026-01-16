@@ -66,7 +66,7 @@ void main() {
     await AuthStore.instance.signOut();
   });
 
-  Future<void> _pumpSolo(
+  Future<void> pumpSolo(
     WidgetTester tester, {
     required Size surfaceSize,
     required ThemesFetcher fetchThemes,
@@ -93,7 +93,7 @@ void main() {
     await tester.pump();
   }
 
-  Future<void> _pumpSoloWithRouter(
+  Future<void> pumpSoloWithRouter(
     WidgetTester tester, {
     required Size surfaceSize,
     required ThemesFetcher fetchThemes,
@@ -146,7 +146,7 @@ void main() {
     await tester.pump();
   }
 
-  Future<void> _pumpForUi(WidgetTester tester) async {
+  Future<void> pumpForUi(WidgetTester tester) async {
     // 1) microtasks
     await tester.pump();
     // 2) laisse le temps aux animations/futures de finir (flutter_animate ~400ms)
@@ -155,17 +155,17 @@ void main() {
     await tester.pump();
   }
 
-  Finder _categoriesCardFinder() {
+  Finder categoriesCardFinder() {
     final title = find.text('Catégories');
     return find.ancestor(of: title, matching: find.byType(GamingCard));
   }
 
-  Finder _settingsCardFinder() {
+  Finder settingsCardFinder() {
     final title = find.text('⚙️ Paramètres');
     return find.ancestor(of: title, matching: find.byType(GamingCard));
   }
 
-  Future<void> _tapStart(WidgetTester tester) async {
+  Future<void> tapStart(WidgetTester tester) async {
     final adventure = find.text("Commencer l'aventure");
     final jouer = find.text('Jouer');
 
@@ -177,7 +177,7 @@ void main() {
     await tester.pump();
   }
 
-  Future<void> _pumpSoloWithDefaultFetchers(
+  Future<void> pumpSoloWithDefaultFetchers(
     WidgetTester tester, {
     required Size surfaceSize,
     required ThemeApi themeApiOverride,
@@ -203,7 +203,7 @@ void main() {
   }
 
 
-  Finder _numericQuestionsText() {
+  Finder numericQuestionsText() {
     final re = RegExp(r'^\d+\squestions$');
     return find.byWidgetPredicate((w) {
       return w is Text && w.data != null && re.hasMatch(w.data!.trim());
@@ -230,7 +230,7 @@ void main() {
         {'id': 3, 'label': 'Difficile'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 800),
         fetchThemes: ({headers}) async => themesOk,
@@ -256,7 +256,7 @@ void main() {
       await tester.pump();
 
       // Start
-      await _tapStart(tester);
+      await tapStart(tester);
       await tester.pumpAndSettle();
 
       // Modal confirmation
@@ -278,7 +278,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 800),
         fetchThemes: ({headers}) => themesCompleter.future,
@@ -332,7 +332,7 @@ void main() {
         ], statusCode: 200);
       }
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: fetchThemes,
@@ -361,7 +361,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => api.ApiResponse.err(
@@ -394,7 +394,7 @@ void main() {
         },
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -444,7 +444,7 @@ void main() {
         ], statusCode: 200);
       }
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -456,7 +456,7 @@ void main() {
       expect(find.text('Difficulté'), findsOneWidget);
       expect(find.text('Boom diffs'), findsOneWidget);
 
-      final settingsCard = _settingsCardFinder();
+      final settingsCard = settingsCardFinder();
       final retryInSettings = find.descendant(
         of: settingsCard,
         matching: find.text('↻ Réessayer'),
@@ -484,7 +484,7 @@ void main() {
         },
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -500,7 +500,7 @@ void main() {
       expect(find.text('Difficulté'), findsOneWidget);
       expect(find.text('Session expirée ou non authentifié.'), findsOneWidget);
 
-      final settingsCard = _settingsCardFinder();
+      final settingsCard = settingsCardFinder();
       final loginBtn = find.descendant(
         of: settingsCard,
         matching: find.text('Se connecter'),
@@ -527,7 +527,7 @@ void main() {
         {'id': 3, 'label': 'Difficile'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -559,7 +559,7 @@ void main() {
         {'id': 3, 'label': 'Difficile'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -600,7 +600,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -611,7 +611,7 @@ void main() {
 
       // Le pill "10 questions" doit être là (et seulement 1 texte "^\d+ questions$")
       expect(find.text('10 questions'), findsOneWidget);
-      expect(_numericQuestionsText(), findsOneWidget);
+      expect(numericQuestionsText(), findsOneWidget);
 
       // On évite les gestures (flaky) => onChanged direct
       final sliderFinder = find.byType(Slider);
@@ -624,7 +624,7 @@ void main() {
 
       expect(find.text('55 questions'), findsOneWidget);
       expect(find.text('10 questions'), findsNothing);
-      expect(_numericQuestionsText(), findsOneWidget);
+      expect(numericQuestionsText(), findsOneWidget);
     },
   );
 
@@ -644,7 +644,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -653,7 +653,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      await _tapStart(tester);
+      await tapStart(tester);
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(
@@ -687,7 +687,7 @@ void main() {
 
       final diffsEmpty = api.ApiResponse.ok(<dynamic>[], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -699,7 +699,7 @@ void main() {
       await tester.tap(find.text('Général'));
       await tester.pump();
 
-      await _tapStart(tester);
+      await tapStart(tester);
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Veuillez choisir une difficulté'), findsOneWidget);
@@ -731,7 +731,7 @@ void main() {
         _DiffObj(id: 2, label: 'Moyen'),
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -744,7 +744,7 @@ void main() {
       expect(find.text('Sport'), findsOneWidget);
       expect(find.text('Gaming'), findsOneWidget);
 
-      final categoriesCard = _categoriesCardFinder();
+      final categoriesCard = categoriesCardFinder();
       expect(categoriesCard, findsOneWidget);
 
       final buttonsInCategories = tester
@@ -768,7 +768,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 800),
         fetchThemes: ({headers}) async {
@@ -813,7 +813,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSolo(
+      await pumpSolo(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -822,7 +822,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final categoriesCard = _categoriesCardFinder();
+      final categoriesCard = categoriesCardFinder();
       final buttons = tester
           .widgetList<CategoryButton>(
             find.descendant(
@@ -857,7 +857,7 @@ void main() {
         {'id': 2, 'label': 'Moyen'},
       ], statusCode: 200);
 
-      await _pumpSoloWithRouter(
+      await pumpSoloWithRouter(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => api.ApiResponse.err(
@@ -894,7 +894,7 @@ void main() {
 
       Map<String, String>? gotParams;
 
-      await _pumpSoloWithRouter(
+      await pumpSoloWithRouter(
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
@@ -909,7 +909,7 @@ void main() {
       await tester.pump();
 
       // start => ouvre modal
-      await _tapStart(tester);
+      await tapStart(tester);
       await tester.pumpAndSettle();
 
       expect(find.text('Démarrer le quiz'), findsOneWidget);
@@ -961,7 +961,7 @@ void main() {
         );
       });
 
-      await _pumpSoloWithDefaultFetchers(
+      await pumpSoloWithDefaultFetchers(
         tester,
         surfaceSize: const Size(1000, 900),
         themeApiOverride: fakeThemeApi,
@@ -1000,7 +1000,7 @@ void main() {
         );
       });
 
-      await _pumpSoloWithDefaultFetchers(
+      await pumpSoloWithDefaultFetchers(
         tester,
         surfaceSize: const Size(1000, 900),
         themeApiOverride: fakeThemeApi,
@@ -1035,7 +1035,7 @@ void main() {
         );
       });
 
-      await _pumpSoloWithDefaultFetchers(
+      await pumpSoloWithDefaultFetchers(
         tester,
         surfaceSize: const Size(1000, 900),
         themeApiOverride: fakeThemeApi,
@@ -1049,7 +1049,7 @@ void main() {
       expect(find.text('Difficulté'), findsOneWidget);
       expect(find.text('Boom diffs fallback'), findsOneWidget);
 
-      final settingsCard = _settingsCardFinder();
+      final settingsCard = settingsCardFinder();
       final retryBtn = find.descendant(of: settingsCard, matching: find.text('↻ Réessayer'));
       expect(retryBtn, findsOneWidget);
     },

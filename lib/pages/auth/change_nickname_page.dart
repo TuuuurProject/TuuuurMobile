@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/api_module.dart';
 import '../../api/auth_api_service.dart';
 import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
@@ -9,14 +10,17 @@ import 'auth_shared.dart';
 
 class ChangeNicknamePage extends StatefulWidget {
   final String? initialNickname;
+  final AuthApi? authApiOverride;
 
-  const ChangeNicknamePage({super.key, this.initialNickname});
+  const ChangeNicknamePage({super.key, this.initialNickname, this.authApiOverride});
 
   @override
   State<ChangeNicknamePage> createState() => _ChangeNicknamePageState();
 }
 
 class _ChangeNicknamePageState extends State<ChangeNicknamePage> {
+  AuthApi get _authApi => widget.authApiOverride ?? ApiModule.instance.authApi;
+
   late final TextEditingController _nickController =
       TextEditingController(text: widget.initialNickname ?? '');
 
@@ -32,9 +36,8 @@ class _ChangeNicknamePageState extends State<ChangeNicknamePage> {
     final store = MyAuthStore.of(context);
     setState(() => _isLoading = true);
 
-    final res = await authApi.updateNickname(
+    final res = await _authApi.updateNickname(
       nickname: _nickController.text,
-      headers: store.authHeaders,
     );
 
     if (!mounted) return;

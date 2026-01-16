@@ -1,26 +1,11 @@
-import 'api_client.dart'; // <-- au lieu d'avoir ApiClient/ApiResponse définis ici
+import 'api_client.dart';
+import 'api_helpers.dart';
 
-/// Helpers parsing simples
-dynamic _get(Map<String, dynamic>? j, String key) => j == null ? null : j[key];
-String? _asString(dynamic v) => v == null ? null : v.toString();
-int? _asInt(dynamic v) {
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v);
-  return null;
-}
-bool? _asBool(dynamic v) {
-  if (v is bool) return v;
-  if (v is String) return v.toLowerCase() == 'true';
-  if (v is num) return v != 0;
-  return null;
-}
-DateTime? _asDateTime(dynamic v) {
-  if (v == null) return null;
-  if (v is DateTime) return v;
-  if (v is String) return DateTime.tryParse(v);
-  return null;
-}
+dynamic _get(Map<String, dynamic>? j, String key) => get(j, key);
+String? _asString(dynamic v) => asString(v);
+int? _asInt(dynamic v) => asInt(v);
+bool? _asBool(dynamic v) => asBool(v);
+DateTime? _asDateTime(dynamic v) => asDateTime(v);
 
 /// Résultat d'inscription (2FA attendu).
 class RegisterResult {
@@ -39,8 +24,8 @@ class RegisterResult {
 class LoginResult {
   final bool requires2fa;
   final AuthSession? session;
-  final String? delivery;   // 'email' / 'sms' ...
-  final String? emailHint;  // si le back renvoie une cible (ex: adresse)
+  final String? delivery;
+  final String? emailHint;
   const LoginResult({
     required this.requires2fa,
     this.session,
@@ -92,14 +77,32 @@ class AuthToken {
   final String token;
   final DateTime? validFrom;
   final DateTime? validTo;
+  final String? refreshToken;
+  final DateTime? refreshTokenExpiresAt;
 
-  AuthToken({required this.token, this.validFrom, this.validTo});
+  AuthToken({
+    required this.token,
+    this.validFrom,
+    this.validTo,
+    this.refreshToken,
+    this.refreshTokenExpiresAt,
+  });
 
   factory AuthToken.fromJson(Map<String, dynamic>? j) => AuthToken(
         token: _asString(_get(j, 'token')) ?? '',
         validFrom: _asDateTime(_get(j, 'validFrom')),
         validTo: _asDateTime(_get(j, 'validTo')),
+        refreshToken: _asString(_get(j, 'refreshToken')),
+        refreshTokenExpiresAt: _asDateTime(_get(j, 'refreshTokenExpiresAt')),
       );
+
+  Map<String, dynamic> toJson() => {
+        'token': token,
+        'validFrom': validFrom?.toIso8601String(),
+        'validTo': validTo?.toIso8601String(),
+        'refreshToken': refreshToken,
+        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toIso8601String(),
+      };
 }
 
 class AuthSession {
@@ -121,6 +124,19 @@ class AuthApi {
   final ApiClient _api;
   AuthApi(this._api);
 
+  ApiResponse<AuthSession> _buildAuthSession(Map<String, dynamic> m, int? statusCode, {bool defaultIsGoogleUser = false}) {
+    final userData = _get(m, 'user');
+    final tokenData = _get(m, 'token');
+    
+    final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
+    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
+    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? defaultIsGoogleUser;
+
+    return ApiResponse.ok(
+      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
+      statusCode: statusCode,
+    );
+  }
   // --- Register & 2FA ---
   Future<ApiResponse<RegisterResult>> register({
     required String email,
@@ -190,14 +206,7 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final user = UserDto.fromJson(_get(m, 'user') as Map<String, dynamic>?);
-    final token = AuthToken.fromJson(_get(m, 'token') as Map<String, dynamic>?);
-    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? true;
-
-    return ApiResponse.ok(
-      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
-      statusCode: res.statusCode,
-    );
+    return _buildAuthSession(m, res.statusCode, defaultIsGoogleUser: true);
   }
 
   Future<ApiResponse<bool>> passwordForgot({
@@ -254,19 +263,33 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final m = res.data ?? <String, dynamic>{};
-    final user = UserDto.fromJson(_get(m, 'user') as Map<String, dynamic>?);
-    final token = AuthToken.fromJson(_get(m, 'token') as Map<String, dynamic>?);
-    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? false;
+    return _buildAuthSession(m, res.statusCode);
+  }
 
-    return ApiResponse.ok(
-      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
-      statusCode: res.statusCode,
+  /// Refresh le token d'authentification.
+  Future<ApiResponse<AuthSession>> refreshToken({
+    required String bearer,
+    required String refreshToken,
+  }) async {
+    final res = await _api.postJson(
+      '/api/v1/auth/refresh',
+      body: {
+        'bearer': bearer,
+        'refreshToken': refreshToken,
+      },
     );
+    if (!res.ok) {
+      return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
+    }
+    final m = res.data ?? <String, dynamic>{};
+    return _buildAuthSession(m, res.statusCode);
   }
 
   // --- Me ---
-  Future<ApiResponse<UserDto>> me({Map<String, String>? headers}) async {
-    final res = await _api.getJson('/api/v1/me', headers: headers);
+  /// Récupère les informations de l'utilisateur connecté.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  Future<ApiResponse<UserDto>> me() async {
+    final res = await _api.getJson('/api/v1/me', auth: true);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
@@ -274,13 +297,14 @@ class AuthApi {
     return ApiResponse.ok(UserDto.fromJson(m), statusCode: res.statusCode);
   }
 
+  /// Mise à jour de l'avatar en base64.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<bool>> updateAvatarBase64({
     required String base64,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.putJson(
       '/api/v1/me/avatar',
-      headers: headers,
+      auth: true,
       body: {'avatar': base64},
     );
     if (!res.ok) {
@@ -292,38 +316,42 @@ class AuthApi {
         : ApiResponse.err(message: res.data?['message']?.toString());
   }
 
+  /// Change le mot de passe de l'utilisateur.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<bool>> changePassword({
     required String currentPassword,
     required String newPassword,
-    Map<String, String>? headers,
   }) async {
     final body = {
       'currentPassword': currentPassword,
       'oldPassword': currentPassword,
       'newPassword': newPassword,
     };
-    final res = await _api.putJson('/api/v1/me/change-password', headers: headers, body: body);
+    final res = await _api.putJson('/api/v1/me/change-password', auth: true, body: body);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
 
-  Future<ApiResponse<bool>> deleteMe({Map<String, String>? headers}) async {
-    final res = await _api.delete('/api/v1/me', headers: headers);
+  /// Supprime le compte utilisateur.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  Future<ApiResponse<bool>> deleteMe() async {
+    final res = await _api.delete('/api/v1/me', auth: true);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
 
+  /// Met à jour le pseudo de l'utilisateur.
+  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
   Future<ApiResponse<UserDto>> updateNickname({
     required String nickname,
-    Map<String, String>? headers,
   }) async {
     final res = await _api.putJson(
       '/api/v1/me/nickname',
-      headers: headers,
+      auth: true,
       body: {'nickname': nickname.trim()},
     );
 
@@ -369,6 +397,3 @@ class AuthApi {
     return ApiResponse.ok(user, statusCode: res.statusCode);
   }
 }
-
-// final authApi = AuthApi(apiClient);
-AuthApi authApi = AuthApi(apiClient);

@@ -161,7 +161,7 @@ void main() {
         when(mockApiClient.postJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 201),
         );
@@ -170,7 +170,6 @@ void main() {
           themeIds: [1],
           difficultyIds: [2],
           nbQuestions: 10,
-          headers: {'Authorization': 'Bearer token'},
         );
 
         expect(result.ok, isTrue);
@@ -181,7 +180,7 @@ void main() {
         when(mockApiClient.postJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.ok({'data': 'id'}, statusCode: 200),
         );
@@ -195,7 +194,7 @@ void main() {
         final captured = verify(mockApiClient.postJson(
           captureAny,
           body: captureAnyNamed('body'),
-          headers: captureAnyNamed('headers'),
+          auth: captureAnyNamed('auth'),
         )).captured;
 
         final body = captured[1] as Map<String, dynamic>;
@@ -208,7 +207,7 @@ void main() {
         when(mockApiClient.postJson(
           any,
           body: anyNamed('body'),
-          headers: anyNamed('headers'),
+          auth: anyNamed('auth'),
         )).thenAnswer(
           (_) async => ApiResponse.err(
             message: 'Invalid request',

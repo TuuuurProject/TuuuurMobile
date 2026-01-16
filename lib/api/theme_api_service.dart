@@ -48,7 +48,7 @@ class ThemeDto {
   }
 
   // helpers locaux
-  static String? _asString(dynamic v) => v == null ? null : v.toString();
+  static String? _asString(dynamic v) => v?.toString();
   static int? _asInt(dynamic v) {
     if (v is int) return v;
     if (v is num) return v.toInt();
@@ -62,8 +62,10 @@ class ThemeApi {
   final ApiClient _api;
   ThemeApi(this._api);
 
-  Future<ApiResponse<List<ThemeDto>>> getThemes({Map<String, String>? headers}) async {
-    final res = await _api.getJson('/api/v1/theme', headers: headers);
+  /// Récupère la liste des thèmes.
+  /// Cette méthode nécessite l'authentification.
+  Future<ApiResponse<List<ThemeDto>>> getThemes() async {
+    final res = await _api.getJson('/api/v1/theme', auth: true);
     if (!res.ok) {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
@@ -79,7 +81,7 @@ class ThemeApi {
     }
 
     final items = <ThemeDto>[];
-    for (final e in (list as List)) {
+    for (final e in list) {
       if (e is Map<String, dynamic>) {
         items.add(ThemeDto.fromJson(e));
       }
@@ -87,6 +89,3 @@ class ThemeApi {
     return ApiResponse.ok(items, statusCode: res.statusCode);
   }
 }
-
-// instance prête
-final themeApi = ThemeApi(ApiClient());

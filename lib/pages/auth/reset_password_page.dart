@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/api_module.dart';
 import '../../api/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
@@ -10,14 +11,17 @@ import 'auth_shared.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String? initialLogin;
+  final AuthApi? authApiOverride;
 
-  const ResetPasswordPage({super.key, this.initialLogin});
+  const ResetPasswordPage({super.key, this.initialLogin, this.authApiOverride});
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
 }
 
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
+  AuthApi get _authApi => widget.authApiOverride ?? ApiModule.instance.authApi;
+
   final TextEditingController _loginController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -80,7 +84,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
     setState(() => _isLoading = true);
 
-    final res = await authApi.passwordReset(
+    final res = await _authApi.passwordReset(
       login: _loginController.text.trim(),
       code: _codeController.text.trim(),
       password: _passwordController.text,

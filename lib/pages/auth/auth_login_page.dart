@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../api/api_config.dart';
-import '../../api/auth_api_service.dart';
+import '../../api/api_module.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -71,7 +71,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       final login = _pseudoController.text.trim();
       final password = _passwordController.text;
 
-      final res = await authApi.login(login: login, password: password);
+      final res = await ApiModule.instance.authApi.login(login: login, password: password);
 
       if (!mounted) return;
 
@@ -126,7 +126,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
         );
       }
 
-      final res = await authApi.loginWithGoogle(idToken: idToken);
+      final res = await ApiModule.instance.authApi.loginWithGoogle(idToken: idToken);
 
       if (!mounted) return;
 

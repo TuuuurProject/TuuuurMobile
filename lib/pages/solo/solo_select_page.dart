@@ -9,17 +9,14 @@ import '../../widgets/navigation_header.dart';
 import '../../navigation/app_router.dart';
 
 import '../../api/api_client.dart' as api;
+import '../../api/api_module.dart';
 import '../../api/theme_api_service.dart';
 import '../../api/difficulty_api_service.dart';
 import '../../stores/auth_store.dart';
 
-typedef ThemesFetcher = Future<api.ApiResponse<List<dynamic>>> Function({
-  Map<String, String>? headers,
-});
+typedef ThemesFetcher = Future<api.ApiResponse<List<dynamic>>> Function();
 
-typedef DifficultiesFetcher = Future<api.ApiResponse<List<dynamic>>> Function({
-  Map<String, String>? headers,
-});
+typedef DifficultiesFetcher = Future<api.ApiResponse<List<dynamic>>> Function();
 
 class _DifficultyItem {
   final int id;
@@ -67,8 +64,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   // Signature d'état d'auth
   String? _lastAuthSignature;
 
-  ThemeApi get _themeApi => widget.themeApiOverride ?? themeApi;
-  DifficultyApi get _difficultyApi => widget.difficultyApiOverride ?? difficultyApi;
+  ThemeApi get _themeApi => widget.themeApiOverride ?? ApiModule.instance.themeApi;
+  DifficultyApi get _difficultyApi => widget.difficultyApiOverride ?? ApiModule.instance.difficultyApi;
 
   @override
   void initState() {
@@ -80,16 +77,13 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
     super.didChangeDependencies();
 
     final store = MyAuthStore.of(context);
-    final sig = store.isAuthenticated
-        ? (store.authHeaders['Authorization'] ?? 'auth')
-        : 'anon';
+    final sig = store.isAuthenticated ? 'auth' : 'anon';
 
     if (sig != _lastAuthSignature) {
       _lastAuthSignature = sig;
-      final headers = store.isAuthenticated ? store.authHeaders : null;
 
-      _fetchThemes(headers: headers);
-      _fetchDifficulties(headers: headers);
+      _fetchThemes();
+      _fetchDifficulties();
     }
   }
 
@@ -102,7 +96,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   // THEMES
   // ---------------------------------------------------------------------------
 
-  Future<void> _fetchThemes({Map<String, String>? headers}) async {
+  Future<void> _fetchThemes() async {
     setState(() {
       _loadingThemes = true;
       _loadError = null;
@@ -110,7 +104,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
     });
 
     try {
-      final res = await _themesFetcher(headers: headers);
+      final res = await _themesFetcher();
       if (!mounted) return;
 
       if (!res.ok) {
@@ -229,14 +223,14 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   // DIFFICULTÉS
   // ---------------------------------------------------------------------------
 
-  Future<void> _fetchDifficulties({Map<String, String>? headers}) async {
+  Future<void> _fetchDifficulties() async {
     setState(() {
       _loadingDifficulties = true;
       _difficultyError = null;
       _difficultyUnauthorized = false;
     });
 
-    final res = await _difficultiesFetcher(headers: headers);
+    final res = await _difficultiesFetcher();
     if (!mounted) return;
 
     if (!res.ok) {
@@ -418,10 +412,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               GamingButtonSecondary(
                 text: '↻ Réessayer',
                 onPressed: () {
-                  final store = MyAuthStore.of(context);
-                  _fetchThemes(
-                    headers: store.isAuthenticated ? store.authHeaders : null,
-                  );
+                  _fetchThemes();
                 },
               ),
               if (_unauthorized)
@@ -669,7 +660,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                 const SizedBox(height: 8),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    showValueIndicator: ShowValueIndicator.always,
+                    showValueIndicator: ShowValueIndicator.onDrag,
                   ),
                   child: Slider(
                     value: _questionCount.toDouble(),
@@ -746,10 +737,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               GamingButtonSecondary(
                 text: '↻ Réessayer',
                 onPressed: () {
-                  final store = MyAuthStore.of(context);
-                  _fetchDifficulties(
-                    headers: store.isAuthenticated ? store.authHeaders : null,
-                  );
+                  _fetchDifficulties();
                 },
               ),
               if (_difficultyUnauthorized)
@@ -840,8 +828,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   ThemesFetcher get _themesFetcher =>
       widget.fetchThemes ??
-      ({headers}) async {
-        final res = await _themeApi.getThemes(headers: headers);
+      () async {
+        final res = await _themeApi.getThemes();
         if (!res.ok) {
           return api.ApiResponse.err(
             message: res.message,
@@ -857,8 +845,8 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
   DifficultiesFetcher get _difficultiesFetcher =>
       widget.fetchDifficulties ??
-      ({headers}) async {
-        final res = await _difficultyApi.getDifficulties(headers: headers);
+      () async {
+        final res = await _difficultyApi.getDifficulties();
         if (!res.ok) {
           return api.ApiResponse.err(
             message: res.message,

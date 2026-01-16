@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
+import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
 import 'package:tuuuur_flutter/api/auth_api_service.dart';
 import 'package:tuuuur_flutter/navigation/app_messengers.dart'
     show rootScaffoldMessengerKey;
@@ -19,7 +20,7 @@ class _DummyPage extends StatelessWidget {
   final String label;
   final Key pageKey;
 
-  const _DummyPage(this.label, {required this.pageKey, super.key});
+  const _DummyPage(this.label, {required this.pageKey});
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +65,7 @@ class _FakeAuthApi extends AuthApi {
   }
 }
 
-GoRouter _createRouter({String initialLocation = '/'}) {
+GoRouter _createRouter({String initialLocation = '/', AuthApi? authApi}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [
@@ -77,7 +78,7 @@ GoRouter _createRouter({String initialLocation = '/'}) {
         path: '/change-nickname',
         builder: (_, state) {
           final initial = state.uri.queryParameters['initial'];
-          return ChangeNicknamePage(initialNickname: initial);
+          return ChangeNicknamePage(initialNickname: initial, authApiOverride: authApi);
         },
       ),
     ],
@@ -135,12 +136,12 @@ Finder _snackBarWithMessage(String msg) {
 }
 
 void main() {
-  const MethodChannel _secureStorageChannel =
+  const MethodChannel secureStorageChannel =
     MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
 
   setUpAll(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_secureStorageChannel, (call) async {
+        .setMockMethodCallHandler(secureStorageChannel, (call) async {
       switch (call.method) {
         case 'write':
         case 'delete':
@@ -160,30 +161,30 @@ void main() {
 
   tearDownAll(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_secureStorageChannel, null);
+        .setMockMethodCallHandler(secureStorageChannel, null);
   });
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AuthApi _originalAuthApi;
+  late AuthApi originalAuthApi;
   late _FakeAuthApi fake;
 
   setUpAll(() {
-    _originalAuthApi = authApi;
+    // Initialiser ApiModule pour que authApi soit accessible
+    try {
+      api_module.ApiModule.instance.initialize(authStore: AuthStore.instance);
+    } catch (_) {
+      // Déjà initialisé
+    }
   });
 
   setUp(() {
     fake = _FakeAuthApi();
-    authApi = fake;
-  });
-
-  tearDownAll(() {
-    authApi = _originalAuthApi;
   });
 
   group('ChangeNicknamePage - rendu', () {
     testWidgets('affiche les éléments essentiels', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router, initialNickname: 'OldNick');
 
@@ -207,7 +208,7 @@ void main() {
 
   group('ChangeNicknamePage - interactions', () {
     testWidgets('submit clavier (done) déclenche updateNickname', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 
@@ -226,7 +227,7 @@ void main() {
     });
 
     testWidgets('loading: "Mise à jour…" + champ désactivé', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 
@@ -253,7 +254,7 @@ void main() {
   group('ChangeNicknamePage - API & navigation', () {
     testWidgets('erreur API => affiche message et reste sur la page',
         (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 
@@ -273,7 +274,7 @@ void main() {
     });
 
     testWidgets('succès API => SnackBar vert + pop vers home', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 
@@ -304,7 +305,7 @@ void main() {
 
   group('ChangeNicknamePage - navigation', () {
     testWidgets('Annuler => pop vers home', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 
@@ -315,7 +316,7 @@ void main() {
     });
 
     testWidgets('AppBar back => pop vers home', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 
@@ -328,7 +329,7 @@ void main() {
 
   group('ChangeNicknamePage - cycle de vie', () {
     testWidgets('dispose correctement', (tester) async {
-      final router = _createRouter(initialLocation: '/');
+      final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangeNicknamePage(tester, router);
 

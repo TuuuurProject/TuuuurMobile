@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'api/api_module.dart';
 import 'stores/auth_store.dart';
 import 'theme/tuuuur_theme.dart';
 import 'navigation/app_router.dart';
@@ -21,6 +22,9 @@ Future<void> main() async {
 
   // Hydrate l'état d'auth depuis le Secure Storage
   await AuthStore.instance.load();
+
+  // Initialise le module API avec l'AuthStore
+  ApiModule.instance.initialize(authStore: AuthStore.instance);
 
   runApp(
     MyAuthStore(

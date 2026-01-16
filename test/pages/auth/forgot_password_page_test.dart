@@ -6,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
+import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
 import 'package:tuuuur_flutter/api/auth_api_service.dart';
 import 'package:tuuuur_flutter/pages/auth/forgot_password_page.dart';
+import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
 import 'package:tuuuur_flutter/navigation/app_messengers.dart' show rootScaffoldMessengerKey;
 
@@ -16,7 +18,7 @@ class _DummyPage extends StatelessWidget {
   final String label;
   final Key pageKey;
 
-  const _DummyPage(this.label, {required this.pageKey, super.key});
+  const _DummyPage(this.label, {required this.pageKey});
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +62,7 @@ class _FakeAuthApi extends AuthApi {
   }
 }
 
-GoRouter _createRouter({String initialLocation = '/forgot-password'}) {
+GoRouter _createRouter({String initialLocation = '/forgot-password', AuthApi? authApi}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [
@@ -70,7 +72,7 @@ GoRouter _createRouter({String initialLocation = '/forgot-password'}) {
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (_, __) => const ForgotPasswordPage(),
+        builder: (_, __) => ForgotPasswordPage(authApiOverride: authApi),
       ),
       GoRoute(
         path: '/reset-password',
@@ -90,8 +92,8 @@ Widget _wrapWithApp(GoRouter router) {
   );
 }
 
-Future<void> _pumpForgot(WidgetTester tester, {GoRouter? router}) async {
-  final r = router ?? _createRouter();
+Future<void> _pumpForgot(WidgetTester tester, {GoRouter? router, AuthApi? authApi}) async {
+  final r = router ?? _createRouter(authApi: authApi);
   await tester.pumpWidget(_wrapWithApp(r));
   await tester.pumpAndSettle();
 }
@@ -99,25 +101,21 @@ Future<void> _pumpForgot(WidgetTester tester, {GoRouter? router}) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AuthApi _originalAuthApi;
   late _FakeAuthApi fake;
 
   setUpAll(() {
-    _originalAuthApi = authApi;
+    try {
+      api_module.ApiModule.instance.initialize(authStore: AuthStore.instance);
+    } catch (_) {}
   });
 
   setUp(() {
     fake = _FakeAuthApi();
-    authApi = fake; // <-- on remplace le global pour tous les tests
-  });
-
-  tearDownAll(() {
-    authApi = _originalAuthApi; // <-- on restaure
   });
 
   group('ForgotPasswordPage - rendu', () {
     testWidgets('affiche les éléments essentiels', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       expect(find.byType(ForgotPasswordPage), findsOneWidget);
       expect(find.byType(Scaffold), findsOneWidget);
@@ -141,7 +139,7 @@ void main() {
 
   group('ForgotPasswordPage - validation & interactions', () {
     testWidgets('validation: login requis => SnackBar', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       await tester.tap(find.text('Envoyer le code'));
       await tester.pumpAndSettle();
@@ -154,7 +152,7 @@ void main() {
     });
 
     testWidgets('soumission clavier (done) déclenche l’envoi si login rempli', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       await tester.enterText(find.byType(TextField), 'testuser');
 
@@ -168,7 +166,7 @@ void main() {
     });
 
     testWidgets('état loading: le bouton affiche "Envoi..." tant que la requête est en cours', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       fake.makePending();
 
@@ -189,7 +187,7 @@ void main() {
     });
 
     testWidgets('erreur API => affiche le message et reste sur la page', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       fake.immediateResponse = ApiResponse.err(
         message: 'Impossible de démarrer la procédure.',
@@ -209,7 +207,7 @@ void main() {
     });
 
     testWidgets('succès API => SnackBar vert + navigation vers /reset-password avec extra', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       fake.immediateResponse = ApiResponse.ok(true, statusCode: 200);
 
@@ -251,7 +249,7 @@ void main() {
 
   group('ForgotPasswordPage - cycle de vie', () {
     testWidgets('dispose correctement', (tester) async {
-      await _pumpForgot(tester);
+      await _pumpForgot(tester, authApi: fake);
 
       expect(find.byType(ForgotPasswordPage), findsOneWidget);
 
@@ -268,3 +266,4 @@ void main() {
     });
   });
 }
+

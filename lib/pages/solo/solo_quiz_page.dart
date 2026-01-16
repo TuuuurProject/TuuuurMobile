@@ -5,10 +5,10 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../api/api_module.dart';
 import '../../api/solo_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/navigation_utils.dart';
-import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -39,7 +39,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
   static const int totalTime = 15; // secondes (juste pour l'UI)
 
   /// ✅ API utilisée (singleton en prod, mock en tests)
-  SoloApi get _api => widget.soloApiOverride ?? soloApi;
+  SoloApi get _api => widget.soloApiOverride ?? ApiModule.instance.soloApi;
 
   AppLifecycleState? _appLifecycleState;
   bool _pendingAutoSubmitOnResume = false;
@@ -212,9 +212,6 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     });
 
     try {
-      final store = MyAuthStore.of(context);
-      final headers = store.isAuthenticated ? store.authHeaders : null;
-
       // On suppose que les catégories sont des IDs de thème en string (ex: "1").
       final themeIds = <int>[];
       for (final c in widget.categories) {
@@ -229,7 +226,6 @@ class _SoloQuizPageState extends State<SoloQuizPage>
         themeIds: themeIds,
         difficultyIds: difficultyIds,
         nbQuestions: widget.questions,
-        headers: headers,
       );
 
       if (!mounted) return;
@@ -258,7 +254,6 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       // 2) Récupération de l’état initial (première question)
       final partyRes = await _api.getSolo(
         partyId: partyId,
-        headers: headers,
       );
 
       if (!mounted) return;
@@ -293,12 +288,8 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     });
 
     try {
-      final store = MyAuthStore.of(context);
-      final headers = store.isAuthenticated ? store.authHeaders : null;
-
       final res = await _api.getSolo(
         partyId: _partyId!,
-        headers: headers,
       );
 
       if (!mounted) return;
@@ -440,13 +431,9 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     });
 
     try {
-      final store = MyAuthStore.of(context);
-      final headers = store.isAuthenticated ? store.authHeaders : null;
-
       final res = await _api.answerSolo(
         partyId: _partyId!,
         answerId: answerId,
-        headers: headers,
       );
 
       if (!mounted) return;

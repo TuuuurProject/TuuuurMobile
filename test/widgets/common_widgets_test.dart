@@ -64,9 +64,9 @@ void main() {
           home: Scaffold(
             body: GamingModal(
               title: 'Modal',
-              child: Text('Content'),
               confirmText: 'Valider',
               cancelText: 'Fermer',
+              child: Text('Content'),
             ),
           ),
         ),
@@ -173,8 +173,8 @@ void main() {
           home: Scaffold(
             body: GamingModal(
               title: 'Modal',
-              child: Text('Content'),
               showActions: false,
+              child: Text('Content'),
             ),
           ),
         ),

@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
+import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/pages/auth/auth_register_page.dart';
 
 void main() {
+  setUpAll(() {
+    try {
+      api_module.ApiModule.instance.initialize(authStore: AuthStore.instance);
+    } catch (_) {}
+  });
+
   group('AuthRegisterPage', () {
     testWidgets('affiche tous les éléments de la page de register',
         (WidgetTester tester) async {
