@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 import 'package:tuuuur_flutter/navigation/app_messengers.dart'
     show rootScaffoldMessengerKey;
 import 'package:tuuuur_flutter/pages/auth/change_password_page.dart';
@@ -29,7 +29,6 @@ class _DummyPage extends StatelessWidget {
   }
 }
 
-/// Fake AuthApi pour éviter le réseau + capturer les params.
 class _FakeAuthApi extends AuthApi {
   _FakeAuthApi() : super(ApiClient(baseUrl: 'http://localhost'));
 
@@ -84,14 +83,13 @@ Widget _wrapWithApp(GoRouter router) {
   return MyAuthStore(
     notifier: AuthStore.instance,
     child: MaterialApp.router(
-      scaffoldMessengerKey: rootScaffoldMessengerKey, // ✅ snackbars auth_shared
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       routerConfig: router,
     ),
   );
 }
 
 Future<void> _pumpApp(WidgetTester tester, GoRouter router) async {
-  // Optionnel mais safe : évite surprises de viewport
   await tester.binding.setSurfaceSize(const Size(1200, 2000));
   addTearDown(() async => tester.binding.setSurfaceSize(null));
 
@@ -100,7 +98,7 @@ Future<void> _pumpApp(WidgetTester tester, GoRouter router) async {
 }
 
 Future<void> _openChangePasswordPage(WidgetTester tester, GoRouter router) async {
-  router.push('/change-password'); // ✅ crée un historique pour pop()
+  router.push('/change-password');
   await tester.pumpAndSettle();
   expect(find.byType(ChangePasswordPage), findsOneWidget);
 }
@@ -113,7 +111,6 @@ Future<void> _fillForm(
   required String next,
   required String confirm,
 }) async {
-  // 3 AuthPasswordField => 3 TextField
   expect(find.byType(TextField), findsNWidgets(3));
 
   await tester.enterText(_tf(0), current);
@@ -212,7 +209,7 @@ void main() {
       await _fillForm(
         tester,
         current: 'OldPass123',
-        next: 'password', // invalide (pas maj + pas chiffre selon tes règles)
+        next: 'password',
         confirm: 'password',
       );
 
@@ -232,12 +229,10 @@ void main() {
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
 
-      // 3 champs password => 3 icônes visibility au départ
       expect(find.byIcon(Icons.visibility), findsNWidgets(3));
 
       await _tapFinder(tester, find.byIcon(Icons.visibility).first);
 
-      // Au moins un champ est passé en visibility_off
       expect(find.byIcon(Icons.visibility_off), findsAtLeastNWidgets(1));
     });
 
@@ -255,7 +250,6 @@ void main() {
         confirm: 'NewPass123',
       );
 
-      // focus le champ confirm
       await _tapFinder(tester, _tf(2));
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
@@ -282,7 +276,6 @@ void main() {
 
       expect(find.text('Mise à jour…'), findsOneWidget);
 
-      // champs disabled
       for (var i = 0; i < 3; i++) {
         final tf = tester.widget<TextField>(_tf(i));
         expect(tf.enabled, isFalse);
@@ -334,19 +327,15 @@ void main() {
 
       await _tapFinder(tester, find.byType(GamingButtonPrimary));
 
-      // API params
       expect(fake.callCount, 1);
       expect(fake.lastCurrentPassword, 'OldPass123');
       expect(fake.lastNewPassword, 'NewPass123');
-      // Les headers ne sont plus passés directement - gérés par ApiClient avec auth: true
 
-      // SnackBar (peut être doublé pendant transition)
       final sbFinder = _snackBarWithMessage('Mot de passe mis à jour ✅');
       expect(sbFinder, findsWidgets);
       final last = tester.widgetList<SnackBar>(sbFinder).toList().last;
       expect(last.backgroundColor, TuuurTheme.brandGreen);
 
-      // pop => retour home
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('page_home')), findsOneWidget);
     });

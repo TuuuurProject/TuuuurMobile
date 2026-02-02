@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
-import 'token_provider.dart';
+import 'auth/token_provider.dart';
 
-/// Réponse standardisée succès/erreur.
+/// Standardized success/error response.
 class ApiResponse<T> {
   final bool ok;
   final T? data;
@@ -27,7 +27,7 @@ class ApiResponse<T> {
       ApiResponse._(ok: false, message: message, statusCode: statusCode, raw: raw);
 }
 
-/// Client HTTP JSON + extraction d'erreurs lisibles.
+/// HTTP JSON client with readable error extraction.
 class ApiClient {
   final http.Client _http;
   final String _base;
@@ -73,10 +73,7 @@ class ApiClient {
     Duration timeout = const Duration(seconds: 10),
   }) async {
     try {
-      print('[DEBUG] $method $path');
-      print('[DEBUG] Headers: $headers');
       final allHeaders = await _prepareHeaders(headers: headers, auth: auth);
-      print('[DEBUG] AllHeaders: $allHeaders');
 
       final requestHeaders = <String, String>{
         'Accept': 'application/json',
@@ -88,7 +85,6 @@ class ApiClient {
       if (body != null) {
         requestHeaders['Content-Type'] = 'application/json';
         bodyStr = body is String ? body : jsonEncode(body);
-        print('[DEBUG] Request Body: $bodyStr');
       }
 
       final http.Response res;
@@ -109,10 +105,9 @@ class ApiClient {
           throw ArgumentError('Méthode HTTP non supportée: $method');
       }
 
-      print('[DEBUG] $method Response Status: ${res.statusCode}');
-      print('[DEBUG] $method Response Body: ${res.body}');
+      bodyStr = utf8.decode(res.bodyBytes);
       
-      final decoded = _parseBody(res.body);
+      final decoded = _parseBody(bodyStr);
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return ApiResponse.ok(decoded, statusCode: res.statusCode);
       }
@@ -167,8 +162,6 @@ class ApiClient {
   void dispose() {
     _http.close();
   }
-
-  // --- helpers internes ---
 
   static Map<String, dynamic> _parseBody(String body) {
     if (body.isEmpty) return <String, dynamic>{};

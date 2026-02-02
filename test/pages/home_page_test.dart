@@ -13,7 +13,7 @@ void main() {
     test('HomePage a une clé nullable', () {
       const page = HomePage();
       expect(page.key, isNull);
-      
+
       const pageWithKey = HomePage(key: ValueKey('test'));
       expect(pageWithKey.key, isNotNull);
     });

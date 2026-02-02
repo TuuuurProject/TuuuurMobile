@@ -5,7 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../api/api_config.dart';
 import '../../api/api_module.dart';
-import '../../api/auth_api_service.dart';
+import '../../api/auth/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -167,6 +167,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isGoogleLoading = false);
+      print('Google login error: $e');
       _showToast('Erreur Google: $e');
     }
   }
@@ -219,25 +220,6 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                         ),
                       ),
                     ],
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: TuuurTheme.brandCyan.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: TuuurTheme.brandCyan.withOpacity(0.3),
-                      ),
-                    ),
-                    child: const Text(
-                      'Pseudo + mot de passe',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: TuuurTheme.brandLightGray,
-                        fontSize: 12,
-                      ),
-                    ),
                   ),
                 ],
               ),

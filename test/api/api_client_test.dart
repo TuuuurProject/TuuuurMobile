@@ -300,7 +300,7 @@ void main() {
           (_) async => http.Response('{}', 200),
         );
 
-        await apiClient.getJson('test'); // sans slash initial
+        await apiClient.getJson('test');
 
         final captured = verify(mockHttpClient.get(
           captureAny,

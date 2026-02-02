@@ -25,16 +25,13 @@ void main() {
       expect(find.byType(AuthRegisterPage), findsOneWidget);
       expect(find.byType(Scaffold), findsOneWidget);
 
-      // 4 champs : pseudo, email, mdp, confirmation mdp
       expect(find.byType(TextField), findsAtLeastNWidgets(4));
 
-      // Labels principaux
       expect(find.text('Pseudo'), findsOneWidget);
       expect(find.text('Email'), findsOneWidget);
       expect(find.text('Mot de passe'), findsOneWidget);
       expect(find.text('Confirmer le mot de passe'), findsOneWidget);
 
-      // CTA / liens
       expect(find.text('Annuler'), findsOneWidget);
       expect(find.text('Créer le compte'), findsOneWidget);
       expect(find.text('Se connecter'), findsOneWidget);
@@ -49,16 +46,13 @@ void main() {
       );
       await tester.pump();
 
-      // Il y a 2 boutons "visibility" (mdp + confirmation)
       final visibilityIcons = find.byIcon(Icons.visibility);
       expect(visibilityIcons, findsNWidgets(2));
 
-      // Toggle du 1er champ mot de passe
       await tester.tap(visibilityIcons.first);
       await tester.pump();
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
 
-      // Toggle du 2e champ (il reste 1 icône "visibility")
       await tester.tap(find.byIcon(Icons.visibility).first);
       await tester.pump();
       expect(find.byIcon(Icons.visibility_off), findsNWidgets(2));
@@ -76,7 +70,6 @@ void main() {
       expect(find.text('Créer le compte'), findsOneWidget);
       expect(find.text('Se connecter'), findsOneWidget);
 
-      // Les boutons "gaming" sont souvent basés sur InkWell
       expect(find.byType(InkWell), findsWidgets);
     });
 
@@ -132,10 +125,8 @@ void main() {
 
       expect(find.byType(AuthRegisterPage), findsOneWidget);
 
-      // Détruire le widget
       await tester.pumpWidget(Container());
 
-      // Vérifier qu'il n'y a pas d'erreur
       expect(tester.takeException(), isNull);
     });
 

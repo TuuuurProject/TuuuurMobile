@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 
-// Note: Les tests AuthStore nécessiteraient une refactorisation pour permettre l'injection
-// du FlutterSecureStorage. Pour l'instant, nous testons uniquement les DTOs.
+
+
 
 void main() {
-  // Les tests du AuthStore singleton nécessitent un binding Flutter initialisé
-  // et ne peuvent pas être facilement mockés sans refactorisation de la classe.
-  // Ils sont commentés pour l'instant.
+
+
+
 
   group('UserDto', () {
     test('fromJson crée une instance correcte', () {
@@ -63,7 +63,7 @@ void main() {
     });
   });
 
-  group('AuthToken', () {
+  group('AuthTokenDto', () {
     test('fromJson crée une instance correcte', () {
       final json = {
         'token': 'abc123',
@@ -71,7 +71,7 @@ void main() {
         'validTo': '2024-12-31T23:59:59.999Z',
       };
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('abc123'));
       expect(token.validFrom, isNotNull);
@@ -81,7 +81,7 @@ void main() {
     test('fromJson gère les dates nulles', () {
       final json = {'token': 'abc123'};
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('abc123'));
       expect(token.validFrom, isNull);

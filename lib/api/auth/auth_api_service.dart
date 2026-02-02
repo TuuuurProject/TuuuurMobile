@@ -1,144 +1,27 @@
-import 'api_client.dart';
-import 'api_helpers.dart';
+import '../api_client.dart';
+import '../api_helpers.dart';
+import 'auth_models.dart';
 
-dynamic _get(Map<String, dynamic>? j, String key) => get(j, key);
-String? _asString(dynamic v) => asString(v);
-int? _asInt(dynamic v) => asInt(v);
-bool? _asBool(dynamic v) => asBool(v);
-DateTime? _asDateTime(dynamic v) => asDateTime(v);
-
-/// Résultat d'inscription (2FA attendu).
-class RegisterResult {
-  final bool verificationRequired;
-  final String? verificationId;
-  final String delivery; // 'email'/'sms'
-  final Map<String, dynamic> raw;
-  const RegisterResult({
-    required this.verificationRequired,
-    required this.delivery,
-    required this.raw,
-    this.verificationId,
-  });
-}
-
-class LoginResult {
-  final bool requires2fa;
-  final AuthSession? session;
-  final String? delivery;
-  final String? emailHint;
-  const LoginResult({
-    required this.requires2fa,
-    this.session,
-    this.delivery,
-    this.emailHint,
-  });
-}
-
-/// Modèles pour session / utilisateur.
-class UserDto {
-  final int? id;
-  final String? nickName;
-  final String? email;
-  final String? avatar;
-  final bool? isAdmin;
-  final bool? isNew;
-
-  UserDto({
-    this.id,
-    this.nickName,
-    this.email,
-    this.avatar,
-    this.isAdmin,
-    this.isNew,
-  });
-
-  factory UserDto.fromJson(Map<String, dynamic>? j) {
-    return UserDto(
-      id: _asInt(_get(j, 'id')),
-      nickName: _asString(_get(j, 'nickName')),
-      email: _asString(_get(j, 'email')),
-      avatar: _asString(_get(j, 'avatar')),
-      isAdmin: _asBool(_get(j, 'isAdmin')),
-      isNew: _asBool(_get(j, 'isNew')),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'nickName': nickName,
-        'email': email,
-        'avatar': avatar,
-        'isAdmin': isAdmin,
-        'isNew': isNew,
-      };
-}
-
-class AuthToken {
-  final String token;
-  final DateTime? validFrom;
-  final DateTime? validTo;
-  final String? refreshToken;
-  final DateTime? refreshTokenExpiresAt;
-
-  AuthToken({
-    required this.token,
-    this.validFrom,
-    this.validTo,
-    this.refreshToken,
-    this.refreshTokenExpiresAt,
-  });
-
-  factory AuthToken.fromJson(Map<String, dynamic>? j) => AuthToken(
-        token: _asString(_get(j, 'token')) ?? '',
-        validFrom: _asDateTime(_get(j, 'validFrom')),
-        validTo: _asDateTime(_get(j, 'validTo')),
-        refreshToken: _asString(_get(j, 'refreshToken')),
-        refreshTokenExpiresAt: _asDateTime(_get(j, 'refreshTokenExpiresAt')),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'token': token,
-        'validFrom': validFrom?.toUtc().toIso8601String(),
-        'validTo': validTo?.toUtc().toIso8601String(),
-        'refreshToken': refreshToken,
-        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toUtc().toIso8601String(),
-      };
-}
-
-class AuthSession {
-  final UserDto user;
-  final AuthToken token;
-  final bool isGoogleUser;
-  final Map<String, dynamic> raw;
-
-  AuthSession({
-    required this.user,
-    required this.token,
-    required this.isGoogleUser,
-    required this.raw,
-  });
-}
-
-/// Endpoints d’authentification + Me.
+/// Authentication + Me endpoints.
 class AuthApi {
   final ApiClient _api;
   AuthApi(this._api);
 
-  ApiResponse<AuthSession> _buildAuthSession(Map<String, dynamic> m, int? statusCode, {bool defaultIsGoogleUser = false}) {
-    final userData = _get(m, 'user');
-    final tokenData = _get(m, 'token');
+  ApiResponse<AuthSessionDto> _buildAuthSession(Map<String, dynamic> m, int? statusCode, {bool defaultIsGoogleUser = false}) {
+    final userData = get(m, 'user');
+    final tokenData = get(m, 'token');
     
     final user = UserDto.fromJson(userData is Map ? Map<String, dynamic>.from(userData) : null);
-    final token = AuthToken.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
-    final isGoogleUser = (_get(m, 'isGoogleUser') as bool?) ?? defaultIsGoogleUser;
+    final token = AuthTokenDto.fromJson(tokenData is Map ? Map<String, dynamic>.from(tokenData) : null);
+    final isGoogleUser = (get(m, 'isGoogleUser') as bool?) ?? defaultIsGoogleUser;
 
     return ApiResponse.ok(
-      AuthSession(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
+      AuthSessionDto(user: user, token: token, isGoogleUser: isGoogleUser, raw: m),
       statusCode: statusCode,
     );
   }
-  // --- Register & 2FA ---
-  Future<ApiResponse<RegisterResult>> register({
+
+  Future<ApiResponse<RegisterResultDto>> register({
     required String email,
     required String nickName,
     required String password,
@@ -151,10 +34,10 @@ class AuthApi {
       return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
     }
     final map = res.data ?? <String, dynamic>{};
-    final verificationId = _asString(_get(map, 'verificationId'));
-    final delivery = _asString(_get(map, 'delivery')) ?? 'email';
+    final verificationId = asString(get(map, 'verificationId'));
+    final delivery = asString(get(map, 'delivery')) ?? 'email';
     return ApiResponse.ok(
-      RegisterResult(
+      RegisterResultDto(
         verificationRequired: true,
         verificationId: verificationId,
         delivery: delivery,
@@ -195,7 +78,7 @@ class AuthApi {
     );
   }
 
-  Future<ApiResponse<AuthSession>> loginWithGoogle({
+  Future<ApiResponse<AuthSessionDto>> loginWithGoogle({
     required String idToken,
   }) async {
     final res = await _api.postJson(
@@ -251,7 +134,7 @@ class AuthApi {
     );
   }
 
-  Future<ApiResponse<AuthSession>> verify2fa({
+  Future<ApiResponse<AuthSessionDto>> verify2fa({
     required String login,
     required String code,
   }) async {
@@ -266,8 +149,8 @@ class AuthApi {
     return _buildAuthSession(m, res.statusCode);
   }
 
-  /// Refresh le token d'authentification.
-  Future<ApiResponse<AuthSession>> refreshToken({
+  /// Refresh auth token.
+  Future<ApiResponse<AuthSessionDto>> refreshToken({
     required String bearer,
     required String refreshToken,
   }) async {
@@ -285,9 +168,7 @@ class AuthApi {
     return _buildAuthSession(m, res.statusCode);
   }
 
-  // --- Me ---
-  /// Récupère les informations de l'utilisateur connecté.
-  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  /// Get current user info. Requires authentication via ApiClient.
   Future<ApiResponse<UserDto>> me() async {
     final res = await _api.getJson('/api/v1/me', auth: true);
     if (!res.ok) {
@@ -297,8 +178,7 @@ class AuthApi {
     return ApiResponse.ok(UserDto.fromJson(m), statusCode: res.statusCode);
   }
 
-  /// Mise à jour de l'avatar en base64.
-  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  /// Update avatar (base64). Requires authentication via ApiClient.
   Future<ApiResponse<bool>> updateAvatarBase64({
     required String base64,
   }) async {
@@ -316,8 +196,7 @@ class AuthApi {
         : ApiResponse.err(message: res.data?['message']?.toString());
   }
 
-  /// Change le mot de passe de l'utilisateur.
-  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  /// Change user password. Requires authentication via ApiClient.
   Future<ApiResponse<bool>> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -334,8 +213,7 @@ class AuthApi {
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
 
-  /// Supprime le compte utilisateur.
-  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  /// Delete user account. Requires authentication via ApiClient.
   Future<ApiResponse<bool>> deleteMe() async {
     final res = await _api.delete('/api/v1/me', auth: true);
     if (!res.ok) {
@@ -344,8 +222,7 @@ class AuthApi {
     return ApiResponse.ok(true, statusCode: res.statusCode);
   }
 
-  /// Met à jour le pseudo de l'utilisateur.
-  /// ATTENTION: cette méthode nécessite l'authentification automatique via ApiClient.
+  /// Update user nickname. Requires authentication via ApiClient.
   Future<ApiResponse<UserDto>> updateNickname({
     required String nickname,
   }) async {

@@ -3,7 +3,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 
 import 'auth_api_service_test.mocks.dart';
 
@@ -43,8 +43,8 @@ void main() {
 
     test('fromJson gère les types de données variés', () {
       final json = {
-        'id': '456', // String au lieu de int
-        'isAdmin': 'true', // String au lieu de bool
+        'id': '456',
+        'isAdmin': 'true',
       };
 
       final user = UserDto.fromJson(json);
@@ -74,7 +74,7 @@ void main() {
     });
   });
 
-  group('AuthToken', () {
+  group('AuthTokenDto', () {
     test('fromJson crée un token valide', () {
       final json = {
         'token': 'test_token_abc123',
@@ -82,7 +82,7 @@ void main() {
         'validTo': '2024-12-31T23:59:59Z',
       };
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('test_token_abc123'));
       expect(token.validFrom, isNotNull);
@@ -92,7 +92,7 @@ void main() {
     test('fromJson gère un token sans dates', () {
       final json = {'token': 'simple_token'};
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('simple_token'));
       expect(token.validFrom, isNull);

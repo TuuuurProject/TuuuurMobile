@@ -1,39 +1,40 @@
-/// Helpers de parsing partagés pour tous les services API.
-/// Ces fonctions permettent de parser de manière sûre les données JSON.
+/// Shared JSON parsing helpers for all API services.
 
-/// Récupère une valeur dans un Map JSON.
+/// Gets a value from JSON map.
 dynamic get(Map<String, dynamic>? json, String key) => 
     json == null ? null : json[key];
 
-/// Convertit une valeur en String.
-String? asString(dynamic value) => value?.toString();
+/// Converts value to String.
+String? asString(dynamic value) {
+  if (value == null) return null;
+  return value.toString();
+}
 
-/// Convertit une valeur en int.
+/// Converts value to int.
 int? asInt(dynamic value) {
+  if (value == null) return null;
   if (value is int) return value;
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value);
   return null;
 }
 
-/// Convertit une valeur en bool.
+/// Converts value to bool.
 bool? asBool(dynamic value) {
+  if (value == null) return null;
   if (value is bool) return value;
   if (value is String) return value.toLowerCase() == 'true';
   if (value is num) return value != 0;
   return null;
 }
 
-/// Convertit une valeur en DateTime.
-/// Gère les dates avec ou sans fuseau horaire.
+/// Converts value to DateTime. Handles dates with or without timezone.
 DateTime? asDateTime(dynamic value) {
   if (value == null) return null;
   if (value is DateTime) return value;
 
   if (value is String) {
     try {
-      // Si la string contient déjà un fuseau (Z ou +hh:mm / -hh:mm en fin de chaîne),
-      // on laisse Dart gérer normalement et on passe juste en local.
       final hasTzInfo =
           value.endsWith('Z') ||
           value.contains(RegExp(r'[+-]\d{2}:\d{2}$'));
@@ -44,8 +45,7 @@ DateTime? asDateTime(dynamic value) {
         return parsed.toLocal();
       }
 
-      // Le back envoie une date en UTC "naïf" (sans info de fuseau).
-      // On réinterprète l'heure lue comme UTC, puis on convertit en local.
+      // Backend sends naive UTC dates - reinterpret as UTC then convert to local
       final asUtc = DateTime.utc(
         parsed.year,
         parsed.month,
@@ -64,4 +64,16 @@ DateTime? asDateTime(dynamic value) {
   }
 
   return null;
+}
+
+Map<String, dynamic>? asMap(dynamic v) {
+  if (v == null) return null;
+  if (v is Map<String, dynamic>) return v;
+  if (v is Map) return v.cast<String, dynamic>();
+  return null;
+}
+
+List<dynamic> asList(dynamic v) {
+  if (v == null) return const [];
+  return v is List ? v : const [];
 }

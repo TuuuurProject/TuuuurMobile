@@ -17,7 +17,7 @@ void main() {
         ),
       );
 
-      // Attendre que toutes les animations se terminent
+
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Test Modal'), findsOneWidget);
@@ -241,7 +241,7 @@ void main() {
 
       expect(find.text('Dialog'), findsOneWidget);
 
-      // Fermer via le bouton annuler
+
       await tester.tap(find.text('Annuler'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));

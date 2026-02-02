@@ -3,26 +3,27 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-import '../../api/group_api_service.dart';
+import '../../api/api_module.dart';
+import '../../api/group/group_api_service.dart';
 import '../../stores/auth_store.dart';
+import '../../stores/group_coordinator.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 
 class GroupJoinPage extends StatefulWidget {
   final VoidCallback onBack;
 
-  final void Function({
-    required String partyId,
-    required String code,
-  }) onJoined;
+  final void Function({required String partyId, required String code}) onJoined;
 
   final GroupApi? groupApiOverride;
+  final GroupCoordinator? groupCoordinatorOverride;
 
   const GroupJoinPage({
     super.key,
     required this.onBack,
     required this.onJoined,
     this.groupApiOverride,
+    this.groupCoordinatorOverride,
   });
 
   @override
@@ -30,7 +31,8 @@ class GroupJoinPage extends StatefulWidget {
 }
 
 class _GroupJoinPageState extends State<GroupJoinPage> {
-  GroupApi get _api => widget.groupApiOverride ?? groupApi;
+  GroupCoordinator get _coordinator =>
+      widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
 
   final TextEditingController codeController = TextEditingController();
 
@@ -56,29 +58,44 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
     });
 
     try {
-      final store = MyAuthStore.of(context);
-      final headers = store.isAuthenticated ? store.authHeaders : null;
-
       final enteredCode = codeController.text.trim();
-      final res = await _api.joinGroup(code: enteredCode, headers: headers);
-
-      if (!mounted) return;
-
-      if (!res.ok) {
+      
+      if (enteredCode.isEmpty) {
         setState(() {
           _joining = false;
-          _error = res.message ?? 'Impossible de rejoindre la partie.';
+          _error = 'Veuillez entrer un code de partie.';
         });
         _snack(_error!, color: TuuurTheme.brandOrange);
         return;
       }
 
-      final partyId = res.data!.partyId;
-      final apiCode = res.data!.code.trim();
-      final finalCode = apiCode.isNotEmpty ? apiCode : enteredCode;
+      // Obtenir l'ID de l'utilisateur actuel
+      final authStore = MyAuthStore.of(context);
+      final currentUserId = authStore.user?.id;
+
+      // Rejoindre via le coordinateur
+      final success = await _coordinator.joinParty(
+        enteredCode,
+        currentUserId: currentUserId,
+      );
+
+      if (!mounted) return;
+
+      if (!success) {
+        setState(() {
+          _joining = false;
+          _error = 'Impossible de rejoindre la partie. Code invalide ?';
+        });
+        _snack(_error!, color: TuuurTheme.brandOrange);
+        return;
+      }
+
+      final party = _coordinator.store.currentParty;
+      final partyId = party?.id ?? '';
+      final lobbyCode = party?.code ?? enteredCode;
 
       setState(() => _joining = false);
-      widget.onJoined(partyId: partyId, code: finalCode);
+      widget.onJoined(partyId: partyId, code: lobbyCode);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -106,18 +123,6 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: _joining ? null : widget.onBack,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: TuuurStyles.pill,
-                      child: const FaIcon(
-                        FontAwesomeIcons.arrowLeft,
-                        color: TuuurTheme.brandLightGray,
-                        size: 16,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'Rejoindre une partie',
@@ -240,7 +245,9 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                               letterSpacing: 1.6,
                             ),
                             filled: true,
-                            fillColor: TuuurTheme.brandDarkGray.withOpacity(0.3),
+                            fillColor: TuuurTheme.brandDarkGray.withOpacity(
+                              0.3,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
@@ -269,7 +276,10 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                               vertical: 14,
                             ),
                             suffixIcon: (code.length == 6)
-                                ? const Icon(Icons.check_circle, color: TuuurTheme.brandGreen)
+                                ? const Icon(
+                                    Icons.check_circle,
+                                    color: TuuurTheme.brandGreen,
+                                  )
                                 : null,
                           ),
                           onSubmitted: (_) => joinGame(),

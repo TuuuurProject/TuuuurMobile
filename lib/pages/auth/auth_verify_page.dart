@@ -3,7 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/api_module.dart';
-import '../../api/auth_api_service.dart';
+import '../../api/auth/auth_api_service.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
@@ -222,18 +222,6 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
                           onPressed: _isLoading ? null : handleVerify,
                         ),
                       ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    TextButton(
-                      onPressed: null,
-                      child: Text(
-                        'Renvoyer le code',
-                        style: TextStyle(
-                          color: TuuurTheme.brandPurple.withValues(alpha: 0.7),
-                        ),
-                      ),
                     ),
                   ],
                 ),

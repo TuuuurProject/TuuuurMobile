@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
 import 'package:tuuuur_flutter/pages/auth/auth_verify_page.dart';
@@ -14,7 +14,6 @@ import 'package:tuuuur_flutter/navigation/app_messengers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // Mock FlutterSecureStorage
   const MethodChannel secureStorageChannel =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   final Map<String, String> secureStore = <String, String>{};
@@ -82,10 +81,8 @@ void main() {
       expect(find.byType(AuthVerifyPage), findsOneWidget);
       expect(find.byType(Scaffold), findsOneWidget);
 
-      // 2 champs : login + code
       expect(find.byType(TextField), findsAtLeastNWidgets(2));
 
-      // Labels & éléments principaux
       expect(find.text('Pseudo (login)'), findsOneWidget);
       expect(find.text('Code à 6 chiffres'), findsOneWidget);
       expect(find.text('Valider le code'), findsOneWidget);
@@ -150,7 +147,6 @@ void main() {
       final fields = find.byType(TextField);
       expect(fields, findsAtLeastNWidgets(2));
 
-      // Le 2e TextField est celui du code
       final codeField = tester.widget<TextField>(fields.at(1));
       expect(codeField.maxLength, equals(6));
       expect(codeField.keyboardType, equals(TextInputType.number));
@@ -171,9 +167,9 @@ void main() {
       await tester.pump();
 
       final fields = find.byType(TextField);
-      await tester.enterText(fields.at(1), '123456'); // code ok
+      await tester.enterText(fields.at(1), '123456');
       await tester.tap(find.text('Valider le code'));
-      await tester.pump(); // affiche le SnackBar
+      await tester.pump();
 
       expect(find.text('Le pseudo (login) est requis.'), findsOneWidget);
     });
@@ -194,7 +190,7 @@ void main() {
 
       final fields = find.byType(TextField);
       await tester.enterText(fields.first, 'testuser');
-      await tester.enterText(fields.at(1), '123'); // invalide
+      await tester.enterText(fields.at(1), '123');
       await tester.tap(find.text('Valider le code'));
       await tester.pump();
 
@@ -310,7 +306,6 @@ void main() {
 
       await tester.pump();
 
-      // Vérifier que le widget est créé avec le paramètre returnTo
       final verifyPage = tester.widget<AuthVerifyPage>(
         find.byType(AuthVerifyPage),
       );
@@ -374,11 +369,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Naviguer vers la page de vérification
       await tester.tap(find.text('Go to Verify'));
       await tester.pumpAndSettle();
 
-      // Utiliser le bouton de retour
       final backButton = find.byType(IconButton);
       await tester.tap(backButton.first);
       await tester.pumpAndSettle();
@@ -388,15 +381,6 @@ void main() {
   });
 
   group('handleVerify - tests de navigation', () {
-    // Note: Les tests complets de handleVerify nécessiteraient de mocker ApiModule,
-    // ce qui n'est pas possible avec l'architecture actuelle sans refactoring.
-    // Les lignes non testées incluent:
-    // - L'appel à ApiModule.instance.authApi.verify2fa
-    // - La navigation conditionnelle après succès (returnTo, canPop, '/')
-    // - La gestion des erreurs de l'API
-    //
-    // Ces lignes sont couvertes indirectement par les tests d'intégration
-    // ou nécessitent un refactoring pour injection de dépendances.
 
     testWidgets('validation locale: login requis',
         (WidgetTester tester) async {
@@ -480,14 +464,14 @@ void main() {
       await _fillForm(tester);
 
       await tester.tap(find.text('Valider le code'));
-      await tester.pump(); // frame après setState(true)
+      await tester.pump();
 
       expect(find.text('Vérification...'), findsOneWidget);
 
       completer.complete(ApiResponse<AuthSession>.err(message: 'bad', statusCode: 401));
       await tester.pumpAndSettle();
 
-      expect(find.text('Valider le code'), findsOneWidget); // loading false dans finally
+      expect(find.text('Valider le code'), findsOneWidget);
     });
 
     testWidgets('succès + returnTo => snack vert + go(returnTo)', (tester) async {
@@ -512,7 +496,6 @@ void main() {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
           .thenAnswer((_) async => ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200));
 
-      // on part de '/' puis push '/verify' => canPop == true
       final router = _routerForVerify(authApi: mockAuthApi, initialLocation: '/', withPushFromHome: true);
       await _pumpVerifyRouter(tester, router);
 
@@ -523,7 +506,6 @@ void main() {
       await tester.tap(find.text('Valider le code'));
       await tester.pumpAndSettle();
 
-      // doit revenir sur home
       expect(find.byKey(const Key('go_verify')), findsOneWidget);
     });
 
@@ -553,7 +535,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Code expiré'), findsOneWidget);
-      expect(find.byType(AuthVerifyPage), findsOneWidget); // reste sur la page
+      expect(find.byType(AuthVerifyPage), findsOneWidget);
     });
 
     testWidgets('échec API sans message => fallback "Vérification impossible."', (tester) async {
@@ -582,7 +564,6 @@ void main() {
       await tester.tap(find.text('Valider le code'));
       await tester.pump();
 
-      // dispose le widget avant la réponse
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
@@ -593,10 +574,6 @@ void main() {
     });
   });
 }
-
-// ============================================================================
-// Mocks et Helpers
-// ============================================================================
 
 class MockAuthApi extends Mock implements AuthApi {}
 

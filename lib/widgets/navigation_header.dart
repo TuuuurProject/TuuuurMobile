@@ -19,6 +19,12 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Message de confirmation pour le clic sur "Tuuuur" (retour à l'accueil).
   final String homeConfirmMessage;
 
+  /// Callback appelée avant de naviguer en arrière (pour nettoyage).
+  final Future<void> Function()? onBackPressed;
+
+  /// Callback appelée avant de naviguer vers l'accueil (pour nettoyage).
+  final Future<void> Function()? onHomePressed;
+
   const NavigationHeader({
     super.key,
     this.showBack = false,
@@ -27,6 +33,8 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
     this.backConfirmMessage = 'Voulez-vous vraiment retourner en arrière ?',
     this.homeConfirmMessage =
         'Êtes-vous sûr de vouloir retourner à l\'accueil ?',
+    this.onBackPressed,
+    this.onHomePressed,
   });
 
   @override
@@ -61,7 +69,14 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
                     context,
                     confirm: confirmOnBack,
                     message: backConfirmMessage,
-                    action: () => context.goBack(),
+                    action: () async {
+                      if (onBackPressed != null) {
+                        await onBackPressed!();
+                      }
+                      if (context.mounted) {
+                        context.goBack();
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -85,7 +100,14 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
         context,
         confirm: confirmOnHome,
         message: homeConfirmMessage,
-        action: () => context.goHome(),
+        action: () async {
+          if (onHomePressed != null) {
+            await onHomePressed!();
+          }
+          if (context.mounted) {
+            context.goHome();
+          }
+        },
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

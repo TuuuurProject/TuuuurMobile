@@ -9,11 +9,10 @@ import 'package:tuuuur_flutter/pages/profile/profile_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/widgets/navigation_header.dart';
 
-// ApiResponse est défini dans api_client.dart
 import 'package:tuuuur_flutter/api/api_client.dart' as api;
 
-import 'package:tuuuur_flutter/api/auth_api_service.dart' as api_auth;
-import 'package:tuuuur_flutter/api/history_api_service.dart' as api_hist;
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart' as api_auth;
+import 'package:tuuuur_flutter/api/other/history_api_service.dart' as api_hist;
 
 class MockAuthApi extends Mock implements api_auth.AuthApi {}
 class MockHistoryApi extends Mock implements api_hist.HistoryApi {}
@@ -21,7 +20,6 @@ class MockHistoryApi extends Mock implements api_hist.HistoryApi {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Mock FlutterSecureStorage (sinon MissingPluginException)
   const MethodChannel secureStorageChannel =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
 
@@ -62,7 +60,6 @@ void main() {
           return secureStore.keys.toList();
 
         default:
-          // Si ton AuthStore appelle une méthode non gérée, tu la verras ici
           return null;
       }
     });
@@ -72,12 +69,11 @@ void main() {
     secureStorageChannel.setMockMethodCallHandler(null);
   });
 
-  // PNG 1x1 base64 valide (évite Image.network en tests)
   const tinyPngBase64 =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+lmfkAAAAASUVORK5CYII=';
 
-  api_auth.AuthSession session() {
-    return api_auth.AuthSession(
+  api_auth.AuthSessionDto session() {
+    return api_auth.AuthSessionDto(
       user: api_auth.UserDto(
         id: 1,
         nickName: 'TestUser',
@@ -86,7 +82,7 @@ void main() {
         isAdmin: false,
         isNew: false,
       ),
-      token: api_auth.AuthToken(token: 'fake-token'),
+      token: api_auth.AuthTokenDto(token: 'fake-token'),
       isGoogleUser: false,
       raw: const {},
     );
@@ -143,7 +139,6 @@ void main() {
         (WidgetTester tester) async {
       await AuthStore.instance.signInWithSession(session());
 
-      // /me => ok
       when(() => mockAuth.me()).thenAnswer(
         (_) async => api.ApiResponse.ok(
           api_auth.UserDto(
@@ -158,14 +153,13 @@ void main() {
         ),
       );
 
-      // ✅ 1 match mocké
       const match = api_hist.HistoryMatchDto(
         id: 'm1',
-        dt: null, // évite les asserts sur date relative (flaky)
+        dt: null,
         finish: true,
         nbQuestions: 10,
         score: 7,
-        time: 65, // => "1m 5s"
+        time: 65,
         percent: 70,
         partyType: api_hist.HistoryPartyTypeDto(id: 1, label: 'Solo'),
         partyDifficulty: <api_hist.HistoryPartyDifficultyDto>[
@@ -182,7 +176,6 @@ void main() {
         ],
       );
 
-      // Historique => 1 item
       when(() => mockHistory.getHistory(
             page: any(named: 'page'),
             size: any(named: 'size'),
@@ -212,15 +205,13 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Profil affiché
+
       expect(find.text('Vous n’êtes pas connecté'), findsNothing);
       expect(find.text('TestUser'), findsOneWidget);
 
-      // Section historique
       expect(find.text('Historique des parties'), findsOneWidget);
       expect(find.textContaining('1 Partie'), findsOneWidget);
 
-      // Tuile match
       expect(find.text('Terminer'), findsOneWidget);
       expect(find.text('Facile'), findsOneWidget);
       expect(find.text('Sport'), findsOneWidget);
@@ -275,7 +266,6 @@ void main() {
         (WidgetTester tester) async {
       await AuthStore.instance.signInWithSession(session());
 
-      // /me => ok
       when(() => mockAuth.me()).thenAnswer(
         (_) async => api.ApiResponse.ok(
           api_auth.UserDto(
@@ -290,7 +280,6 @@ void main() {
         ),
       );
 
-      // Historique vide
       when(() => mockHistory.getHistory(
             page: any(named: 'page'),
             size: any(named: 'size'),
@@ -306,9 +295,6 @@ void main() {
         ),
       );
 
-      // Note: Le bouton "Changer le pseudo" utilise context.push('/change-nickname')
-      // Pour tester la navigation, on devrait utiliser GoRouter
-      // Pour ce test, on vérifie simplement la présence du bouton
       await tester.pumpWidget(
         MaterialApp(
           home: MyAuthStore(
@@ -323,10 +309,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Vérifie que le bouton existe
       expect(find.byTooltip('Modifier le pseudo'), findsOneWidget);
 
-      // Vérifie que le pseudo actuel est affiché
       expect(find.text('OldNickname'), findsOneWidget);
     });
 
@@ -381,21 +365,17 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Appuie sur le bouton supprimer
       await tester.tap(find.text('Supprimer mon compte'));
       await tester.pumpAndSettle();
 
-      // Dialogue de confirmation
       expect(find.text('Supprimer le compte'), findsOneWidget);
       expect(
           find.text('Cette action est irréversible. Confirmer ?'),
           findsOneWidget);
 
-      // Confirme la suppression
       await tester.tap(find.text('Supprimer'));
       await tester.pumpAndSettle();
 
-      // Vérifie que l'API a été appelée
       verify(() => mockAuth.deleteMe()).called(1);
     });
 
@@ -449,7 +429,6 @@ void main() {
       await tester.tap(find.text('Supprimer mon compte'));
       await tester.pumpAndSettle();
 
-      // Annule
       await tester.tap(find.text('Annuler'));
       await tester.pumpAndSettle();
 
@@ -529,7 +508,6 @@ void main() {
         ),
       );
 
-      // Page 1
       when(() => mockHistory.getHistory(page: 1, size: 10)).thenAnswer(
         (_) async => api.ApiResponse.ok(
           const api_hist.HistoryPageDto(
@@ -542,7 +520,6 @@ void main() {
         ),
       );
 
-      // Page 2
       when(() => mockHistory.getHistory(page: 2, size: 10)).thenAnswer(
         (_) async => api.ApiResponse.ok(
           const api_hist.HistoryPageDto(
@@ -571,12 +548,10 @@ void main() {
 
       expect(find.text('Page 1 / 3'), findsOneWidget);
 
-      // Vérifie que l'API a été appelée pour la page 1
       verify(() => mockHistory.getHistory(page: 1, size: 10)).called(1);
 
-      // Cherche les boutons de navigation de pagination
       final nextTextButton = find.widgetWithIcon(TextButton, FontAwesomeIcons.chevronRight);
-      
+
       if (nextTextButton.evaluate().isNotEmpty) {
         await tester.tap(nextTextButton.first);
         await tester.pumpAndSettle();
@@ -633,11 +608,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Appuie sur le bouton modifier
       await tester.tap(find.byTooltip('Modifier le pseudo'));
       await tester.pumpAndSettle();
 
-      // TextField apparaît
       expect(find.byType(TextField), findsOneWidget);
       expect(find.byTooltip('Valider'), findsOneWidget);
       expect(find.byTooltip('Annuler'), findsOneWidget);
@@ -695,7 +668,6 @@ void main() {
 
       expect(find.byType(TextField), findsOneWidget);
 
-      // Annule
       await tester.tap(find.byTooltip('Annuler'));
       await tester.pumpAndSettle();
 
@@ -767,11 +739,9 @@ void main() {
       await tester.tap(find.byTooltip('Modifier le pseudo'));
       await tester.pumpAndSettle();
 
-      // Entre un nouveau pseudo
       await tester.enterText(find.byType(TextField), 'NewNickname');
       await tester.pumpAndSettle();
 
-      // Valide
       await tester.tap(find.byTooltip('Valider'));
       await tester.pumpAndSettle();
 
@@ -829,7 +799,6 @@ void main() {
       await tester.tap(find.byTooltip('Modifier le pseudo'));
       await tester.pumpAndSettle();
 
-      // Entre un pseudo vide
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
 
@@ -858,7 +827,6 @@ void main() {
         ),
       );
 
-      // Match avec une date récente (2 minutes)
       final twoMinutesAgo = DateTime.now().subtract(const Duration(minutes: 2));
       final match = api_hist.HistoryMatchDto(
         id: 'm1',
@@ -902,7 +870,6 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Vérifie que la date relative est affichée
       expect(find.textContaining('Il y a'), findsOneWidget);
     });
   });

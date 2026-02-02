@@ -3,8 +3,8 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
-import 'package:tuuuur_flutter/api/difficulty_api_service.dart';
-import 'package:tuuuur_flutter/api/theme_api_service.dart';
+import 'package:tuuuur_flutter/api/other/difficulty_api_service.dart';
+import 'package:tuuuur_flutter/api/other/theme_api_service.dart';
 
 import 'services_test.mocks.dart';
 

@@ -1,93 +1,36 @@
-import 'api_client.dart';
+import '../api_client.dart';
+import '../api_helpers.dart';
+import 'group_models.dart' as models;
 
-/// ----------------------------
-/// Helpers locaux
-/// ----------------------------
-String? _asString(dynamic v) => v == null ? null : v.toString();
-
-int? _asInt(dynamic v) {
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v);
-  return null;
-}
-
-bool? _asBool(dynamic v) {
-  if (v is bool) return v;
-  if (v is String) {
-    final s = v.toLowerCase().trim();
-    if (s == 'true' || s == '1') return true;
-    if (s == 'false' || s == '0') return false;
-  }
-  if (v is num) return v != 0;
-  return null;
-}
-
-Map<String, dynamic>? _asMap(dynamic v) {
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return v.cast<String, dynamic>();
-  return null;
-}
-
-List<dynamic> _asList(dynamic v) => v is List ? v : const [];
-
-/// Unwrap si backend renvoie { data: ... }
+/// Unwrap if backend returns { data: ... }
 dynamic _unwrap(dynamic data) {
-  final m = _asMap(data);
+  final m = asMap(data);
   if (m != null && m.containsKey('data')) return m['data'];
   return data;
 }
 
-/// ----------------------------
-/// DTOs (minimaux mais utiles)
-/// ----------------------------
-class GroupUser {
-  final int? id;
-  final String nickName;
-  final String? email;
-  final String? avatar;
+/// DTOs using models from group_models.dart
 
-  const GroupUser({
-    this.id,
-    required this.nickName,
-    this.email,
-    this.avatar,
-  });
-
-  factory GroupUser.fromJson(Map<String, dynamic> j) => GroupUser(
-        id: _asInt(j['id']),
-        nickName: _asString(j['nickName']) ?? _asString(j['nickname']) ?? '',
-        email: _asString(j['email']),
-        avatar: _asString(j['avatar']),
-      );
-}
-
-class GroupPartyUser {
-  final int? idUser;
-  final GroupUser? user;
-
-  const GroupPartyUser({this.idUser, this.user});
-
-  factory GroupPartyUser.fromJson(Map<String, dynamic> j) => GroupPartyUser(
-        idUser: _asInt(j['idUser']),
-        user: _asMap(j['user']) == null ? null : GroupUser.fromJson(_asMap(j['user'])!),
-      );
-}
-
-/// Résultat principal des endpoints group (create/join/settings/leave)
+/// Main result for group endpoints (create/join/settings/leave)
 class GroupResult {
-  /// UUID de party (dans ta réponse: "id")
+  /// Party UUID (response field: "id")
   final String partyId;
 
-  /// Code court (dans ta réponse: "code" ex "547246")
-  /// Peut être vide sur certains endpoints (au pire on ne casse pas).
+  /// Short code (response field: "code")
   final String code;
 
   final int? nbQuestions;
   final bool? inProgress;
+  final bool? scoreEachRound;
   final int? hostUserId;
+  final bool? active;
+  final bool? finish;
+  final String? dt;
+  final int? percent;
+  final int? score;
+  final int? time;
 
-  final List<GroupPartyUser> partyUsers;
+  final List<models.PartyUser> partyUsers;
   final List<int> themeIds;
   final List<int> difficultyIds;
 
@@ -96,45 +39,56 @@ class GroupResult {
     required this.code,
     this.nbQuestions,
     this.inProgress,
+    this.scoreEachRound,
     this.hostUserId,
+    this.active,
+    this.finish,
+    this.dt,
+    this.percent,
+    this.score,
+    this.time,
     this.partyUsers = const [],
     this.themeIds = const [],
     this.difficultyIds = const [],
   });
 
   factory GroupResult.fromJson(Map<String, dynamic> j) {
-    final partyId = _asString(j['id'] ?? j['partyId']) ?? '';
-    final code = _asString(j['code']) ?? '';
+    final partyId = asString(j['id'] ?? j['partyId']) ?? '';
+    final code = asString(j['code']) ?? '';
 
-    // partyUsers
-    final pu = <GroupPartyUser>[];
-    for (final e in _asList(j['partyUsers'])) {
-      final m = _asMap(e);
-      if (m != null) pu.add(GroupPartyUser.fromJson(m));
+    final pu = <models.PartyUser>[];
+    for (final e in asList(j['partyUsers'])) {
+      final m = asMap(e);
+      if (m != null) pu.add(models.PartyUser.fromJson(m));
     }
 
-    // partyTheme -> idTheme
     final themes = <int>[];
-    for (final e in _asList(j['partyTheme'])) {
-      final m = _asMap(e);
-      final idTheme = m == null ? null : _asInt(m['idTheme']);
+    for (final e in asList(j['partyTheme'])) {
+      final m = asMap(e);
+      final idTheme = m == null ? null : asInt(m['idTheme']);
       if (idTheme != null) themes.add(idTheme);
     }
 
-    // partyDifficulty -> idDifficulty
     final diffs = <int>[];
-    for (final e in _asList(j['partyDifficulty'])) {
-      final m = _asMap(e);
-      final idDifficulty = m == null ? null : _asInt(m['idDifficulty']);
+    for (final e in asList(j['partyDifficulty'])) {
+      final m = asMap(e);
+      final idDifficulty = m == null ? null : asInt(m['idDifficulty']);
       if (idDifficulty != null) diffs.add(idDifficulty);
     }
 
     return GroupResult(
       partyId: partyId,
       code: code,
-      nbQuestions: _asInt(j['nbQuestions']),
-      inProgress: _asBool(j['inProgress']),
-      hostUserId: _asInt(j['idUserHost']),
+      nbQuestions: asInt(j['nbQuestions']),
+      inProgress: asBool(j['inProgress']),
+      scoreEachRound: asBool(j['scoreEachRound']),
+      hostUserId: asInt(j['idUserHost']),
+      active: asBool(j['active']),
+      finish: asBool(j['finish']),
+      dt: asString(j['dt']),
+      percent: asInt(j['percent']),
+      score: asInt(j['score']),
+      time: asInt(j['time']),
       partyUsers: pu,
       themeIds: themes,
       difficultyIds: diffs,
@@ -147,35 +101,31 @@ class GroupResult {
 GroupResult? _parseGroupResult(dynamic data) {
   final unwrapped = _unwrap(data);
 
-  // Ancien backend: "uuid" direct
   if (unwrapped is String) {
     return GroupResult(partyId: unwrapped, code: '');
   }
 
-  final m = _asMap(unwrapped);
+  final m = asMap(unwrapped);
   if (m == null) return null;
 
-  // Parfois encore un niveau de data
   final maybeData = _unwrap(m);
   if (maybeData is String) {
     return GroupResult(partyId: maybeData, code: '');
   }
 
-  final mm = _asMap(maybeData);
+  final mm = asMap(maybeData);
   if (mm == null) return null;
 
   return GroupResult.fromJson(mm);
 }
 
-/// ----------------------------
 /// API
-/// ----------------------------
 class GroupApi {
   final ApiClient _api;
   GroupApi(this._api);
 
   /// POST /api/v1/group/create
-  /// Réponse: objet party (id, code, partyUsers, etc.)
+  /// Response: party object (id, code, partyUsers, etc.)
   Future<ApiResponse<GroupResult>> createGroup({
     Map<String, String>? headers,
   }) async {
@@ -207,7 +157,7 @@ class GroupApi {
 
   /// POST /api/v1/group/join
   /// Body: { "code": "string" }
-  /// Réponse: objet party
+  /// Response: party object
   Future<ApiResponse<GroupResult>> joinGroup({
     required String code,
     Map<String, String>? headers,
@@ -239,12 +189,13 @@ class GroupApi {
   }
 
   /// POST /api/v1/group/settings
-  /// Body: { themes: [int], difficulties: [int], nbQuestions: int }
-  /// Réponse: parfois vide (204) -> on ne parse rien, on check juste le statut.
+  /// Body: { themes: [int], difficulties: [int], nbQuestions: int, scoreEachRound: bool }
+  /// Response: may be empty (204), only check status
   Future<ApiResponse<void>> updateSettings({
     required List<int> themeIds,
     required List<int> difficultyIds,
     required int nbQuestions,
+    required bool scoreEachRound,
     Map<String, String>? headers,
   }) async {
     final res = await _api.postJson(
@@ -254,6 +205,7 @@ class GroupApi {
         'themes': themeIds,
         'difficulties': difficultyIds,
         'nbQuestions': nbQuestions,
+        'scoreEachRound': scoreEachRound,
       },
     );
 
@@ -269,7 +221,7 @@ class GroupApi {
   }
 
   /// POST /api/v1/group/leave
-  /// Réponse: variable selon backend. Ici: on considère ok si HTTP ok.
+  /// Response: variable, considered ok if HTTP ok
   Future<ApiResponse<GroupResult>> leaveGroup({
     Map<String, String>? headers,
   }) async {
@@ -287,12 +239,8 @@ class GroupApi {
       );
     }
 
-    // Si on arrive à parser, tant mieux, sinon on renvoie un empty.
     final parsed = _parseGroupResult(res.data) ?? GroupResult.empty;
 
     return ApiResponse.ok(parsed, statusCode: res.statusCode);
   }
 }
-
-/// Instance prête à l’emploi (comme soloApi)
-final groupApi = GroupApi(apiClient);
