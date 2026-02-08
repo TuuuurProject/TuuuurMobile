@@ -27,14 +27,12 @@ class _AuthStoreTokenProvider implements TokenProvider {
   @override
   Future<void> refreshIfNeeded() async {
     if (_refreshInProgress != null) {
-      print('[DEBUG] Refresh already in progress, waiting...');
       await _refreshInProgress;
       return;
     }
 
     final token = _authStore.token;
     if (token == null) {
-      print('[DEBUG] No token available, skipping refresh');
       return;
     }
 
@@ -42,27 +40,20 @@ class _AuthStoreTokenProvider implements TokenProvider {
     final expiresAt = token.validTo;
     
     if (expiresAt == null) {
-      print('[DEBUG] Token has no expiration date, skipping refresh');
       return;
     }
 
     final shouldRefresh = now.isAfter(expiresAt.subtract(const Duration(minutes: 5)));
     
-    print('[DEBUG] Token expires at: $expiresAt');
-    print('[DEBUG] Current time: $now');
-    print('[DEBUG] Should refresh: $shouldRefresh');
-    
     if (!shouldRefresh) return;
 
     final refreshToken = token.refreshToken;
     if (refreshToken == null || refreshToken.isEmpty) {
-      print('[DEBUG] No refresh token available');
       return;
     }
 
     final refreshExpiresAt = token.refreshTokenExpiresAt;
     if (refreshExpiresAt != null && now.isAfter(refreshExpiresAt)) {
-      print('[DEBUG] Refresh token has expired at $refreshExpiresAt');
       return;
     }
 
@@ -77,7 +68,6 @@ class _AuthStoreTokenProvider implements TokenProvider {
 
   Future<void> _performRefresh(String bearer, String refreshToken) async {
     try {
-      print('[DEBUG] Refreshing token...');
       final authApi = _authApiGetter();
       final res = await authApi.refreshToken(
         bearer: bearer,
@@ -85,13 +75,9 @@ class _AuthStoreTokenProvider implements TokenProvider {
       );
 
       if (res.ok && res.data != null) {
-        print('[DEBUG] Token refreshed successfully');
         await _authStore.signInWithSession(res.data!);
-      } else {
-        print('[DEBUG] Token refresh failed: ${res.message}');
       }
     } catch (e) {
-      print('[DEBUG] Error refreshing token: $e');
       // En cas d'erreur, on ne fait rien pour éviter de bloquer les requêtes
     }
   }
