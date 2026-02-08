@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:tuuuur_flutter/pages/solo/solo_select_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/api/api_client.dart' as api;
+import 'package:tuuuur_flutter/api/auth_api_service.dart';
 import 'package:tuuuur_flutter/widgets/gaming_widgets.dart';
 import 'package:tuuuur_flutter/widgets/common_widgets.dart'; 
 import 'package:tuuuur_flutter/api/theme_api_service.dart';
@@ -71,9 +72,26 @@ void main() {
     required Size surfaceSize,
     required ThemesFetcher fetchThemes,
     required DifficultiesFetcher fetchDifficulties,
+    bool authenticated = true,
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    // Simuler une authentification si nécessaire
+    if (authenticated) {
+      final session = AuthSession(
+        user: UserDto(id: 1, nickName: 'TestUser', email: 'test@test.com'),
+        token: AuthToken(
+          token: 'test_token',
+          refreshToken: 'test_refresh',
+          validTo: DateTime.now().add(const Duration(hours: 1)),
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
+        ),
+        isGoogleUser: false,
+        raw: {},
+      );
+      await AuthStore.instance.signInWithSession(session);
+    }
 
     await tester.pumpWidget(
       MaterialApp(
@@ -99,9 +117,26 @@ void main() {
     required ThemesFetcher fetchThemes,
     required DifficultiesFetcher fetchDifficulties,
     void Function(Map<String, String> queryParams)? onSoloQuizParams,
+    bool authenticated = true,
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    // Simuler une authentification si nécessaire
+    if (authenticated) {
+      final session = AuthSession(
+        user: UserDto(id: 1, nickName: 'TestUser', email: 'test@test.com'),
+        token: AuthToken(
+          token: 'test_token',
+          refreshToken: 'test_refresh',
+          validTo: DateTime.now().add(const Duration(hours: 1)),
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
+        ),
+        isGoogleUser: false,
+        raw: {},
+      );
+      await AuthStore.instance.signInWithSession(session);
+    }
 
     final router = GoRouter(
       initialLocation: '/solo',
@@ -182,9 +217,26 @@ void main() {
     required Size surfaceSize,
     required ThemeApi themeApiOverride,
     required DifficultyApi difficultyApiOverride,
+    bool authenticated = true,
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    // Simuler une authentification si nécessaire
+    if (authenticated) {
+      final session = AuthSession(
+        user: UserDto(id: 1, nickName: 'TestUser', email: 'test@test.com'),
+        token: AuthToken(
+          token: 'test_token',
+          refreshToken: 'test_refresh',
+          validTo: DateTime.now().add(const Duration(hours: 1)),
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
+        ),
+        isGoogleUser: false,
+        raw: {},
+      );
+      await AuthStore.instance.signInWithSession(session);
+    }
 
     await tester.pumpWidget(
       MaterialApp(
@@ -619,10 +671,10 @@ void main() {
       final slider = tester.widget<Slider>(sliderFinder);
       expect(slider.onChanged, isNotNull);
 
-      slider.onChanged!.call(55.0);
+      slider.onChanged!.call(20.0);
       await tester.pump();
 
-      expect(find.text('55 questions'), findsOneWidget);
+      expect(find.text('20 questions'), findsOneWidget);
       expect(find.text('10 questions'), findsNothing);
       expect(numericQuestionsText(), findsOneWidget);
     },
@@ -1055,6 +1107,227 @@ void main() {
     },
   );
 
+  group('_buildAuthRequiredCard', () {
+    testWidgets('affiche la carte quand non authentifié',
+        (WidgetTester tester) async {
+      final themesOk = api.ApiResponse.ok(<dynamic>[
+        {
+          'id': 1,
+          'key': 'general',
+          'name': 'Général',
+          'icon': 'wand-magic-sparkles'
+        },
+      ], statusCode: 200);
+
+      final diffsOk = api.ApiResponse.ok(<dynamic>[
+        {'id': 1, 'label': 'Facile'},
+      ], statusCode: 200);
+
+      await pumpSolo(
+        tester,
+        surfaceSize: const Size(1000, 800),
+        fetchThemes: ({headers}) async => themesOk,
+        fetchDifficulties: ({headers}) async => diffsOk,
+        authenticated: false, // Non authentifié
+      );
+
+      await tester.pumpAndSettle();
+
+      // Vérifier que la carte d'authentification requise est affichée
+      expect(find.text('Connexion requise'), findsOneWidget);
+      expect(
+        find.text('Vous devez être connecté pour jouer en mode solo.'),
+        findsOneWidget,
+      );
+      expect(find.text('Se connecter'), findsOneWidget);
+      expect(find.text('Créer un compte'), findsOneWidget);
+      expect(find.byIcon(FontAwesomeIcons.userLock), findsOneWidget);
+
+      // Vérifier que les catégories ne sont pas affichées
+      expect(find.text('Catégories'), findsNothing);
+      expect(find.text('Général'), findsNothing);
+    });
+
+    testWidgets('bouton Se connecter navigue vers /login avec returnTo',
+        (WidgetTester tester) async {
+      final themesOk = api.ApiResponse.ok(<dynamic>[
+        {
+          'id': 1,
+          'key': 'general',
+          'name': 'Général',
+          'icon': 'wand-magic-sparkles'
+        },
+      ], statusCode: 200);
+
+      final diffsOk = api.ApiResponse.ok(<dynamic>[
+        {'id': 1, 'label': 'Facile'},
+      ], statusCode: 200);
+
+      String? navigatedPath;
+      Map<String, dynamic>? navigationExtra;
+
+      final router = GoRouter(
+        initialLocation: '/solo',
+        routes: [
+          GoRoute(
+            path: '/solo',
+            builder: (context, state) => SoloSelectPage(
+              fetchThemes: ({headers}) async => themesOk,
+              fetchDifficulties: ({headers}) async => diffsOk,
+            ),
+          ),
+          GoRoute(
+            path: '/login',
+            builder: (context, state) {
+              navigatedPath = '/login';
+              navigationExtra = state.extra as Map<String, dynamic>?;
+              return const Scaffold(body: Text('LOGIN_PAGE'));
+            },
+          ),
+        ],
+      );
+
+      await tester.binding.setSurfaceSize(const Size(1000, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) => MyAuthStore(
+            notifier: AuthStore.instance,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // Appuyer sur le bouton Se connecter
+      final loginButton = find.widgetWithText(GamingButtonPrimary, 'Se connecter');
+      expect(loginButton, findsOneWidget);
+
+      await tester.tap(loginButton);
+      await tester.pumpAndSettle();
+
+      expect(navigatedPath, '/login');
+      expect(navigationExtra, isNotNull);
+      expect(navigationExtra!['returnTo'], '/solo');
+      expect(find.text('LOGIN_PAGE'), findsOneWidget);
+    });
+
+    testWidgets('bouton Créer un compte navigue vers /register avec returnTo',
+        (WidgetTester tester) async {
+      final themesOk = api.ApiResponse.ok(<dynamic>[
+        {
+          'id': 1,
+          'key': 'general',
+          'name': 'Général',
+          'icon': 'wand-magic-sparkles'
+        },
+      ], statusCode: 200);
+
+      final diffsOk = api.ApiResponse.ok(<dynamic>[
+        {'id': 1, 'label': 'Facile'},
+      ], statusCode: 200);
+
+      String? navigatedPath;
+      Map<String, dynamic>? navigationExtra;
+
+      final router = GoRouter(
+        initialLocation: '/solo',
+        routes: [
+          GoRoute(
+            path: '/solo',
+            builder: (context, state) => SoloSelectPage(
+              fetchThemes: ({headers}) async => themesOk,
+              fetchDifficulties: ({headers}) async => diffsOk,
+            ),
+          ),
+          GoRoute(
+            path: '/register',
+            builder: (context, state) {
+              navigatedPath = '/register';
+              navigationExtra = state.extra as Map<String, dynamic>?;
+              return const Scaffold(body: Text('REGISTER_PAGE'));
+            },
+          ),
+        ],
+      );
+
+      await tester.binding.setSurfaceSize(const Size(1000, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) => MyAuthStore(
+            notifier: AuthStore.instance,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // Appuyer sur le bouton Créer un compte
+      final registerButton = find.widgetWithText(GamingButtonSecondary, 'Créer un compte');
+      expect(registerButton, findsOneWidget);
+
+      await tester.tap(registerButton);
+      await tester.pumpAndSettle();
+
+      expect(navigatedPath, '/register');
+      expect(navigationExtra, isNotNull);
+      expect(navigationExtra!['returnTo'], '/solo');
+      expect(find.text('REGISTER_PAGE'), findsOneWidget);
+    });
+
+    testWidgets('ne charge pas les thèmes/difficultés quand non authentifié',
+        (WidgetTester tester) async {
+      int themesCalls = 0;
+      int diffsCalls = 0;
+
+      final themesOk = api.ApiResponse.ok(<dynamic>[
+        {
+          'id': 1,
+          'key': 'general',
+          'name': 'Général',
+          'icon': 'wand-magic-sparkles'
+        },
+      ], statusCode: 200);
+
+      final diffsOk = api.ApiResponse.ok(<dynamic>[
+        {'id': 1, 'label': 'Facile'},
+      ], statusCode: 200);
+
+      await pumpSolo(
+        tester,
+        surfaceSize: const Size(1000, 800),
+        fetchThemes: ({headers}) async {
+          themesCalls++;
+          return themesOk;
+        },
+        fetchDifficulties: ({headers}) async {
+          diffsCalls++;
+          return diffsOk;
+        },
+        authenticated: false,
+      );
+
+      await tester.pumpAndSettle();
+
+      // Vérifier que les API n'ont pas été appelées
+      expect(themesCalls, 0);
+      expect(diffsCalls, 0);
+
+      // Vérifier que la carte d'authentification est affichée
+      expect(find.text('Connexion requise'), findsOneWidget);
+    });
+  });
 
 }
 

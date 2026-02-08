@@ -12,8 +12,9 @@ import 'auth_shared.dart';
 class ResetPasswordPage extends StatefulWidget {
   final String? initialLogin;
   final AuthApi? authApiOverride;
+  final String? returnTo;
 
-  const ResetPasswordPage({super.key, this.initialLogin, this.authApiOverride});
+  const ResetPasswordPage({super.key, this.initialLogin, this.authApiOverride, this.returnTo});
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
@@ -98,7 +99,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         'Mot de passe réinitialisé ✅',
         color: TuuurTheme.brandGreen,
       );
-      context.go('/login');
+      if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
+        context.push('/login', extra: {'returnTo': widget.returnTo});
+      } else {
+        context.go('/login');
+      }
     } else {
       AuthSnackbars.show(res.message ?? 'Réinitialisation impossible.');
     }
@@ -111,93 +116,90 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       cardMaxWidth: 560,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: AuthCard(
-          maxWidth: 560,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Row(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.rotateRight,
-                    color: TuuurTheme.brandLightGray,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Saisissez le code et votre nouveau mot de passe',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: TuuurTheme.brandLightGray,
-                      ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Row(
+              children: [
+                FaIcon(
+                  FontAwesomeIcons.rotateRight,
+                  color: TuuurTheme.brandLightGray,
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Saisissez le code et votre nouveau mot de passe',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: TuuurTheme.brandLightGray,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              AuthLabeledField(
-                label: 'Login',
-                child: TextField(
-                  controller: _loginController,
-                  style: const TextStyle(color: TuuurTheme.brandLightGray),
-                  decoration: authInputDecoration('Votre login'),
                 ),
-              ),
-              const SizedBox(height: 16),
+              ],
+            ),
+            const SizedBox(height: 20),
 
-              AuthLabeledField(
-                label: 'Code reçu par email',
-                child: TextField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  style: const TextStyle(color: TuuurTheme.brandLightGray),
-                  decoration: authInputDecoration(
-                    '••••••',
-                  ).copyWith(counterText: ''),
+            AuthLabeledField(
+              label: 'Login',
+              child: TextField(
+                controller: _loginController,
+                style: const TextStyle(color: TuuurTheme.brandLightGray),
+                decoration: authInputDecoration('Votre login'),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            AuthLabeledField(
+              label: 'Code reçu par email',
+              child: TextField(
+                controller: _codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                style: const TextStyle(color: TuuurTheme.brandLightGray),
+                decoration: authInputDecoration(
+                  '••••••',
+                ).copyWith(counterText: ''),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            AuthPasswordField(
+              controller: _passwordController,
+              label: 'Nouveau mot de passe',
+              enabled: !_isLoading,
+            ),
+            const SizedBox(height: 16),
+
+            AuthPasswordField(
+              controller: _confirmPasswordController,
+              label: 'Confirmer le mot de passe',
+              enabled: !_isLoading,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (!_isLoading) _handleResetPassword();
+              },
+            ),
+            const SizedBox(height: 24),
+
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                GamingButtonSecondary(
+                  text: 'Annuler',
+                  onPressed: () => context.goBack(),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              AuthPasswordField(
-                controller: _passwordController,
-                label: 'Nouveau mot de passe',
-                enabled: !_isLoading,
-              ),
-              const SizedBox(height: 16),
-
-              AuthPasswordField(
-                controller: _confirmPasswordController,
-                label: 'Confirmer le mot de passe',
-                enabled: !_isLoading,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) {
-                  if (!_isLoading) _handleResetPassword();
-                },
-              ),
-              const SizedBox(height: 24),
-
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  GamingButtonSecondary(
-                    text: 'Annuler',
-                    onPressed: () => context.goBack(),
-                  ),
-                  GamingButtonPrimary(
-                    text: _isLoading ? 'Validation...' : 'Valider',
-                    onPressed: _isLoading ? null : _handleResetPassword,
-                  ),
-                ],
-              ),
-            ],
-          ),
+                GamingButtonPrimary(
+                  text: _isLoading ? 'Validation...' : 'Valider',
+                  onPressed: _isLoading ? null : _handleResetPassword,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

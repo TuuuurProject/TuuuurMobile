@@ -11,8 +11,9 @@ import 'auth_shared.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   final AuthApi? authApiOverride;
+  final String? returnTo;
 
-  const ForgotPasswordPage({super.key, this.authApiOverride});
+  const ForgotPasswordPage({super.key, this.authApiOverride, this.returnTo});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -55,7 +56,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         'Code envoyé par email. Consultez votre boîte 📬',
         color: TuuurTheme.brandGreen,
       );
-      context.push('/reset-password', extra: {'login': login});
+      context.push('/reset-password', extra: {
+        'login': login,
+        'returnTo': widget.returnTo,
+      });
     } else {
       AuthSnackbars.show(res.message ?? 'Impossible de démarrer la procédure.');
     }
@@ -80,7 +84,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               Flexible(
                 child: Text(
                   'Recevoir un code de réinitialisation',
-                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,

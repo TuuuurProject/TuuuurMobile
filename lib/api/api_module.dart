@@ -27,25 +27,30 @@ class _AuthStoreTokenProvider implements TokenProvider {
   @override
   Future<void> refreshIfNeeded() async {
     if (_refreshInProgress != null) {
-      print('[DEBUG] Refresh already in progress, waiting...');
       await _refreshInProgress;
       return;
     }
 
     final token = _authStore.token;
-    if (token == null) return;
+    if (token == null) {
+      return;
+    }
 
     final now = DateTime.now();
     final expiresAt = token.validTo;
     
-    if (expiresAt == null) return;
+    if (expiresAt == null) {
+      return;
+    }
 
     final shouldRefresh = now.isAfter(expiresAt.subtract(const Duration(minutes: 5)));
     
     if (!shouldRefresh) return;
 
     final refreshToken = token.refreshToken;
-    if (refreshToken == null || refreshToken.isEmpty) return;
+    if (refreshToken == null || refreshToken.isEmpty) {
+      return;
+    }
 
     final refreshExpiresAt = token.refreshTokenExpiresAt;
     if (refreshExpiresAt != null && now.isAfter(refreshExpiresAt)) {
@@ -63,7 +68,6 @@ class _AuthStoreTokenProvider implements TokenProvider {
 
   Future<void> _performRefresh(String bearer, String refreshToken) async {
     try {
-      print('[DEBUG] Refreshing token...');
       final authApi = _authApiGetter();
       final res = await authApi.refreshToken(
         bearer: bearer,
@@ -71,13 +75,9 @@ class _AuthStoreTokenProvider implements TokenProvider {
       );
 
       if (res.ok && res.data != null) {
-        print('[DEBUG] Token refreshed successfully');
         await _authStore.signInWithSession(res.data!);
-      } else {
-        print('[DEBUG] Token refresh failed: ${res.message}');
       }
     } catch (e) {
-      print('[DEBUG] Error refreshing token: $e');
       // En cas d'erreur, on ne fait rien pour éviter de bloquer les requêtes
     }
   }
