@@ -6,11 +6,11 @@ on:
       environment_name:
         required: true
         type: string
-        description: 'Environment name (e.g., preprod, production)'
+        description: "Environment name (e.g., preprod, production)"
       version_tag:
         required: true
         type: string
-        description: 'Version tag (e.g., preprod, latest)'
+        description: "Version tag (e.g., preprod, latest)"
     secrets:
       GCP_PROJECT_ID:
         required: true
@@ -31,14 +31,13 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          channel: "stable"
 
       - name: Install dependencies
         run: flutter pub get
@@ -64,7 +63,7 @@ jobs:
         run: |
           gsutil cp build/app/outputs/flutter-apk/app-release.apk \
             gs://${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.apk
-          
+
           # Upload latest version
           if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
             gsutil cp build/app/outputs/flutter-apk/app-release.apk \
@@ -98,8 +97,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          channel: "stable"
 
       - name: Install dependencies
         run: flutter pub get
@@ -113,11 +111,11 @@ jobs:
       - name: Build iOS IPA
         run: |
           flutter build ios --release --no-codesign
-          
+
           # Create Payload directory
           mkdir -p Payload
           cp -r build/ios/iphoneos/Runner.app Payload/
-          
+
           # Create IPA file
           zip -r tuuuur-${{ inputs.version_tag }}.ipa Payload
 
@@ -136,7 +134,7 @@ jobs:
         run: |
           gsutil cp tuuuur-${VERSION_TAG}.ipa \
             gs://${GCS_BUCKET_NAME}/mobile/ios/${VERSION_TAG}/tuuuur-${VERSION_TAG}.ipa
-          
+
           # Upload latest version
           if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
             gsutil cp tuuuur-${VERSION_TAG}.ipa \
@@ -188,11 +186,11 @@ jobs:
             }
           }
           EOF
-          
+
           # Upload manifest
           gsutil cp version.json gs://${GCS_BUCKET_NAME}/mobile/${VERSION_TAG}/version.json
           gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/${VERSION_TAG}/version.json
-          
+
           # Update latest manifest if applicable
           if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
             gsutil cp version.json gs://${GCS_BUCKET_NAME}/mobile/version-${VERSION_TAG}.json

@@ -9,8 +9,8 @@ jobs:
   build-mobile:
     uses: ./.github/workflows/cd-build-mobile.yml
     with:
-      environment_name: 'Production'
-      version_tag: 'latest'
+      environment_name: "Production"
+      version_tag: "latest"
     secrets:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
