@@ -1,0 +1,46 @@
+name: tuuuur_flutter
+description: 'Application de quiz gaming Tuuuur en Flutter.'
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # Navigation et routing
+  go_router: ^14.6.2
+  # State management
+  provider: ^6.1.2
+  # UI et animations
+  flutter_animate: ^4.5.0
+  flutter_svg: ^2.0.10+1
+  # Icônes et polices
+  google_fonts: ^6.2.1
+  font_awesome_flutter: ^10.7.0
+  # QR Code
+  qr_flutter: ^4.1.0
+  # Utilitaires
+  url_launcher: ^6.3.1
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
+  image_picker: ^1.1.2
+  google_sign_in: ^6.2.1
+  auto_size_text: ^3.0.0
+  http: any
+
+dev_dependencies:
+  flutter_test:
+   sdk: flutter
+  flutter_lints: ^5.0.0
+  mockito: ^5.4.4
+  mocktail: any
+  build_runner: ^2.4.13
+  
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
