@@ -1,0 +1,200 @@
+name: CD - Build Mobile Apps
+
+on:
+  workflow_call:
+    inputs:
+      environment_name:
+        required: true
+        type: string
+        description: 'Environment name (e.g., preprod, production)'
+      version_tag:
+        required: true
+        type: string
+        description: 'Version tag (e.g., preprod, latest)'
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      GCP_SA_KEY:
+        required: true
+      GCP_REGION:
+        required: true
+      GCS_BUCKET_NAME:
+        required: true
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build App Bundle (AAB)
+        run: flutter build appbundle --release
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload APK to Google Cloud Storage
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          VERSION_TAG: ${{ inputs.version_tag }}
+        run: |
+          gsutil cp build/app/outputs/flutter-apk/app-release.apk \
+            gs://${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.apk
+          
+          # Upload latest version
+          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
+            gsutil cp build/app/outputs/flutter-apk/app-release.apk \
+              gs://${GCS_BUCKET_NAME}/mobile/android/tuuuur-${VERSION_TAG}.apk
+          fi
+
+      - name: Upload AAB to Google Cloud Storage
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          VERSION_TAG: ${{ inputs.version_tag }}
+        run: |
+          gsutil cp build/app/outputs/bundle/release/app-release.aab \
+            gs://${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.aab
+
+      - name: Set public access for downloads
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          VERSION_TAG: ${{ inputs.version_tag }}
+        run: |
+          gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.apk
+          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
+            gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/android/tuuuur-${VERSION_TAG}.apk
+          fi
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Build iOS IPA
+        run: |
+          flutter build ios --release --no-codesign
+          
+          # Create Payload directory
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          
+          # Create IPA file
+          zip -r tuuuur-${{ inputs.version_tag }}.ipa Payload
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload IPA to Google Cloud Storage
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          VERSION_TAG: ${{ inputs.version_tag }}
+        run: |
+          gsutil cp tuuuur-${VERSION_TAG}.ipa \
+            gs://${GCS_BUCKET_NAME}/mobile/ios/${VERSION_TAG}/tuuuur-${VERSION_TAG}.ipa
+          
+          # Upload latest version
+          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
+            gsutil cp tuuuur-${VERSION_TAG}.ipa \
+              gs://${GCS_BUCKET_NAME}/mobile/ios/tuuuur-${VERSION_TAG}.ipa
+          fi
+
+      - name: Set public access for downloads
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          VERSION_TAG: ${{ inputs.version_tag }}
+        run: |
+          gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/ios/${VERSION_TAG}/tuuuur-${VERSION_TAG}.ipa
+          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
+            gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/ios/tuuuur-${VERSION_TAG}.ipa
+          fi
+
+  create-version-manifest:
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create version manifest
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          VERSION_TAG: ${{ inputs.version_tag }}
+          ENVIRONMENT: ${{ inputs.environment_name }}
+        run: |
+          cat > version.json << EOF
+          {
+            "version": "${VERSION_TAG}",
+            "environment": "${ENVIRONMENT}",
+            "build_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "commit_sha": "${{ github.sha }}",
+            "downloads": {
+              "android": {
+                "apk": "https://storage.googleapis.com/${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.apk",
+                "aab": "https://storage.googleapis.com/${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.aab"
+              },
+              "ios": {
+                "ipa": "https://storage.googleapis.com/${GCS_BUCKET_NAME}/mobile/ios/${VERSION_TAG}/tuuuur-${VERSION_TAG}.ipa"
+              }
+            }
+          }
+          EOF
+          
+          # Upload manifest
+          gsutil cp version.json gs://${GCS_BUCKET_NAME}/mobile/${VERSION_TAG}/version.json
+          gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/${VERSION_TAG}/version.json
+          
+          # Update latest manifest if applicable
+          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
+            gsutil cp version.json gs://${GCS_BUCKET_NAME}/mobile/version-${VERSION_TAG}.json
+            gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/version-${VERSION_TAG}.json
+          fi
