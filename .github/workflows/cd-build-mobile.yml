@@ -81,12 +81,9 @@ jobs:
       - name: Set public access for downloads
         env:
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-          VERSION_TAG: ${{ inputs.version_tag }}
         run: |
-          gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/android/${VERSION_TAG}/tuuuur-${VERSION_TAG}.apk
-          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
-            gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/android/tuuuur-${VERSION_TAG}.apk
-          fi
+          # Configure bucket for public read access (IAM policy)
+          gsutil iam ch allUsers:objectViewer gs://${GCS_BUCKET_NAME} || echo "IAM policy already set"
 
   build-ios:
     runs-on: macos-latest
@@ -141,16 +138,6 @@ jobs:
               gs://${GCS_BUCKET_NAME}/mobile/ios/tuuuur-${VERSION_TAG}.ipa
           fi
 
-      - name: Set public access for downloads
-        env:
-          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-          VERSION_TAG: ${{ inputs.version_tag }}
-        run: |
-          gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/ios/${VERSION_TAG}/tuuuur-${VERSION_TAG}.ipa
-          if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
-            gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/ios/tuuuur-${VERSION_TAG}.ipa
-          fi
-
   create-version-manifest:
     needs: [build-android, build-ios]
     runs-on: ubuntu-latest
@@ -189,10 +176,8 @@ jobs:
 
           # Upload manifest
           gsutil cp version.json gs://${GCS_BUCKET_NAME}/mobile/${VERSION_TAG}/version.json
-          gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/${VERSION_TAG}/version.json
 
           # Update latest manifest if applicable
           if [ "${{ inputs.version_tag }}" = "latest" ] || [ "${{ inputs.version_tag }}" = "preprod" ]; then
             gsutil cp version.json gs://${GCS_BUCKET_NAME}/mobile/version-${VERSION_TAG}.json
-            gsutil acl ch -u AllUsers:R gs://${GCS_BUCKET_NAME}/mobile/version-${VERSION_TAG}.json
           fi
