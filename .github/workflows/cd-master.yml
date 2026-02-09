@@ -16,3 +16,5 @@ jobs:
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
       GCP_REGION: ${{ secrets.GCP_REGION }}
       GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+      API_BASE: ${{ secrets.API_BASE_PROD }}
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID_PROD }}
