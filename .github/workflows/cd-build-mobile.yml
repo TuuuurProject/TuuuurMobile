@@ -20,6 +20,10 @@ on:
         required: true
       GCS_BUCKET_NAME:
         required: true
+      API_BASE:
+        required: true
+      GOOGLE_WEB_CLIENT_ID:
+        required: true
 
 jobs:
   build-android:
@@ -43,10 +47,22 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        env:
+          API_BASE: ${{ secrets.API_BASE }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE="$API_BASE" \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
 
       - name: Build App Bundle (AAB)
-        run: flutter build appbundle --release
+        env:
+          API_BASE: ${{ secrets.API_BASE }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          flutter build appbundle --release \
+            --dart-define=API_BASE="$API_BASE" \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -106,8 +122,13 @@ jobs:
           cd ..
 
       - name: Build iOS IPA
+        env:
+          API_BASE: ${{ secrets.API_BASE }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
         run: |
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE="$API_BASE" \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
 
           # Create Payload directory
           mkdir -p Payload
