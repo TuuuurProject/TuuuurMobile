@@ -100,6 +100,8 @@ class _GroupModePageState extends State<GroupModePage> {
       _creatingParty = true;
     });
 
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       final authStore = MyAuthStore.of(context);
       final currentUserId = authStore.user?.id;
@@ -114,7 +116,7 @@ class _GroupModePageState extends State<GroupModePage> {
       if (lobbyCode == null) {
         setState(() => _creatingParty = false);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Impossible de créer la partie.'),
             backgroundColor: TuuurTheme.brandOrange,
@@ -141,7 +143,7 @@ class _GroupModePageState extends State<GroupModePage> {
 
       if (!settingsUpdated) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Partie créée mais erreur lors de la mise à jour des paramètres.'),
             backgroundColor: TuuurTheme.brandOrange,
@@ -168,7 +170,7 @@ class _GroupModePageState extends State<GroupModePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _creatingParty = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Erreur: $e'),
           backgroundColor: TuuurTheme.brandOrange,

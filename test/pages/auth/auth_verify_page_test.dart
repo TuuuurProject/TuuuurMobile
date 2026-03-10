@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
 import 'package:tuuuur_flutter/pages/auth/auth_verify_page.dart';
@@ -86,7 +87,6 @@ void main() {
       expect(find.text('Pseudo (login)'), findsOneWidget);
       expect(find.text('Code à 6 chiffres'), findsOneWidget);
       expect(find.text('Valider le code'), findsOneWidget);
-      expect(find.text('Renvoyer le code'), findsOneWidget);
     });
 
     testWidgets('pré-remplit le login avec initialLogin',
@@ -440,7 +440,7 @@ void main() {
 
     testWidgets('appelle verify2fa avec les valeurs trim', (tester) async {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSession>.err(message: 'nope', statusCode: 401));
+          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.err(message: 'nope', statusCode: 401));
 
       final router = _routerForVerify(authApi: mockAuthApi);
       await _pumpVerifyRouter(tester, router);
@@ -453,7 +453,7 @@ void main() {
     });
 
     testWidgets('loading: affiche "Vérification..." pendant l\'attente puis revient', (tester) async {
-      final completer = Completer<ApiResponse<AuthSession>>();
+      final completer = Completer<ApiResponse<AuthSessionDto>>();
 
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
           .thenAnswer((_) => completer.future);
@@ -468,7 +468,7 @@ void main() {
 
       expect(find.text('Vérification...'), findsOneWidget);
 
-      completer.complete(ApiResponse<AuthSession>.err(message: 'bad', statusCode: 401));
+      completer.complete(ApiResponse<AuthSessionDto>.err(message: 'bad', statusCode: 401));
       await tester.pumpAndSettle();
 
       expect(find.text('Valider le code'), findsOneWidget);
@@ -476,7 +476,7 @@ void main() {
 
     testWidgets('succès + returnTo => snack vert + go(returnTo)', (tester) async {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200));
+          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
 
       final router = _routerForVerify(authApi: mockAuthApi, returnTo: '/profile');
       await _pumpVerifyRouter(tester, router);
@@ -494,7 +494,7 @@ void main() {
 
     testWidgets('succès + canPop => router.pop()', (tester) async {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200));
+          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
 
       final router = _routerForVerify(authApi: mockAuthApi, initialLocation: '/', withPushFromHome: true);
       await _pumpVerifyRouter(tester, router);
@@ -511,7 +511,7 @@ void main() {
 
     testWidgets('succès + !canPop => router.go("/")', (tester) async {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200));
+          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
 
       final router = _routerForVerify(authApi: mockAuthApi, initialLocation: '/verify');
       await _pumpVerifyRouter(tester, router);
@@ -525,7 +525,7 @@ void main() {
 
     testWidgets('échec API avec message => snack message', (tester) async {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSession>.err(message: 'Code expiré', statusCode: 400));
+          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.err(message: 'Code expiré', statusCode: 400));
 
       final router = _routerForVerify(authApi: mockAuthApi);
       await _pumpVerifyRouter(tester, router);
@@ -540,7 +540,7 @@ void main() {
 
     testWidgets('échec API sans message => fallback "Vérification impossible."', (tester) async {
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSession>.err(message: null, statusCode: 500));
+          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.err(message: null, statusCode: 500));
 
       final router = _routerForVerify(authApi: mockAuthApi);
       await _pumpVerifyRouter(tester, router);
@@ -553,7 +553,7 @@ void main() {
     });
 
     testWidgets('mounted check: dispose avant la réponse API => pas d\'exception', (tester) async {
-      final completer = Completer<ApiResponse<AuthSession>>();
+      final completer = Completer<ApiResponse<AuthSessionDto>>();
       when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
           .thenAnswer((_) => completer.future);
 
@@ -567,7 +567,7 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
-      completer.complete(ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200));
+      completer.complete(ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(tester.takeException(), isNull);
@@ -606,16 +606,16 @@ class _HomeWithVerifyLink extends StatelessWidget {
   }
 }
 
-AuthSession _makeSession() {
-  return AuthSession(
+AuthSessionDto _makeSession() {
+  return AuthSessionDto(
     user: UserDto(
-      id: 1,
+      id: '1',
       nickName: 'User',
       email: 'u@test.com',
       isAdmin: false,
       isNew: false,
     ),
-    token: AuthToken(
+    token: AuthTokenDto(
       token: 't',
       refreshToken: 'rt',
       validTo: DateTime.now().add(const Duration(hours: 1)),

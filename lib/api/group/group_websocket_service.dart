@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 import 'package:signalr_core/signalr_core.dart';
 import 'group_models.dart';
 import 'group_websocket_events.dart';
@@ -433,5 +434,73 @@ class GroupWebSocketService {
     await disconnect();
     _eventHandlers.clear();
     _hubConnection = null;
+  }
+
+  // ==================== Test Hooks (visible for testing only) ====================
+
+  @visibleForTesting
+  void testDispatchPlayerJoined(List<Object?>? args) =>
+      _handlePlayerJoined(args);
+
+  @visibleForTesting
+  void testDispatchPlayerLeft(List<Object?>? args) =>
+      _handlePlayerLeft(args);
+
+  @visibleForTesting
+  void testDispatchPartyDeleted(List<Object?>? args) =>
+      _handlePartyDeleted(args);
+
+  @visibleForTesting
+  void testDispatchPartyUpdated(List<Object?>? args) =>
+      _handlePartyUpdated(args);
+
+  @visibleForTesting
+  void testDispatchPartyStarted(List<Object?>? args) =>
+      _handlePartyStarted(args);
+
+  @visibleForTesting
+  void testDispatchCountdown(List<Object?>? args) =>
+      _handleCountdown(args);
+
+  @visibleForTesting
+  void testDispatchQuestionSend(List<Object?>? args) =>
+      _handleQuestionSend(args);
+
+  @visibleForTesting
+  void testDispatchQuestionAnswerSend(List<Object?>? args) =>
+      _handleQuestionAnswerSend(args);
+
+  @visibleForTesting
+  void testDispatchAllPlayerAnswered(List<Object?>? args) =>
+      _handleAllPlayerAnswered(args);
+
+  @visibleForTesting
+  void testDispatchUserAnswer(List<Object?>? args) =>
+      _handleUserAnswer(args);
+
+  @visibleForTesting
+  void testDispatchScoreUpdate(List<Object?>? args) =>
+      _handleScoreUpdate(args);
+
+  @visibleForTesting
+  void testDispatchPartyFinished(List<Object?>? args) =>
+      _handlePartyFinished(args);
+
+  @visibleForTesting
+  void testDispatchError(List<Object?>? args) => _handleError(args);
+
+  @visibleForTesting
+  void testDispatchDisconnected() => _handleDisconnected();
+
+  @visibleForTesting
+  void testDispatchReconnecting() => _handleReconnecting();
+
+  @visibleForTesting
+  void testDispatchReconnected() => _handleReconnected();
+
+  @visibleForTesting
+  void testDispatchConnected() {
+    _connectionState = WebSocketConnectionState.connected;
+    _notifyHandlers((h) => h.onConnected());
   }
 }

@@ -34,12 +34,17 @@ Future<void> _pumpCompetitiveSelect(
     ),
   );
 
+  // Pump several frames to let animations start
   await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 Future<void> _disposeTree(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
+  // Pump a few times to ensure cleanup
   await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
 }
 
 Future<void> _toggleCategoryByLabel(WidgetTester tester, String label) async {

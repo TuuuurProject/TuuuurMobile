@@ -174,12 +174,14 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
     // Sélectionner la réponse
     widget.groupStore.selectAnswer(answerId);
 
+    final messenger = ScaffoldMessenger.of(context);
+
     // Envoyer automatiquement la réponse sans attendre de clic sur "Valider"
     try {
       await widget.groupStore.submitAnswer();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Erreur: $e'),
           backgroundColor: TuuurTheme.brandOrange,
@@ -865,6 +867,8 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
 
     setState(() => _leaving = true);
 
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       // Retirer le listener AVANT de quitter
       _storeSubscription?.cancel();
@@ -879,7 +883,7 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
       widget.groupStore.addListener(_onStoreChanged);
       setState(() => _leaving = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Erreur: $e'),
           backgroundColor: TuuurTheme.brandOrange,

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:tuuuur_flutter/api/api_module.dart';
 import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 
 void main() {
@@ -30,15 +31,15 @@ void main() {
     });
 
     test('refreshIfNeeded est appele lors d\'une requete authentifiee', () async {
-      final validToken = AuthToken(
+      final validToken = AuthTokenDto(
         token: 'test_token',
         validTo: DateTime.now().add(const Duration(hours: 1)),
         refreshToken: 'refresh_token',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: validToken,
         isGoogleUser: false,
         raw: {},
@@ -57,15 +58,15 @@ void main() {
     });
 
     test('_performRefresh est appele lors du refresh token', () async {
-      final expiringToken = AuthToken(
+      final expiringToken = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: 'refresh_token_123',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: expiringToken,
         isGoogleUser: false,
         raw: {},
@@ -100,15 +101,15 @@ void main() {
     });
 
     test('refreshIfNeeded ne refresh pas un token valide longtemps', () async {
-      final validToken = AuthToken(
+      final validToken = AuthTokenDto(
         token: 'valid_token',
         validTo: DateTime.now().add(const Duration(hours: 1)),
         refreshToken: 'refresh_token',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: validToken,
         isGoogleUser: false,
         raw: {},
@@ -129,15 +130,15 @@ void main() {
     });
 
     test('refreshIfNeeded ne refresh pas si refreshToken est null', () async {
-      final tokenWithoutRefresh = AuthToken(
+      final tokenWithoutRefresh = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: null,
         refreshTokenExpiresAt: null,
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: tokenWithoutRefresh,
         isGoogleUser: false,
         raw: {},
@@ -158,15 +159,15 @@ void main() {
     });
 
     test('refreshIfNeeded ne refresh pas si refreshToken est vide', () async {
-      final tokenWithEmptyRefresh = AuthToken(
+      final tokenWithEmptyRefresh = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: '',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: tokenWithEmptyRefresh,
         isGoogleUser: false,
         raw: {},
@@ -187,15 +188,15 @@ void main() {
     });
 
     test('refreshIfNeeded ne refresh pas si refreshToken est expire', () async {
-      final tokenWithExpiredRefresh = AuthToken(
+      final tokenWithExpiredRefresh = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: 'refresh_token',
         refreshTokenExpiresAt: DateTime.now().subtract(const Duration(hours: 1)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: tokenWithExpiredRefresh,
         isGoogleUser: false,
         raw: {},
@@ -216,15 +217,15 @@ void main() {
     });
 
     test('refreshIfNeeded lance le refresh pour un token expirant avec refreshToken valide', () async {
-      final expiringTokenWithValidRefresh = AuthToken(
+      final expiringTokenWithValidRefresh = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 3)),
         refreshToken: 'valid_refresh_token',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: expiringTokenWithValidRefresh,
         isGoogleUser: false,
         raw: {},
@@ -244,15 +245,15 @@ void main() {
     });
 
     test('_performRefresh gere les erreurs reseau gracieusement', () async {
-      final expiringToken = AuthToken(
+      final expiringToken = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: 'refresh_token',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: expiringToken,
         isGoogleUser: false,
         raw: {},
@@ -276,15 +277,15 @@ void main() {
     });
 
     test('refreshIfNeeded gere les appels concurrents avec _refreshInProgress', () async {
-      final expiringToken = AuthToken(
+      final expiringToken = AuthTokenDto(
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: 'refresh_token',
         refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
       );
 
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'test'),
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'test'),
         token: expiringToken,
         isGoogleUser: false,
         raw: {},

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:meta/meta.dart';
 
 import '../../api/api_module.dart';
 import '../../api/other/difficulty_api_service.dart';
@@ -26,12 +27,23 @@ class GroupSettingsPage extends StatefulWidget {
   /// Callback pour revenir en arrière
   final VoidCallback onBack;
 
+  /// Overrides for unit testing only — injected instead of ApiModule.
+  @visibleForTesting
+  final ThemeApi? themeApiOverride;
+  @visibleForTesting
+  final DifficultyApi? difficultyApiOverride;
+  @visibleForTesting
+  final GroupRestApiService? groupRestApiOverride;
+
   const GroupSettingsPage({
     super.key,
     required this.party,
     required this.currentUserId,
     required this.onSettingsSaved,
     required this.onBack,
+    this.themeApiOverride,
+    this.difficultyApiOverride,
+    this.groupRestApiOverride,
   });
 
   @override
@@ -40,9 +52,12 @@ class GroupSettingsPage extends StatefulWidget {
 
 class _GroupSettingsPageState extends State<GroupSettingsPage> {
   // API Services
-  ThemeApi get _themeApi => ApiModule.instance.themeApi;
-  DifficultyApi get _difficultyApi => ApiModule.instance.difficultyApi;
-  GroupRestApiService get _groupApi => ApiModule.instance.groupRestApi;
+  ThemeApi get _themeApi =>
+      widget.themeApiOverride ?? ApiModule.instance.themeApi;
+  DifficultyApi get _difficultyApi =>
+      widget.difficultyApiOverride ?? ApiModule.instance.difficultyApi;
+  GroupRestApiService get _groupApi =>
+      widget.groupRestApiOverride ?? ApiModule.instance.groupRestApi;
 
   // Sélections utilisateur
   final Set<int> _selectedThemeIds = {};

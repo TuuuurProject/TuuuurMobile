@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/api/solo/solo_api_service.dart';
+import 'package:tuuuur_flutter/api/solo/solo_models.dart';
 import 'package:tuuuur_flutter/pages/solo/solo_quiz_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 

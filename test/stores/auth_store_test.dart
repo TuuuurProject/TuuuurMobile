@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 
 
 
@@ -13,7 +14,7 @@ void main() {
   group('UserDto', () {
     test('fromJson crée une instance correcte', () {
       final json = {
-        'id': 42,
+        'id': '42',
         'nickName': 'johndoe',
         'email': 'john@example.com',
         'avatar': 'avatar.png',
@@ -23,7 +24,7 @@ void main() {
 
       final user = UserDto.fromJson(json);
 
-      expect(user.id, equals(42));
+      expect(user.id, equals('42'));
       expect(user.nickName, equals('johndoe'));
       expect(user.email, equals('john@example.com'));
       expect(user.avatar, equals('avatar.png'));
@@ -44,7 +45,7 @@ void main() {
 
     test('toJson sérialise correctement', () {
       final user = UserDto(
-        id: 1,
+        id: '1',
         nickName: 'test',
         email: 'test@example.com',
         avatar: 'avatar.jpg',
@@ -54,7 +55,7 @@ void main() {
 
       final json = user.toJson();
 
-      expect(json['id'], equals(1));
+      expect(json['id'], equals('1'));
       expect(json['nickName'], equals('test'));
       expect(json['email'], equals('test@example.com'));
       expect(json['avatar'], equals('avatar.jpg'));

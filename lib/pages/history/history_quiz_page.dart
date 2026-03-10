@@ -14,10 +14,14 @@ class HistoryQuizPage extends StatefulWidget {
   final String partyId;
   final bool isSolo;
 
+  /// Injection point for tests — leave null to use ApiModule.instance.historyApi.
+  final HistoryApi? historyApiOverride;
+
   const HistoryQuizPage({
     super.key,
     required this.partyId,
     this.isSolo = false,
+    this.historyApiOverride,
   });
 
   @override
@@ -30,7 +34,8 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
   String? _errorMessage;
   PartyDetailDto? _partyDetail;
 
-  HistoryApi get _historyApi => ApiModule.instance.historyApi;
+  HistoryApi get _historyApi =>
+      widget.historyApiOverride ?? ApiModule.instance.historyApi;
 
   @override
   void initState() {

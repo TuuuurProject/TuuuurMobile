@@ -12,6 +12,7 @@ import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
 import 'package:tuuuur_flutter/api/api_module.dart';
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
@@ -78,7 +79,7 @@ Future<void> _pumpLogin(WidgetTester tester, {GoRouter? router}) async {
 AuthSessionDto _makeSession() {
   return AuthSessionDto(
     user: UserDto(
-      id: 1,
+      id: '1',
       nickName: 'GoogleUser',
       email: 'test@gmail.com',
       isAdmin: false,
@@ -692,15 +693,15 @@ void main() {
     });
 
     testWidgets('handleGoogleLogin success => toast vert et navigation', (tester) async {
-      final session = AuthSession(
+      final session = AuthSessionDto(
         user: UserDto(
-          id: 1,
+          id: '1',
           nickName: 'GoogleUser',
           email: 'test@gmail.com',
           isAdmin: false,
           isNew: false,
         ),
-        token: AuthToken(
+        token: AuthTokenDto(
           token: 'mock_access_token',
           refreshToken: 'mock_refresh_token',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -711,7 +712,7 @@ void main() {
 
       when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
           .thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
 
@@ -732,7 +733,7 @@ void main() {
     testWidgets('handleGoogleLogin failure => toast orange avec message', (tester) async {
       when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
           .thenAnswer(
-        (_) async => ApiResponse<AuthSession>.err(
+        (_) async => ApiResponse<AuthSessionDto>.err(
           message: 'Compte Google non autorisé',
           statusCode: 401,
         ),
@@ -755,7 +756,7 @@ void main() {
     testWidgets('handleGoogleLogin avec res.data null => toast d\'erreur', (tester) async {
       when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
           .thenAnswer(
-        (_) async => ApiResponse<AuthSession>.err(
+        (_) async => ApiResponse<AuthSessionDto>.err(
           message: 'Données de session manquantes',
           statusCode: 200,
         ),
@@ -776,15 +777,15 @@ void main() {
     });
 
     testWidgets('handleGoogleLogin vérifie mounted avant setState', (tester) async {
-      final session = AuthSession(
+      final session = AuthSessionDto(
         user: UserDto(
-          id: 1,
+          id: '1',
           nickName: 'GoogleUser',
           email: 'test@gmail.com',
           isAdmin: false,
           isNew: false,
         ),
-        token: AuthToken(
+        token: AuthTokenDto(
           token: 'mock_access_token',
           refreshToken: 'mock_refresh_token',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -797,7 +798,7 @@ void main() {
           .thenAnswer(
         (_) async {
           await Future.delayed(const Duration(milliseconds: 50));
-          return ApiResponse<AuthSession>.ok(session, statusCode: 200);
+          return ApiResponse<AuthSessionDto>.ok(session, statusCode: 200);
         },
       );
 
@@ -909,7 +910,7 @@ void main() {
     testWidgets('API refuse (res.ok == false) => toast orange avec message', (tester) async {
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.err(message: 'Compte Google non autorisé', statusCode: 401),
+        (_) async => ApiResponse<AuthSessionDto>.err(message: 'Compte Google non autorisé', statusCode: 401),
       );
 
       final router = _routerForGoogle(authApi: authApi, google: google);
@@ -931,7 +932,7 @@ void main() {
       final session = _makeSession();
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
       final router = _routerForGoogle(
@@ -954,7 +955,7 @@ void main() {
       final session = _makeSession();
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
       final router = _routerForGoogle(
@@ -980,7 +981,7 @@ void main() {
       final session = _makeSession();
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
       final router = _routerForGoogle(authApi: authApi, google: google, initialLocation: '/login');
@@ -1038,7 +1039,7 @@ void main() {
 
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer((_) async {
         await Future.delayed(const Duration(milliseconds: 80));
-        return ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200);
+        return ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200);
       });
 
       final router = _routerForGoogle(authApi: authApi, google: google);
