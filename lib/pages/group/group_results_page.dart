@@ -15,7 +15,7 @@ import '../../navigation/navigation_utils.dart';
 
 class GroupResultsPage extends StatefulWidget {
   final List<UserScore> finalScores;
-  final int currentUserId;
+  final String currentUserId;
   final String partyCode;
   final List<QuestionHistory> questionsHistory;
 
@@ -846,16 +846,36 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLeaving = false);
-      // En cas d'erreur, on retourne quand même à l'accueil
+      context.goHome();
+    }
+  }
+
+  Future<void> _handleBackToLobby() async {
+    if (_isLeaving) return;
+
+    setState(() => _isLeaving = true);
+
+    try {
+      // Reset store state to lobby before popping
+      _coordinator.store.returnToLobby();
+      
+      if (!mounted) return;
+      // Pop both GroupResultsPage and GroupQuizPage to return to GroupLobbyPage
+      Navigator.of(context).pop();
+      Navigator.of(context).pop();
+    } catch (e) {
+      // En cas d'erreur, retourner à l'accueil
+      if (!mounted) return;
+      setState(() => _isLeaving = false);
       context.goHome();
     }
   }
 
   Widget _buildActions() {
     return GamingButtonPrimary(
-      text: 'Quitter le groupe',
-      icon: FontAwesomeIcons.rightFromBracket,
-      onPressed: _isLeaving ? null : _handleLeaveGroup,
+      text: 'Retour au lobby',
+      icon: FontAwesomeIcons.arrowLeft,
+      onPressed: _isLeaving ? null : _handleBackToLobby,
       isLoading: _isLeaving,
     );
   }

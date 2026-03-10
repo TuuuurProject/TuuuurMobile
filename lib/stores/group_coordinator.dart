@@ -61,8 +61,8 @@ class GroupCoordinator {
   /// 3. Connecte au WebSocket
   /// 
   /// Retourne le code de la partie en cas de succès
-  Future<String?> createAndJoinParty({int? currentUserId}) async {
-    try {
+  Future<String?> createAndJoinParty({String? currentUserId}) async {
+    try{
       dev.log('Création de la partie...', name: 'GroupCoordinator');
 
       // 1. Créer la partie via l'API REST
@@ -97,7 +97,7 @@ class GroupCoordinator {
   /// 3. Connecte au WebSocket
   /// 
   /// Retourne true en cas de succès
-  Future<bool> joinParty(String code, {int? currentUserId}) async {
+  Future<bool> joinParty(String code, {String? currentUserId}) async {
     try {
       dev.log('Rejoindre la partie: $code', name: 'GroupCoordinator');
 
@@ -110,7 +110,7 @@ class GroupCoordinator {
       }
 
       final party = response.data!;
-      dev.log('Partie rejointe: ${party.code}', name: 'GroupCoordinator');
+      dev.log('Partie rejointe: $party', name: 'GroupCoordinator');
 
       // 2. Initialiser le store
       _store.initializeParty(party, currentUserId: currentUserId);

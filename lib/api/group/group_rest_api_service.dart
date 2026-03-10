@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import '../api_client.dart';
 import 'group_models.dart';
 
@@ -49,6 +51,7 @@ class GroupRestApiService {
         );
       }
 
+      dev.log('Réponse joinGroup: ${response.data}', name: 'GroupRestApiService');
       final party = GroupParty.fromJson(response.data as Map<String, dynamic>);
       return ApiResponse.ok(party, statusCode: response.statusCode);
     } catch (e) {

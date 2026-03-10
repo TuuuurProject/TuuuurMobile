@@ -48,15 +48,16 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
 
   bool _leaving = false;
   GroupPartyState? _lastLoggedState;
+  bool _hasNavigatedToQuiz = false;
 
   static const double _bottomBarSpace = 120;
   static const double _diffPillWidth = 90;
   static const double _diffPillHeight = 28;
 
   GroupStore get _store => _coordinator.store;
-  int get _currentUserId {
+  String get _currentUserId {
     final authStore = MyAuthStore.of(context);
-    return authStore.user?.id ?? 0;
+    return authStore.user?.id ?? '';
   }
 
   @override
@@ -86,9 +87,15 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
       _lastLoggedState = state;
     }
 
-    if (state == GroupPartyState.countdown ||
-        state == GroupPartyState.questionActive) {
-      _store.removeListener(_onStoreChanged);
+    // Reset navigation flag when returning to lobby
+    if (state == GroupPartyState.lobby && _hasNavigatedToQuiz) {
+      _hasNavigatedToQuiz = false;
+    }
+
+    // Navigate to quiz only if we haven't already
+    if ((state == GroupPartyState.countdown ||
+        state == GroupPartyState.questionActive) && !_hasNavigatedToQuiz) {
+      _hasNavigatedToQuiz = true;
       _navigateToQuiz();
       return;
     }
@@ -209,6 +216,17 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
       setState(() => _leaving = false);
       _snack('Erreur: $e');
     }
+  }
+
+  Future<void> _leaveWithConfirmation() async {
+    if (_leaving) return;
+    
+    await runWithConfirmIfNeeded(
+      context,
+      confirm: true,
+      message: 'Voulez-vous vraiment quitter le lobby ?',
+      action: _leave,
+    );
   }
 
   Future<void> _startParty() async {
@@ -411,16 +429,6 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                                 const SizedBox(height: 24),
                               ],
                             );
-                            // if (stack) {}
-
-                            // return Row(
-                            //   crossAxisAlignment: CrossAxisAlignment.start,
-                            //   children: [
-                            //     Expanded(flex: 2, child: leftPanelBox),
-                            //     const SizedBox(width: 20),
-                            //     Expanded(child: rightPanelBox),
-                            //   ],
-                            // );
                           },
                         ),
                       ],
@@ -743,8 +751,6 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
                 onTap: () => copyToClipboard(
                   context,
                   party.code,
-                  snackMessage: 'Code copié : ${party.code}',
-                  snackColor: TuuurTheme.brandGreen,
                 ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -806,37 +812,45 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
   Widget _buildStickyActions() {
     final isHost = _isHost;
 
-    final settingsBtn = GamingIconButton(
-      icon: FontAwesomeIcons.gear,
-      tooltip: 'Paramètres',
-      onPressed: (isHost && !_leaving) ? _openSettings : null,
-    );
-
     final quitBtn = GamingIconButton(
       icon: FontAwesomeIcons.rightFromBracket,
       tooltip: 'Quitter',
       color: TuuurTheme.brandOrange,
-      onPressed: !_leaving ? _leave : null,
+      onPressed: !_leaving ? _leaveWithConfirmation : null,
     );
 
-    final launchBtn = GamingButtonPrimary(
-      text: 'Lancer la partie',
-      onPressed: (isHost && !_leaving) ? _startParty : null,
-    );
+    if (isHost) {
+      // Vue hôte : paramètres + bouton lancer
+      final settingsBtn = GamingIconButton(
+        icon: FontAwesomeIcons.gear,
+        tooltip: 'Paramètres',
+        onPressed: !_leaving ? _openSettings : null,
+      );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            settingsBtn,
-            const SizedBox(width: 10),
-            quitBtn,
-            const SizedBox(width: 12),
-            Expanded(child: launchBtn),
-          ],
-        ),
-        if (!isHost) ...[
+      final launchBtn = GamingButtonPrimary(
+        text: 'Lancer la partie',
+        onPressed: !_leaving ? _startParty : null,
+      );
+
+      return Row(
+        children: [
+          settingsBtn,
+          const SizedBox(width: 10),
+          quitBtn,
+          const SizedBox(width: 12),
+          Expanded(child: launchBtn),
+        ],
+      );
+    } else {
+      // Vue non-hôte : juste bouton quitter + message d'attente
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(child: quitBtn),
+            ],
+          ),
           const SizedBox(height: 8),
           const Text(
             'En attente que l\'hôte démarre la partie...',
@@ -848,7 +862,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
             textAlign: TextAlign.center,
           ),
         ],
-      ],
-    );
+      );
+    }
   }
 }

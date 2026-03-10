@@ -178,6 +178,7 @@ class GroupWebSocketService {
     hub.on('OnCountdown', _handleCountdown);
     hub.on('OnQuestionSend', _handleQuestionSend);
     hub.on('OnQuestionAnswerSend', _handleQuestionAnswerSend);
+    hub.on('OnAllPlayerAnswered', _handleAllPlayerAnswered);
     hub.on('OnUserAnswer', _handleUserAnswer);
     hub.on('OnScoreUpdate', _handleScoreUpdate);
     hub.on('OnPartyFinished', _handlePartyFinished);
@@ -201,6 +202,7 @@ class GroupWebSocketService {
     hub.off('OnCountdown', method: _handleCountdown);
     hub.off('OnQuestionSend', method: _handleQuestionSend);
     hub.off('OnQuestionAnswerSend', method: _handleQuestionAnswerSend);
+    hub.off('OnAllPlayerAnswered', method: _handleAllPlayerAnswered);
     hub.off('OnUserAnswer', method: _handleUserAnswer);
     hub.off('OnScoreUpdate', method: _handleScoreUpdate);
     hub.off('OnPartyFinished', method: _handlePartyFinished);
@@ -311,6 +313,19 @@ class GroupWebSocketService {
         arguments[0] as Map<String, dynamic>,
       );
       _notifyHandlers((h) => h.onQuestionAnswerSend(groupQuestion));
+    } catch (e) {
+      // Ignore parsing errors
+    }
+  }
+
+  void _handleAllPlayerAnswered(List<Object?>? arguments) {
+    if (arguments == null || arguments.isEmpty) return;
+    try {
+      final userAnsweredList = arguments[0] as List<dynamic>;
+      final userAnswered = userAnsweredList
+          .map((e) => UserAnswered.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _notifyHandlers((h) => h.onAllPlayerAnswered(userAnswered));
     } catch (e) {
       // Ignore parsing errors
     }

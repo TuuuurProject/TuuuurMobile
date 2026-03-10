@@ -19,7 +19,7 @@ import '../../navigation/navigation_utils.dart';
 
 class GroupQuizPage extends StatefulWidget {
   final GroupStore groupStore;
-  final int currentUserId;
+  final String currentUserId;
   final VoidCallback onFinished;
   final VoidCallback onLeave;
 
@@ -42,8 +42,9 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
   // Mémoriser l'état précédent pour éviter les rebuilds inutiles
   GroupPartyState? _previousState;
   int? _previousQuestionId;
-  Set<int> _previousAnsweredUserIds = {};
-  Map<int, bool> _previousUserAnswerCorrectness = {};
+  Set<String> _previousAnsweredUserIds = {};
+  Map<String, bool> _previousUserAnswerCorrectness = {};
+  int? _previousMyAnswerId;
 
   @override
   void initState() {
@@ -93,6 +94,7 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
     final currentQuestionId = widget.groupStore.currentQuestion?.question.id;
     final answeredUserIds = widget.groupStore.answeredUserIds;
     final userAnswerCorrectness = widget.groupStore.userAnswerCorrectness;
+    final myAnswerId = widget.groupStore.myAnswerId;
 
     // Vérifier si quelque chose a vraiment changé
     final stateChanged = state != _previousState;
@@ -106,16 +108,19 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
           (key) =>
               userAnswerCorrectness[key] != _previousUserAnswerCorrectness[key],
         );
+    final myAnswerChanged = myAnswerId != _previousMyAnswerId;
 
     // Ne faire setState que si quelque chose a changé
     if (stateChanged ||
         questionChanged ||
         answersChanged ||
-        correctnessChanged) {
+        correctnessChanged ||
+        myAnswerChanged) {
       _previousState = state;
       _previousQuestionId = currentQuestionId;
       _previousAnsweredUserIds = Set.from(answeredUserIds);
       _previousUserAnswerCorrectness = Map.from(userAnswerCorrectness);
+      _previousMyAnswerId = myAnswerId;
 
       setState(() {});
     }
@@ -665,7 +670,7 @@ class _GroupQuizPageState extends State<GroupQuizPage> {
 
   Widget _buildPlayersStatus(
     List<GroupUser> players,
-    Set<int> answeredUserIds,
+    Set<String> answeredUserIds,
   ) {
     if (players.isEmpty) return const SizedBox.shrink();
 

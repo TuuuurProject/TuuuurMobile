@@ -29,7 +29,7 @@ class LoginResultDto {
 
 /// Session / user models.
 class UserDto {
-  final int? id;
+  final String? id;
   final String? nickName;
   final String? email;
   final String? avatar;
@@ -47,7 +47,7 @@ class UserDto {
 
   factory UserDto.fromJson(Map<String, dynamic>? j) {
     return UserDto(
-      id: asInt(get(j, 'id')),
+      id: asString(get(j, 'id')),
       nickName: asString(get(j, 'nickName')),
       email: asString(get(j, 'email')),
       avatar: asString(get(j, 'avatar')),

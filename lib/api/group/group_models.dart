@@ -4,7 +4,7 @@ import '../../utils/encoding_utils.dart';
 
 /// User in a group party
 class GroupUser {
-  final int id;
+  final String id;
   final String nickName;
   final String? email;
   final String? avatar;
@@ -22,7 +22,7 @@ class GroupUser {
 
   factory GroupUser.fromJson(Map<String, dynamic> json) {
     return GroupUser(
-      id: json['id'] as int,
+      id: json['id'] as String,
       nickName: fixUtf8Mojibake(json['nickName'] as String),
       email: fixUtf8MojibakeNullable(json['email'] as String?),
       avatar: fixUtf8MojibakeNullable(json['avatar'] as String?),
@@ -86,7 +86,7 @@ class Theme {
 
 /// Party-user relation
 class PartyUser {
-  final int? idUser;
+  final String? idUser;
   final String? idParty;
   final GroupUser? user;
 
@@ -94,7 +94,7 @@ class PartyUser {
 
   factory PartyUser.fromJson(Map<String, dynamic> json) {
     return PartyUser(
-      idUser: json['idUser'] as int?,
+      idUser: json['idUser'] as String?,
       idParty: json['idParty'] as String?,
       user: json['user'] != null ? GroupUser.fromJson(json['user']) : null,
     );
@@ -151,7 +151,7 @@ class GroupParty {
   final bool inProgress;
   final bool scoreEachRound;
   final int idPartyType;
-  final int idUserHost;
+  final String idUserHost;
   final bool active;
   final bool finish;
   final String dt; // ISO 8601 date
@@ -189,7 +189,7 @@ class GroupParty {
       inProgress: json['inProgress'] as bool,
       scoreEachRound: json['scoreEachRound'] as bool,
       idPartyType: json['idPartyType'] as int,
-      idUserHost: json['idUserHost'] as int,
+      idUserHost: json['idUserHost'] as String,
       active: json['active'] as bool,
       finish: json['finish'] as bool,
       dt: fixUtf8Mojibake(json['dt'] as String),
@@ -242,7 +242,7 @@ class GroupParty {
     bool? inProgress,
     bool? scoreEachRound,
     int? idPartyType,
-    int? idUserHost,
+    String? idUserHost,
     bool? active,
     bool? finish,
     String? dt,
@@ -274,8 +274,14 @@ class GroupParty {
   }
 
   @override
-  String toString() =>
-      'GroupParty(id: $id, code: $code, inProgress: $inProgress)';
+  String toString() {
+    final users = partyUsers.map((pu) => '${pu.user?.nickName ?? "null"}(${pu.idUser})').join(', ');
+    final themes = partyTheme.map((pt) => pt.theme.label).join(', ');
+    final difficulties = partyDifficulty.map((pd) => pd.difficulty.label).join(', ');
+    return 'GroupParty(id: $id, code: $code, inProgress: $inProgress, nbQuestions: $nbQuestions, '
+           'scoreEachRound: $scoreEachRound, idUserHost: $idUserHost, '
+           'partyUsers: [$users], themes: [$themes], difficulties: [$difficulties])';
+  }
 }
 
 /// Answer to a question
@@ -464,4 +470,32 @@ class JoinGroupRequest {
   Map<String, dynamic> toJson() {
     return {'code': code};
   }
+}
+
+/// User answer result (sent by server after all players answered)
+class UserAnswered {
+  final bool correct;
+  final GroupUser user;
+
+  const UserAnswered({
+    required this.correct,
+    required this.user,
+  });
+
+  factory UserAnswered.fromJson(Map<String, dynamic> json) {
+    return UserAnswered(
+      correct: json['correct'] as bool,
+      user: GroupUser.fromJson(json['user'] as Map<String, dynamic>),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'correct': correct,
+      'user': user.toJson(),
+    };
+  }
+
+  @override
+  String toString() => 'UserAnswered(user: ${user.nickName}, correct: $correct)';
 }

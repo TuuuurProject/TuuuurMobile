@@ -18,6 +18,8 @@ abstract class GroupWebSocketEventHandler {
 
   void onQuestionAnswerSend(GroupQuestion groupQuestion);
 
+  void onAllPlayerAnswered(List<UserAnswered> userAnswered);
+
   void onUserAnswer(GroupUser user);
 
   void onScoreUpdate(List<UserScore> userScores);

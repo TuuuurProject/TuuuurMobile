@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:developer' as dev;
 import '../api/group/group_models.dart';
 import '../api/group/group_websocket_service.dart';
 import '../api/group/group_websocket_events.dart';
@@ -27,10 +28,10 @@ class GroupStore extends ChangeNotifier implements GroupWebSocketEventHandler {
   List<UserScore> _finalScores = [];
   String? _errorMessage;
   int? _countdownValue;
-  Set<int> _answeredUserIds = {};
+  Set<String> _answeredUserIds = {};
   int? _myAnswerId;
-  Map<int, bool> _userAnswerCorrectness = {};
-  int? _currentUserId;
+  Map<String, bool> _userAnswerCorrectness = {};
+  String? _currentUserId;
   int _myTotalScore = 0;
   List<QuestionHistory> _questionsHistory = [];
 
@@ -49,9 +50,9 @@ class GroupStore extends ChangeNotifier implements GroupWebSocketEventHandler {
   String? get errorMessage => _errorMessage;
   int? get countdownValue => _countdownValue;
   bool get isConnected => _webSocketService.isConnected;
-  Set<int> get answeredUserIds => Set.unmodifiable(_answeredUserIds);
+  Set<String> get answeredUserIds => Set.unmodifiable(_answeredUserIds);
   int? get myAnswerId => _myAnswerId;
-  Map<int, bool> get userAnswerCorrectness => Map.unmodifiable(_userAnswerCorrectness);
+  Map<String, bool> get userAnswerCorrectness => Map.unmodifiable(_userAnswerCorrectness);
   int get myTotalScore => _myTotalScore;
   List<QuestionHistory> get questionsHistory => List.unmodifiable(_questionsHistory);
 
@@ -65,14 +66,17 @@ class GroupStore extends ChangeNotifier implements GroupWebSocketEventHandler {
   }
 
   /// Checks if current user is host
-  bool isHost(int userId) {
+  bool isHost(String userId) {
     return _currentParty?.idUserHost == userId;
   }
 
   // ==================== Actions publiques ====================
 
   /// Initializes store with party and current user ID
-  void initializeParty(GroupParty party, {int? currentUserId}) {
+  void initializeParty(GroupParty party, {String? currentUserId}) {
+    dev.log('initializeParty: currentUserId=$currentUserId', name: 'GroupStore');
+    dev.log('Party users: ${party.partyUsers.map((pu) => "${pu.user?.nickName ?? 'null'} (idUser: ${pu.idUser}, user.id: ${pu.user?.id})").join(", ")}', name: 'GroupStore');
+    
     _currentParty = party;
     _currentUserId = currentUserId;
     _state = party.inProgress
@@ -120,6 +124,31 @@ class GroupStore extends ChangeNotifier implements GroupWebSocketEventHandler {
     if (_state == GroupPartyState.error) {
       _state = GroupPartyState.idle;
     }
+    notifyListeners();
+  }
+
+  /// Returns to lobby state after a finished game, keeping the party intact
+  void returnToLobby() {
+    if (_currentParty == null) return;
+    
+    // Reset game state but keep party information
+    _state = GroupPartyState.lobby;
+    _currentQuestion = null;
+    _countdownValue = null;
+    _answeredUserIds.clear();
+    _myAnswerId = null;
+    _userAnswerCorrectness.clear();
+    _myTotalScore = 0;
+    _questionsHistory.clear();
+    _finalScores = [];
+    _errorMessage = null;
+    
+    // Reset scores for all players
+    _currentScores = _currentParty!.partyUsers
+        .where((pu) => pu.user != null)
+        .map((pu) => UserScore(user: pu.user!, score: 0))
+        .toList();
+    
     notifyListeners();
   }
 
@@ -183,28 +212,46 @@ class GroupStore extends ChangeNotifier implements GroupWebSocketEventHandler {
   @override
   void onPlayerJoined(GroupUser user) {
     if (_currentParty != null) {
-      final updatedUsers = List<PartyUser>.from(_currentParty!.partyUsers)
-        ..add(PartyUser(
-          idParty: _currentParty!.id,
-          idUser: user.id,
-          user: user,
-        ));
+      dev.log('onPlayerJoined: ${user.nickName} (${user.id})', name: 'GroupStore');
+      dev.log('Current players: ${_currentParty!.partyUsers.map((pu) => "${pu.user?.nickName ?? 'null'} (idUser: ${pu.idUser}, user.id: ${pu.user?.id})").join(", ")}', name: 'GroupStore');
       
-      _currentParty = _currentParty!.copyWith(partyUsers: updatedUsers);
+      // Vérifier si le joueur n'est pas déjà dans la liste
+      // On vérifie à la fois idUser et user.id pour être sûr
+      final alreadyExists = _currentParty!.partyUsers.any((pu) => 
+        pu.idUser == user.id || pu.user?.id == user.id
+      );
       
-      notifyListeners();
+      dev.log('Player already exists: $alreadyExists', name: 'GroupStore');
+      
+      if (!alreadyExists) {
+        dev.log('Adding player to list', name: 'GroupStore');
+        final updatedUsers = List<PartyUser>.from(_currentParty!.partyUsers)
+          ..add(PartyUser(
+            idParty: _currentParty!.id,
+            idUser: user.id,
+            user: user,
+          ));
+        
+        _currentParty = _currentParty!.copyWith(partyUsers: updatedUsers);
+        
+        notifyListeners();
+      } else {
+        dev.log('Player already in list, skipping', name: 'GroupStore');
+      }
     }
   }
 
   @override
   void onPlayerLeft(GroupUser user) {
     if (_currentParty != null) {
-      final updatedUsers = List<PartyUser>.from(_currentParty!.partyUsers)
-        ..add(PartyUser(
-          idParty: _currentParty!.id,
-          idUser: user.id,
-          user: user,
-        ));
+      dev.log('onPlayerLeft: ${user.nickName} (${user.id})', name: 'GroupStore');
+      
+      // Retirer le joueur de la liste
+      final updatedUsers = _currentParty!.partyUsers
+          .where((pu) => pu.idUser != user.id && pu.user?.id != user.id)
+          .toList();
+      
+      dev.log('Removed player. Remaining: ${updatedUsers.length} players', name: 'GroupStore');
       
       _currentParty = _currentParty!.copyWith(partyUsers: updatedUsers);
       
@@ -307,28 +354,18 @@ class GroupStore extends ChangeNotifier implements GroupWebSocketEventHandler {
   }
 
   @override
-  void onScoreUpdate(List<UserScore> userScores) {
-    if (_currentQuestion != null) {
-      final questionScore = _currentQuestion!.score;
-      
-      for (final newScore in userScores) {
-        final userId = newScore.user.id;
-        
-        final oldScore = _currentScores
-            .where((s) => s.user.id == userId)
-            .map((s) => s.score)
-            .firstOrNull;
-        
-        final previousScore = oldScore ?? 0;
-        final scoreDiff = newScore.score - previousScore;
-        _userAnswerCorrectness[userId] = scoreDiff > 0;
-        
-        if (_currentUserId != null && userId == _currentUserId) {
-          _myTotalScore = newScore.score;
-        }
-      }
+  void onAllPlayerAnswered(List<UserAnswered> userAnswered) {
+    // Mettre à jour _userAnswerCorrectness avec les résultats reçus du serveur
+    _userAnswerCorrectness.clear();
+    for (final userAnswer in userAnswered) {
+      _userAnswerCorrectness[userAnswer.user.id] = userAnswer.correct;
     }
     
+    notifyListeners();
+  }
+
+  @override
+  void onScoreUpdate(List<UserScore> userScores) {
     _currentScores = userScores;
     _state = GroupPartyState.scoreDisplay;
     notifyListeners();

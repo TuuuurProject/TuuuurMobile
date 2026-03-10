@@ -38,7 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _nickName;
   String? _email;
   String? _avatar; // valeur renvoyée par l’API (url, base64, data-uri…)
-  int? _userId;
+  String? _userId;
   bool _serverError = false;
   String? _serverErrorMessage;
 

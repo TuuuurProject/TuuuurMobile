@@ -22,7 +22,7 @@ class GroupResult {
   final int? nbQuestions;
   final bool? inProgress;
   final bool? scoreEachRound;
-  final int? hostUserId;
+  final String? hostUserId;
   final bool? active;
   final bool? finish;
   final String? dt;
@@ -82,7 +82,7 @@ class GroupResult {
       nbQuestions: asInt(j['nbQuestions']),
       inProgress: asBool(j['inProgress']),
       scoreEachRound: asBool(j['scoreEachRound']),
-      hostUserId: asInt(j['idUserHost']),
+      hostUserId: asString(j['idUserHost']),
       active: asBool(j['active']),
       finish: asBool(j['finish']),
       dt: asString(j['dt']),

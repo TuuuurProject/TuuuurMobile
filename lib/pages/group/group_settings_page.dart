@@ -18,7 +18,7 @@ class GroupSettingsPage extends StatefulWidget {
   final GroupParty party;
 
   /// ID de l'utilisateur actuel pour vérifier s'il est l'hôte
-  final int currentUserId;
+  final String currentUserId;
 
   /// Callback appelé lorsque les paramètres sont sauvegardés avec succès
   final VoidCallback onSettingsSaved;
