@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../api/auth_api_service.dart';
+import '../api/auth/auth_models.dart';
 
 /// Stocke user + token en mémoire et dans le secure storage.
 class AuthStore extends ChangeNotifier {
@@ -17,10 +17,10 @@ class AuthStore extends ChangeNotifier {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   UserDto? _user;
-  AuthToken? _token;
+  AuthTokenDto? _token;
 
   UserDto? get user => _user;
-  AuthToken? get token => _token;
+  AuthTokenDto? get token => _token;
   bool get isAuthenticated => (_token?.token.isNotEmpty ?? false);
 
   /// À appeler au démarrage (hydrate depuis le secure storage).
@@ -30,7 +30,7 @@ class AuthStore extends ChangeNotifier {
 
     if (tokenRaw != null && tokenRaw.isNotEmpty) {
       final map = jsonDecode(tokenRaw) as Map<String, dynamic>;
-      _token = AuthToken.fromJson(map);
+      _token = AuthTokenDto.fromJson(map);
     }
 
     if (userRaw != null && userRaw.isNotEmpty) {
@@ -42,7 +42,7 @@ class AuthStore extends ChangeNotifier {
   }
 
   /// Persiste une session issue de /auth/2fa/verify.
-  Future<void> signInWithSession(AuthSession session) async {
+  Future<void> signInWithSession(AuthSessionDto session) async {
     _user = session.user;
     _token = session.token;
 

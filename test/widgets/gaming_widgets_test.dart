@@ -1,4 +1,4 @@
-// test/widgets/gaming_widgets_test.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -11,7 +11,7 @@ Future<void> _pumpInApp(WidgetTester tester, Widget child) async {
     MaterialApp(
       home: Scaffold(
         body: Center(
-          // InkWell a besoin d'un Material (sinon warnings / comportement moins fiable)
+
           child: Material(
             color: Colors.transparent,
             child: child,
@@ -67,7 +67,7 @@ void main() {
       expect(find.text('Jouer'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-      // En loading, l'icône ne doit pas être affichée
+
       expect(
         find.byWidgetPredicate(
           (w) => w is FaIcon && w.icon == FontAwesomeIcons.play,
@@ -92,7 +92,7 @@ void main() {
         ),
       );
 
-      // On check la taille rendue du widget (plus robuste que lire Container.width)
+
       final btnFinder = find.byType(GamingButtonPrimary);
       expect(btnFinder, findsOneWidget);
 

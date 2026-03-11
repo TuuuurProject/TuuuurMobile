@@ -1,4 +1,3 @@
-// forgot_password_page_test.dart
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,7 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 import 'package:tuuuur_flutter/pages/auth/forgot_password_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
@@ -29,8 +28,6 @@ class _DummyPage extends StatelessWidget {
   }
 }
 
-/// Fake contrôlable pour éviter les appels réseau.
-/// On remplace la variable globale `authApi` par cette instance en test.
 class _FakeAuthApi extends AuthApi {
   _FakeAuthApi() : super(ApiClient(baseUrl: 'http://localhost'));
 
@@ -120,18 +117,15 @@ void main() {
       expect(find.byType(ForgotPasswordPage), findsOneWidget);
       expect(find.byType(Scaffold), findsOneWidget);
 
-      // Titres / textes principaux (selon ton code)
       expect(find.text('Mot de passe oublié'), findsOneWidget);
       expect(find.text('Recevoir un code de réinitialisation'), findsOneWidget);
 
-      // Champ login
       expect(find.text('Login'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
 
       final tf = tester.widget<TextField>(find.byType(TextField));
       expect(tf.textInputAction, TextInputAction.done);
 
-      // Boutons
       expect(find.text('Annuler'), findsOneWidget);
       expect(find.text('Envoyer le code'), findsOneWidget);
     });
@@ -147,7 +141,6 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
       expect(find.text('Le login est requis.'), findsOneWidget);
 
-      // Important: pas d’appel API si invalide
       expect(fake.callCount, 0);
     });
 
@@ -156,9 +149,8 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'testuser');
 
-      // Simule "done" clavier
       await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump(); // lance setState(_isLoading = true)
+      await tester.pump();
       await tester.pumpAndSettle();
 
       expect(fake.callCount, 1);
@@ -173,16 +165,13 @@ void main() {
       await tester.enterText(find.byType(TextField), 'testuser');
       await tester.tap(find.text('Envoyer le code'));
 
-      // 1er pump: setState(_isLoading=true)
       await tester.pump();
 
       expect(find.text('Envoi...'), findsOneWidget);
 
-      // on termine la requête
       fake.completePending(ApiResponse.ok(true, statusCode: 200));
       await tester.pumpAndSettle();
 
-      // Le bouton revient (page a probablement navigué, mais au minimum l'état loading est fini)
       expect(find.text('Envoi...'), findsNothing);
     });
 
@@ -202,7 +191,6 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
       expect(find.text('Impossible de démarrer la procédure.'), findsOneWidget);
 
-      // Toujours sur ForgotPasswordPage
       expect(find.byType(ForgotPasswordPage), findsOneWidget);
     });
 
@@ -215,21 +203,17 @@ void main() {
       await tester.tap(find.text('Envoyer le code'));
       await tester.pumpAndSettle();
 
-      // SnackBar succès (texte exact dans ta page)
       expect(find.byType(SnackBar), findsOneWidget);
       expect(
         find.text('Code envoyé par email. Consultez votre boîte 📬'),
         findsOneWidget,
       );
 
-      // Optionnel: si ton helper met bien la couleur demandée
       final snack = tester.widget<SnackBar>(find.byType(SnackBar));
       expect(snack.backgroundColor, TuuurTheme.brandGreen);
 
-      // Navigation
       expect(find.byKey(const Key('page_reset-password')), findsOneWidget);
 
-      // Vérifie l’extra (Map toString => "{login: testuser}")
       final resetText = tester.widget<Text>(find.byKey(const Key('page_reset-password')));
       expect(resetText.data, contains('login: testuser'));
     });

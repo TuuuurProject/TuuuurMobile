@@ -15,8 +15,9 @@ import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../api/api_config.dart';
 import '../../api/api_module.dart';
-import '../../api/auth_api_service.dart' as api_auth;
-import '../../api/history_api_service.dart' as api_hist;
+import '../../api/auth/auth_api_service.dart' as api_auth;
+import '../../api/other/history_api_service.dart' as api_hist;
+import '../../api/other/history_models.dart' as models_hist;
 
 class ProfilePage extends StatefulWidget {
   final api_auth.AuthApi? authApi;
@@ -37,7 +38,9 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _nickName;
   String? _email;
   String? _avatar; // valeur renvoyée par l’API (url, base64, data-uri…)
-  int? _userId;
+  String? _userId;
+  bool _serverError = false;
+  String? _serverErrorMessage;
 
   Uint8List?
   _avatarBytes; // bytes à afficher (aperçu local OU décodage base64 serveur)
@@ -54,26 +57,38 @@ class _ProfilePageState extends State<ProfilePage> {
   // --- Historique ---
   bool _historyLoading = false;
   String? _historyError;
-  List<api_hist.HistoryMatchDto> _historyMatches = [];
+  List<models_hist.HistoryMatchDto> _historyMatches = [];
   int _historyTotalMatches = 0;
   int? _historyAvgPercent;
   String _historySelectedFilter = 'all';
 
   static const int _historyPageSize = 10;
+  static const double _difficultyPillWidth = 78;
+  static const double _difficultyPillHeight = 22;
+
+  static const double _moreThemesPillWidth = 44;
+  static const double _moreThemesPillHeight = 22;
   int _historyCurrentPage = 1;
-  int _historyTotalPages = 1;
 
   String get _fallbackAvatarUrl {
     final seed = Uri.encodeComponent(_nickName ?? 'player');
     return 'https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=$seed';
   }
 
-  List<api_hist.HistoryMatchDto> get _visibleHistoryMatches {
-    var list = List<api_hist.HistoryMatchDto>.from(_historyMatches);
+  List<models_hist.HistoryMatchDto> get _visibleHistoryMatches {
+    var list = List<models_hist.HistoryMatchDto>.from(_historyMatches);
 
     if (_historySelectedFilter == 'solo') {
       list = list
           .where((m) => (m.partyType?.label ?? '').toLowerCase() == 'solo')
+          .toList();
+    } else if (_historySelectedFilter == 'group') {
+      list = list
+          .where(
+            (m) =>
+                (m.partyType?.label ?? '').toLowerCase().contains('group') ||
+                (m.partyType?.label ?? '').toLowerCase().contains('groupe'),
+          )
           .toList();
     }
 
@@ -81,10 +96,26 @@ class _ProfilePageState extends State<ProfilePage> {
     list.sort((a, b) {
       final adt = a.dt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bdt = b.dt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bdt.compareTo(adt); // desc
+      return bdt.compareTo(adt);
     });
 
     return list;
+  }
+
+  int get _historyTotalPages {
+    final filtered = _visibleHistoryMatches;
+    if (filtered.isEmpty) return 1;
+    return (filtered.length / _historyPageSize).ceil();
+  }
+
+  List<models_hist.HistoryMatchDto> get _paginatedHistoryMatches {
+    final filtered = _visibleHistoryMatches;
+    final start = (_historyCurrentPage - 1) * _historyPageSize;
+    final end = start + _historyPageSize;
+
+    if (start >= filtered.length) return [];
+    if (end >= filtered.length) return filtered.sublist(start);
+    return filtered.sublist(start, end);
   }
 
   @override
@@ -96,15 +127,15 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     final store = MyAuthStore.of(context);
     final isAuthenticated = store.isAuthenticated;
-    
+
     // Si l'utilisateur vient de se connecter, on recharge les données
     if (isAuthenticated && !_wasAuthenticated) {
       _fetched = false;
     }
-    
+
     _wasAuthenticated = isAuthenticated;
     _fetchMeOnce();
   }
@@ -152,8 +183,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
               const SizedBox(height: 24),
-              if (!isAuthenticated) ...[
-                _notConnectedCard(),
+              if (!isAuthenticated || _serverError) ...[
+                _serverError
+                    ? _serverErrorCard(_serverErrorMessage)
+                    : _notConnectedCard(),
               ] else ...[
                 if (_loading && _nickName == null)
                   Container(
@@ -192,8 +225,11 @@ class _ProfilePageState extends State<ProfilePage> {
     final store = MyAuthStore.of(context);
     if (!store.isAuthenticated) return;
 
-    setState(() => _loading = true);
-
+    setState(() {
+      _loading = true;
+      _serverError = false;
+      _serverErrorMessage = null;
+    });
     final res = await _authApi.me();
 
     if (!mounted) return;
@@ -212,11 +248,25 @@ class _ProfilePageState extends State<ProfilePage> {
 
       await _fetchHistory();
     } else {
-      _showToast(res.message ?? 'Impossible de charger le profil.');
+      if (res.statusCode == 401) {
+        await store.signOut();
+        if (!mounted) return;
+        _showToast(
+          'Session expirée. Veuillez vous reconnecter.',
+          color: TuuurTheme.brandOrange,
+        );
+      } else {
+        setState(() {
+          _serverError = true;
+          _serverErrorMessage =
+              res.message ?? 'Impossible de charger le profil.';
+          _fetched = false; // permet retry
+        });
+      }
     }
   }
 
-  Future<void> _fetchHistory({int page = 1}) async {
+  Future<void> _fetchHistory() async {
     final store = MyAuthStore.of(context);
     if (!store.isAuthenticated) return;
 
@@ -225,14 +275,21 @@ class _ProfilePageState extends State<ProfilePage> {
       _historyError = null;
     });
 
-    final res = await _historyApi.getHistory(
-      page: page,
-      size: _historyPageSize,
-    );
+    // Charger toutes les parties (on met un size très grand)
+    final res = await _historyApi.getHistory(page: 1, size: 1000);
 
     if (!mounted) return;
 
     if (!res.ok || res.data == null) {
+      if (res.statusCode == 401) {
+        await store.signOut();
+        if (!mounted) return;
+        _showToast(
+          'Session expirée. Veuillez vous reconnecter.',
+          color: TuuurTheme.brandOrange,
+        );
+      }
+
       setState(() {
         _historyLoading = false;
         _historyError = res.message ?? 'Impossible de charger l’historique.';
@@ -240,7 +297,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _historyTotalMatches = 0;
         _historyAvgPercent = null;
         _historyCurrentPage = 1;
-        _historyTotalPages = 1;
       });
       return;
     }
@@ -265,8 +321,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _historyError = null;
       _historyMatches = matches;
       _historyTotalMatches = historyPage.totalCount ?? matches.length;
-      _historyCurrentPage = historyPage.currentPage ?? page;
-      _historyTotalPages = historyPage.totalPages ?? 1;
+      _historyCurrentPage = 1;
     });
   }
 
@@ -284,12 +339,13 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() => _avatarBytes = bytes);
 
       final base64Str = base64Encode(bytes);
+      final dataUri = 'data:image/jpeg;base64,$base64Str';
 
       if (!mounted) return;
 
       setState(() => _loading = true);
 
-      final res = await _authApi.updateAvatarBase64(base64: base64Str);
+      final res = await _authApi.updateAvatarBase64(base64: dataUri);
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -383,16 +439,17 @@ class _ProfilePageState extends State<ProfilePage> {
       _historyAvgPercent = null;
       _historySelectedFilter = 'all';
       _historyCurrentPage = 1;
-      _historyTotalPages = 1;
     });
 
     _showToast('Déconnecté.', color: TuuurTheme.brandGreen);
     context.go('/'); // Retour à l’accueil
   }
 
-  Future<void> _changeHistoryPage(int page) async {
-    if (page < 1 || page > _historyTotalPages || _historyLoading) return;
-    await _fetchHistory(page: page);
+  void _changeHistoryPage(int page) {
+    if (page < 1 || page > _historyTotalPages) return;
+    setState(() {
+      _historyCurrentPage = page;
+    });
   }
 
   // -----------------------------
@@ -456,6 +513,60 @@ class _ProfilePageState extends State<ProfilePage> {
   // Helpers / formatting
   // -----------------------------
 
+  void _showAllThemesSheet(List<String> themes) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: TuuurTheme.brandDarkGray,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    FontAwesomeIcons.tags,
+                    size: 16,
+                    color: TuuurTheme.brandPurple,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Thèmes (${themes.length})',
+                    style: const TextStyle(
+                      color: TuuurTheme.brandLightGray,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: themes
+                    .map(
+                      (t) => _pill(
+                        label: t,
+                        bgColor: TuuurTheme.brandPurple.withOpacity(0.1),
+                        borderColor: TuuurTheme.brandPurple.withOpacity(0.3),
+                        textColor: TuuurTheme.brandPurple,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Uint8List? _decodeBase64Image(String? value) {
     if (value == null || value.isEmpty) return null;
     try {
@@ -507,13 +618,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Colors.redAccent;
   }
 
-  Color _difficultyBaseColor(String label) {
-    final lower = label.toLowerCase();
-    if (lower.contains('facile')) return TuuurTheme.brandGreen;
-    if (lower.contains('moyen')) return TuuurTheme.brandOrange;
-    if (lower.contains('difficile')) return Colors.deepOrange;
-    if (lower.contains('hardcore')) return Colors.redAccent;
-    return TuuurTheme.brandGray;
+  Color _difficultyBaseColor(int id) {
+    return TuuurTheme.colorForDifficulty(id: id);
   }
 
   void _showToast(String message, {Color color = TuuurTheme.brandOrange}) {
@@ -526,6 +632,48 @@ class _ProfilePageState extends State<ProfilePage> {
   // -----------------------------
   // UI helpers
   // -----------------------------
+
+  Widget _serverErrorCard(String? message) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: TuuurStyles.gamingCard,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Impossible de charger le profil',
+            style: TextStyle(
+              color: TuuurTheme.brandLightGray,
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message ?? 'Erreur réseau / serveur.',
+            style: const TextStyle(color: TuuurTheme.brandOrange),
+          ),
+          const SizedBox(height: 20),
+
+          // 1) Retry
+          GamingButtonPrimary(
+            text: 'Réessayer',
+            icon: FontAwesomeIcons.rotateRight,
+            onPressed: () async {
+              setState(() {
+                _serverError = false;
+                _serverErrorMessage = null;
+                _fetched = false;
+              });
+              await _fetchMeOnce();
+            },
+          ),
+
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
 
   Widget _statsPill(String text, {IconData? icon, required Color color}) {
     return Container(
@@ -561,41 +709,101 @@ class _ProfilePageState extends State<ProfilePage> {
     required Color borderColor,
     required Color textColor,
     IconData? icon,
+    double? width,
+    double? height,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 10, color: textColor),
-            const SizedBox(width: 4),
+    final bounded =
+        width != null; // si width est fourni, on centre et on gère ellipsis
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisAlignment: bounded
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 10, color: textColor),
+              const SizedBox(width: 4),
+            ],
+            if (bounded)
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+              )
+            else
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildDifficultyPill(String label) {
-    final color = _difficultyBaseColor(label);
+  Widget _buildDifficultyPill(int id, {double? width}) {
+    final label = TuuurTheme.labelForDifficulty(id);
+    final color = _difficultyBaseColor(id);
+
     return _pill(
       label: label,
       bgColor: color.withOpacity(0.2),
       borderColor: color.withOpacity(0.4),
       textColor: color,
+      width: width, // <= largeur dynamique
+      height: _difficultyPillHeight, // hauteur fixe
+    );
+  }
+
+  Widget _buildDifficultiesGrid(List<int> diffIds) {
+    if (diffIds.isEmpty) return const SizedBox.shrink();
+
+    const double hSpacing = 8;
+    const double vSpacing = 8;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Forcer 2 colonnes quel que soit l'écran
+        final itemWidth = (constraints.maxWidth - hSpacing) / 2;
+
+        return Wrap(
+          spacing: hSpacing,
+          runSpacing: vSpacing, // espace vertical entre lignes
+          children: diffIds
+              .map(
+                (id) => SizedBox(
+                  width: itemWidth,
+                  height: _difficultyPillHeight,
+                  child: _buildDifficultyPill(id, width: itemWidth),
+                ),
+              )
+              .toList(),
+        );
+      },
     );
   }
 
@@ -650,7 +858,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _historySection() {
-    final matches = _visibleHistoryMatches;
+    final allFilteredMatches = _visibleHistoryMatches;
+    final matches = _paginatedHistoryMatches;
+    final visibleCount = allFilteredMatches.length;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -686,7 +896,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(width: 8),
               _statsPill(
-                '$_historyTotalMatches Partie${_historyTotalMatches > 1 ? 's' : ''}',
+                '$visibleCount Partie${visibleCount > 1 ? 's' : ''}',
                 icon: FontAwesomeIcons.gamepad,
                 color: TuuurTheme.brandPurple,
               ),
@@ -724,6 +934,8 @@ class _ProfilePageState extends State<ProfilePage> {
           _filterChip('Toutes', 'all'),
           const SizedBox(width: 8),
           _filterChip('Solo', 'solo'),
+          const SizedBox(width: 8),
+          _filterChip('Groupe', 'group'),
         ],
       ),
     );
@@ -745,6 +957,8 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: () {
         setState(() {
           _historySelectedFilter = value;
+          _historyCurrentPage =
+              1; // Reset à la page 1 lors du changement de filtre
         });
       },
       child: Container(
@@ -766,7 +980,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildHistoryList(List<api_hist.HistoryMatchDto> matches) {
+  Widget _buildHistoryList(List<models_hist.HistoryMatchDto> matches) {
     if (matches.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
@@ -795,267 +1009,329 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildHistoryItem(api_hist.HistoryMatchDto match) {
+  Widget _buildHistoryItem(models_hist.HistoryMatchDto match) {
     final percent = match.percent;
     final baseColor = _colorForPercent(percent);
     final bgScore = baseColor.withOpacity(0.2);
     final dt = match.dt;
     final dateLabel = dt != null ? _formatRelative(dt) : '';
 
-    final diffLabel = match.partyDifficulty.isNotEmpty
-        ? match.partyDifficulty.first.difficulty?.label
-        : null;
+    // Récupérer toutes les difficultés et les trier par id
+    final sortedDifficulties = List<models_hist.HistoryPartyDifficultyDto>.from(
+      match.partyDifficulty,
+    )..sort((a, b) => (a.difficulty?.id ?? 0).compareTo(b.difficulty?.id ?? 0));
+
+    final diffIds = sortedDifficulties
+        .where((pd) => pd.difficulty?.id != null)
+        .map((pd) => pd.difficulty!.id!)
+        .toList();
+
+    final themeLabels =
+        (match.partyTheme.toList()..sort(
+              (a, b) => (a.theme?.label ?? '').compareTo(b.theme?.label ?? ''),
+            ))
+            .map((pt) => (pt.theme?.label ?? '').trim())
+            .where((label) => label.isNotEmpty)
+            .toList();
+
+    final visibleThemes = themeLabels.take(2).toList();
+    final extraThemesCount = themeLabels.length - visibleThemes.length;
 
     return Opacity(
       opacity: _historyLoading ? 0.6 : 1,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: TuuurTheme.brandDarkGray.withOpacity(0.3),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.2)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Badge score
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  colors: [bgScore, baseColor.withOpacity(0.05)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border.all(color: baseColor, width: 2),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    (match.score ?? 0).toString(),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: baseColor,
-                    ),
-                  ),
-                  Text(
-                    'pts',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: baseColor.withOpacity(0.8),
-                    ),
-                  ),
-                ],
+          onTap: _historyLoading
+              ? null
+              : () {
+                  final type = (match.partyType?.label ?? '').toLowerCase();
+                  final isSolo = type == 'solo';
+                  context.goHistoryQuiz(match.id, isSolo: isSolo);
+                },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: TuuurTheme.brandDarkGray.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: TuuurTheme.brandPurple.withOpacity(0.2),
               ),
             ),
-            const SizedBox(width: 12),
-
-            // Infos principales
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Ligne titre + badges + date
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Badge score
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [bgScore, baseColor.withOpacity(0.05)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(color: baseColor, width: 2),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              match.partyType?.label ?? 'Partie',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: TuuurTheme.brandLightGray,
-                              ),
-                            ),
-                            if (!match.finish)
-                              _pill(
-                                label: 'En cours',
-                                bgColor: TuuurTheme.brandOrange.withOpacity(
-                                  0.15,
-                                ),
-                                borderColor: TuuurTheme.brandOrange.withOpacity(
-                                  0.4,
-                                ),
-                                textColor: TuuurTheme.brandOrange,
-                                icon: FontAwesomeIcons.hourglassHalf,
-                              )
-                            else
-                              _pill(
-                                label: 'Terminer',
-                                bgColor: TuuurTheme.brandGreen.withOpacity(
-                                  0.15,
-                                ),
-                                borderColor: TuuurTheme.brandGreen.withOpacity(
-                                  0.4,
-                                ),
-                                textColor: TuuurTheme.brandGreen,
-                                icon: FontAwesomeIcons.check,
-                              ),
-                            if (diffLabel != null && diffLabel.isNotEmpty)
-                              _buildDifficultyPill(diffLabel),
-                          ],
+                      Text(
+                        (match.score ?? 0).toString(),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: baseColor,
                         ),
                       ),
-                      if (dateLabel.isNotEmpty)
-                        Text(
-                          dateLabel,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: TuuurTheme.brandGray,
-                          ),
-                          textAlign: TextAlign.right,
+                      Text(
+                        'pts',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: baseColor.withOpacity(0.8),
                         ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                ),
+                const SizedBox(width: 12),
 
-                  // Ligne stats (questions, % réussite, temps)
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                // Infos principales
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // TOP ROW: titre + statut à gauche / date en haut à droite
                       Row(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // important
                         children: [
-                          const Icon(
-                            FontAwesomeIcons.circleQuestion,
-                            size: 12,
-                            color: TuuurTheme.brandPurple,
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'Questions:',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: TuuurTheme.brandGray,
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  match.partyType?.label ?? 'Partie',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: TuuurTheme.brandLightGray,
+                                  ),
+                                ),
+                                if (!match.finish)
+                                  _pill(
+                                    label: 'En cours',
+                                    bgColor: TuuurTheme.brandOrange.withOpacity(
+                                      0.15,
+                                    ),
+                                    borderColor: TuuurTheme.brandOrange
+                                        .withOpacity(0.4),
+                                    textColor: TuuurTheme.brandOrange,
+                                    icon: FontAwesomeIcons.hourglassHalf,
+                                  )
+                                else
+                                  _pill(
+                                    label: 'Terminer',
+                                    bgColor: TuuurTheme.brandGreen.withOpacity(
+                                      0.15,
+                                    ),
+                                    borderColor: TuuurTheme.brandGreen
+                                        .withOpacity(0.4),
+                                    textColor: TuuurTheme.brandGreen,
+                                    icon: FontAwesomeIcons.check,
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            (match.nbQuestions ?? 0).toString(),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: TuuurTheme.brandLightGray,
+
+                          if (dateLabel.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: Text(
+                                  dateLabel,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: TuuurTheme.brandGray,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
-                      if (percent != null)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+
+                      // Plus d'espace entre le titre et les difficultés
+                      if (diffIds.isNotEmpty) ...[
+                        const SizedBox(
+                          height: 12,
+                        ), // + d'espace par rapport au titre
+                        _buildDifficultiesGrid(diffIds),
+                      ],
+
+                      const SizedBox(height: 10),
+
+                      // Ligne stats (questions, % réussite, temps)
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                FontAwesomeIcons.circleQuestion,
+                                size: 12,
+                                color: TuuurTheme.brandPurple,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'Questions:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: TuuurTheme.brandGray,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                (match.nbQuestions ?? 0).toString(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: TuuurTheme.brandLightGray,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (percent != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  FontAwesomeIcons.percent,
+                                  size: 12,
+                                  color: TuuurTheme.brandPurple,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Réussite:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: TuuurTheme.brandGray,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$percent%',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: baseColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (match.time != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  FontAwesomeIcons.clock,
+                                  size: 12,
+                                  color: TuuurTheme.brandOrange,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Temps:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: TuuurTheme.brandGray,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatDuration(match.time!),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: TuuurTheme.brandLightGray,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Ligne thèmes (max 2 + "+N")
+                      if (themeLabels.isNotEmpty)
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Icon(
-                              FontAwesomeIcons.percent,
-                              size: 12,
+                              FontAwesomeIcons.tags,
+                              size: 11,
                               color: TuuurTheme.brandPurple,
                             ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Réussite:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: TuuurTheme.brandGray,
+
+                            ...visibleThemes.map((label) {
+                              return _pill(
+                                label: label,
+                                bgColor: TuuurTheme.brandPurple.withOpacity(
+                                  0.1,
+                                ),
+                                borderColor: TuuurTheme.brandPurple.withOpacity(
+                                  0.3,
+                                ),
+                                textColor: TuuurTheme.brandPurple,
+                              );
+                            }),
+
+                            if (extraThemesCount > 0)
+                              InkWell(
+                                borderRadius: BorderRadius.circular(999),
+                                child: _pill(
+                                  label: '+$extraThemesCount',
+                                  bgColor: TuuurTheme.brandPurple.withOpacity(
+                                    0.18,
+                                  ),
+                                  borderColor: TuuurTheme.brandPurple
+                                      .withOpacity(0.35),
+                                  textColor: TuuurTheme.brandLightGray,
+                                  width: _moreThemesPillWidth,
+                                  height: _moreThemesPillHeight,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$percent%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: baseColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (match.time != null)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              FontAwesomeIcons.clock,
-                              size: 12,
-                              color: TuuurTheme.brandOrange,
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Temps:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: TuuurTheme.brandGray,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatDuration(match.time!),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: TuuurTheme.brandLightGray,
-                              ),
-                            ),
                           ],
                         ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-
-                  // Ligne thèmes
-                  if (match.partyTheme.isNotEmpty)
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const Icon(
-                          FontAwesomeIcons.tags,
-                          size: 11,
-                          color: TuuurTheme.brandPurple,
-                        ),
-                        ...match.partyTheme.map((pt) {
-                          final label = pt.theme?.label ?? '';
-                          if (label.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return _pill(
-                            label: label,
-                            bgColor: TuuurTheme.brandPurple.withOpacity(0.1),
-                            borderColor: TuuurTheme.brandPurple.withOpacity(
-                              0.3,
-                            ),
-                            textColor: TuuurTheme.brandPurple,
-                          );
-                        }),
-                      ],
-                    ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHistoryPagination() {
-    if (_historyTotalPages <= 1 || _historyTotalMatches == 0) {
+    final totalVisible = _visibleHistoryMatches.length;
+    if (_historyTotalPages <= 1 || totalVisible == 0) {
       return const SizedBox.shrink();
     }
 
     final start = (_historyCurrentPage - 1) * _historyPageSize + 1;
     var end = _historyCurrentPage * _historyPageSize;
-    if (end > _historyTotalMatches) end = _historyTotalMatches;
+    if (end > totalVisible) end = totalVisible;
 
     final isFirstPage = _historyCurrentPage <= 1;
     final isLastPage = _historyCurrentPage >= _historyTotalPages;
@@ -1063,8 +1339,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       children: [
         Text(
-          'Affichage de $start à $end sur $_historyTotalMatches '
-          'partie${_historyTotalMatches > 1 ? 's' : ''}',
+          'Affichage de $start à $end sur $totalVisible '
+          'partie${totalVisible > 1 ? 's' : ''}',
           style: const TextStyle(fontSize: 12, color: TuuurTheme.brandGray),
           textAlign: TextAlign.center,
         ),
@@ -1076,15 +1352,13 @@ class _ProfilePageState extends State<ProfilePage> {
           runSpacing: 4,
           children: [
             IconButton(
-              onPressed: (!isFirstPage && !_historyLoading)
-                  ? () => _changeHistoryPage(1)
-                  : null,
+              onPressed: !isFirstPage ? () => _changeHistoryPage(1) : null,
               icon: const Icon(FontAwesomeIcons.anglesLeft, size: 12),
               tooltip: 'Première page',
               visualDensity: VisualDensity.compact,
             ),
             TextButton.icon(
-              onPressed: (!isFirstPage && !_historyLoading)
+              onPressed: !isFirstPage
                   ? () => _changeHistoryPage(_historyCurrentPage - 1)
                   : null,
               icon: const Icon(FontAwesomeIcons.chevronLeft, size: 12),
@@ -1101,7 +1375,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             TextButton.icon(
-              onPressed: (!isLastPage && !_historyLoading)
+              onPressed: !isLastPage
                   ? () => _changeHistoryPage(_historyCurrentPage + 1)
                   : null,
               icon: const Icon(FontAwesomeIcons.chevronRight, size: 12),
@@ -1111,7 +1385,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             IconButton(
-              onPressed: (!isLastPage && !_historyLoading)
+              onPressed: !isLastPage
                   ? () => _changeHistoryPage(_historyTotalPages)
                   : null,
               icon: const Icon(FontAwesomeIcons.anglesRight, size: 12),

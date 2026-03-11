@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../api/api_module.dart';
-import '../../api/solo_api_service.dart';
+import '../../api/solo/solo_api_service.dart';
+import '../../api/solo/solo_models.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/navigation_utils.dart';
 import '../../theme/tuuuur_theme.dart';
@@ -17,7 +18,8 @@ import '../../widgets/navigation_header.dart';
 class SoloQuizPage extends StatefulWidget {
   final List<String> categories;
   final int questions;
-  final int difficulty; // id de difficulté backend
+  final List<int> difficulties; // IDs des difficultés backend
+  final String? partyId; // ID de la partie à reprendre (optionnel)
 
   /// ✅ Injection pour tests (ou override en prod si besoin)
   final SoloApi? soloApiOverride;
@@ -26,7 +28,8 @@ class SoloQuizPage extends StatefulWidget {
     super.key,
     required this.categories,
     required this.questions,
-    required this.difficulty,
+    required this.difficulties,
+    this.partyId,
     this.soloApiOverride,
   });
 
@@ -151,24 +154,21 @@ class _SoloQuizPageState extends State<SoloQuizPage>
   void _startTimer() {
     _clearTimer();
     _remainingTime = totalTime.toDouble();
-    _timer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
 
-        setState(() {
-          _remainingTime = max(0, _remainingTime - 0.1);
-        });
+      setState(() {
+        _remainingTime = max(0, _remainingTime - 0.1);
+      });
 
-        if (_remainingTime <= 0) {
-          _clearTimer();
-          _onTimeUp();
-        }
-      },
-    );
+      if (_remainingTime <= 0) {
+        _clearTimer();
+        _onTimeUp();
+      }
+    });
   }
 
   void _clearTimer() {
@@ -212,6 +212,28 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     });
 
     try {
+      // Si un partyId est fourni, on reprend la partie existante
+      if (widget.partyId != null && widget.partyId!.isNotEmpty) {
+        _partyId = widget.partyId;
+
+        final partyRes = await _api.getSolo(partyId: widget.partyId!);
+
+        if (!mounted) return;
+
+        if (!partyRes.ok || partyRes.data == null) {
+          setState(() {
+            _loading = false;
+            _error = partyRes.message ?? 'Impossible de récupérer la partie.';
+            _unauthorized = partyRes.statusCode == 401;
+          });
+          return;
+        }
+
+        _applyInitialParty(partyRes.data!);
+        return;
+      }
+
+      // Sinon, on crée une nouvelle partie
       // On suppose que les catégories sont des IDs de thème en string (ex: "1").
       final themeIds = <int>[];
       for (final c in widget.categories) {
@@ -219,12 +241,10 @@ class _SoloQuizPageState extends State<SoloQuizPage>
         if (parsed != null) themeIds.add(parsed);
       }
 
-      final difficultyIds = <int>[widget.difficulty];
-
       // 1) Création de la partie solo
       final createRes = await _api.createSolo(
         themeIds: themeIds,
-        difficultyIds: difficultyIds,
+        difficultyIds: widget.difficulties,
         nbQuestions: widget.questions,
       );
 
@@ -252,9 +272,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
       _partyId = partyId;
 
       // 2) Récupération de l’état initial (première question)
-      final partyRes = await _api.getSolo(
-        partyId: partyId,
-      );
+      final partyRes = await _api.getSolo(partyId: partyId);
 
       if (!mounted) return;
 
@@ -288,9 +306,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     });
 
     try {
-      final res = await _api.getSolo(
-        partyId: _partyId!,
-      );
+      final res = await _api.getSolo(partyId: _partyId!);
 
       if (!mounted) return;
 
@@ -314,9 +330,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
   }
 
   void _applyInitialParty(SoloPartyDto party) {
-    final questions = List<SoloPartyQuestionDto>.from(
-      party.partyQuestions,
-    );
+    final questions = List<SoloPartyQuestionDto>.from(party.partyQuestions);
 
     // Tri sur order puis id (en gérant les nulls)
     questions.sort((a, b) {
@@ -360,13 +374,8 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     }
   }
 
-  void _applyAfterAnswer(
-    SoloPartyDto party, {
-    required int answerId,
-  }) {
-    final questions = List<SoloPartyQuestionDto>.from(
-      party.partyQuestions,
-    );
+  void _applyAfterAnswer(SoloPartyDto party, {required int answerId}) {
+    final questions = List<SoloPartyQuestionDto>.from(party.partyQuestions);
 
     questions.sort((a, b) {
       final ao = a.order ?? 0;
@@ -431,10 +440,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
     });
 
     try {
-      final res = await _api.answerSolo(
-        partyId: _partyId!,
-        answerId: answerId,
-      );
+      final res = await _api.answerSolo(partyId: _partyId!, answerId: answerId);
 
       if (!mounted) return;
 
@@ -637,10 +643,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: right,
-              ),
+              child: Align(alignment: Alignment.centerRight, child: right),
             ),
           ],
         );
@@ -655,8 +658,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
         children: [
           GamingProgressBar(progress: _remainingRatio, height: 6),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -808,19 +810,19 @@ class _SoloQuizPageState extends State<SoloQuizPage>
 
               final feedback = _answered
                   ? (_wasCorrect
-                      ? BadgeSuccess(text: 'Correct +$_lastPoints pts')
-                      : const BadgeWarning(text: 'Mauvaise réponse'))
+                        ? BadgeSuccess(text: 'Correct +$_lastPoints pts')
+                        : const BadgeWarning(text: 'Mauvaise réponse'))
                   : const SizedBox.shrink();
 
               Widget nextBtn({bool fullWidth = false}) => SizedBox(
-                    width: fullWidth ? double.infinity : null,
-                    child: GamingButtonPrimary(
-                      text: _finished && _nextQuestion == null
-                          ? 'Terminer'
-                          : 'Suivant',
-                      onPressed: !_answered ? null : () => _next(),
-                    ),
-                  );
+                width: fullWidth ? double.infinity : null,
+                child: GamingButtonPrimary(
+                  text: _finished && _nextQuestion == null
+                      ? 'Terminer'
+                      : 'Suivant',
+                  onPressed: !_answered ? null : () => _next(),
+                ),
+              );
 
               Widget? skipBtn({bool fullWidth = false}) => showPasser
                   ? SizedBox(
@@ -837,10 +839,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
                 height: feedbackHeight,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: AnimatedSwitcher(
-                    duration: 200.ms,
-                    child: feedback,
-                  ),
+                  child: AnimatedSwitcher(duration: 200.ms, child: feedback),
                 ),
               );
 
@@ -906,17 +905,14 @@ class _SoloQuizPageState extends State<SoloQuizPage>
               color: TuuurTheme.brandLightGray,
             ),
           ).animate().scale(
-                begin: const Offset(0.8, 0.8),
-                duration: 600.ms,
-                curve: Curves.easeOutBack,
-              ),
+            begin: const Offset(0.8, 0.8),
+            duration: 600.ms,
+            curve: Curves.easeOutBack,
+          ),
           const SizedBox(height: 16),
           RichText(
             text: TextSpan(
-              style: const TextStyle(
-                fontSize: 18,
-                color: TuuurTheme.brandGray,
-              ),
+              style: const TextStyle(fontSize: 18, color: TuuurTheme.brandGray),
               children: [
                 const TextSpan(text: 'Score final: '),
                 TextSpan(
@@ -949,9 +945,7 @@ class _SoloQuizPageState extends State<SoloQuizPage>
 
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  homeBtn,
-                ],
+                children: [homeBtn],
               );
             },
           ),
@@ -970,11 +964,7 @@ class SoloAnswerViewModel {
   final String label;
   final bool? valid;
 
-  SoloAnswerViewModel({
-    required this.id,
-    required this.label,
-    this.valid,
-  });
+  SoloAnswerViewModel({required this.id, required this.label, this.valid});
 }
 
 class SoloQuestionViewModel {
@@ -984,6 +974,8 @@ class SoloQuestionViewModel {
   final List<SoloAnswerViewModel> answers;
   final int? selectedAnswerId;
   final bool? correct;
+  final int? difficultyId;
+  final List<SoloQuestionThemeDto> questionTheme;
 
   SoloQuestionViewModel({
     required this.partyQuestionId,
@@ -992,11 +984,11 @@ class SoloQuestionViewModel {
     required this.answers,
     this.selectedAnswerId,
     this.correct,
+    this.difficultyId,
+    this.questionTheme = const [],
   });
 
-  factory SoloQuestionViewModel.fromPartyQuestion(
-    SoloPartyQuestionDto pq,
-  ) {
+  factory SoloQuestionViewModel.fromPartyQuestion(SoloPartyQuestionDto pq) {
     final q = pq.question;
     final user = pq.userAnswer;
 
@@ -1019,6 +1011,8 @@ class SoloQuestionViewModel {
       answers: answers,
       selectedAnswerId: user?.answerId,
       correct: user?.correct,
+      difficultyId: q?.difficultyId,
+      questionTheme: q?.questionTheme ?? [],
     );
   }
 }
@@ -1058,10 +1052,7 @@ class _OptionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           onTap: enabled ? onTap : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Text(
               label,
               softWrap: true,

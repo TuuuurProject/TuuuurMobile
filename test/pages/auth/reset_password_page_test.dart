@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/api/api_module.dart' as api_module;
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 import 'package:tuuuur_flutter/navigation/app_messengers.dart'
     show rootScaffoldMessengerKey;
 import 'package:tuuuur_flutter/pages/auth/reset_password_page.dart';
@@ -83,7 +83,7 @@ GoRouter _createRouter({String initialLocation = '/' , String? initialLogin, Aut
 
 Widget _wrapWithApp(GoRouter router) {
   return MaterialApp.router(
-    scaffoldMessengerKey: rootScaffoldMessengerKey, // ✅ crucial pour AuthSnackbars
+    scaffoldMessengerKey: rootScaffoldMessengerKey,
     routerConfig: router,
   );
 }
@@ -112,7 +112,6 @@ Future<void> _fillForm(
   required String password,
   required String confirm,
 }) async {
-  // ✅ la page a 4 TextField (login, code, pwd, confirm)
   expect(find.byType(TextField), findsNWidgets(4));
 
   await tester.enterText(_tf(0), login);
@@ -130,7 +129,6 @@ Future<void> _tapFinder(WidgetTester tester, Finder finder) async {
 }
 
 Future<void> _tapPrimaryButton(WidgetTester tester, String label) async {
-  // Trouve le widget parent tappable autour du texte
   final btn = find.ancestor(
     of: find.text(label),
     matching: find.byWidgetPredicate((w) =>
@@ -142,8 +140,6 @@ Future<void> _tapPrimaryButton(WidgetTester tester, String label) async {
         w is GestureDetector),
   );
 
-  // Si ton GamingButtonPrimary n’est pas capturé par predicate (rare),
-  // on fallback sur le texte mais sans warning fatal.
   final target = btn.evaluate().isNotEmpty ? btn.first : find.text(label);
 
   await tester.ensureVisible(target);
@@ -292,7 +288,6 @@ void main() {
       final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
       await _pumpReset(tester, authApi: fake, router: router);
 
-      // 2 champs password => 2 yeux
       await tester.ensureVisible(find.byIcon(Icons.visibility).first);
       expect(find.byIcon(Icons.visibility), findsNWidgets(2));
 
@@ -316,7 +311,6 @@ void main() {
         confirm: 'Abcd1234',
       );
 
-      // ✅ il faut focus le champ confirm avant receiveAction
       await tester.tap(_tf(3));
       await tester.pump();
 
@@ -390,7 +384,6 @@ void main() {
 
       await _tapPrimaryButton(tester, 'Valider');
 
-      // SnackBar succès (juste après le tap)
       expect(find.text('Mot de passe réinitialisé ✅'), findsOneWidget);
       final msg = find.text('Mot de passe réinitialisé ✅');
       expect(msg, findsOneWidget);
@@ -409,7 +402,6 @@ void main() {
       await _tapPrimaryButton(tester, 'Valider');
       await tester.pump();
 
-      // Puis navigation
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('page_login')), findsOneWidget);
     });
@@ -420,7 +412,6 @@ void main() {
       final router = _createRouter(initialLocation: '/');
       await _pumpReset(tester, authApi: fake, router: router);
 
-      // ✅ push pour créer un historique (go remplace, push empile)
       router.push('/reset-password');
       await tester.pumpAndSettle();
 

@@ -34,7 +34,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(actionCalled, isTrue);
-      // Pas de dialog affiché
       expect(find.text('Confirmation'), findsNothing);
     });
 
@@ -96,7 +95,6 @@ void main() {
       await tester.tap(find.text('Test'));
       await tester.pumpAndSettle();
 
-      // Cliquer sur Oui
       await tester.tap(find.text('Oui'));
       await tester.pumpAndSettle();
 
@@ -131,7 +129,6 @@ void main() {
       await tester.tap(find.text('Test'));
       await tester.pumpAndSettle();
 
-      // Cliquer sur Annuler
       await tester.tap(find.text('Annuler'));
       await tester.pumpAndSettle();
 
@@ -166,11 +163,8 @@ void main() {
       await tester.tap(find.text('Test'));
       await tester.pumpAndSettle();
 
-      // Fermer le dialog en tapant à l'extérieur (si barrierDismissible)
-      // ou simplement attendre que le dialog soit affiché
       expect(find.text('Confirmation'), findsOneWidget);
-      
-      // Ne pas cliquer sur un bouton, juste vérifier que l'action n'est pas appelée
+
       expect(actionCalled, isFalse);
     });
   });

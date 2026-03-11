@@ -11,8 +11,8 @@ import '../../navigation/app_router.dart';
 
 import '../../api/api_client.dart' as api;
 import '../../api/api_module.dart';
-import '../../api/theme_api_service.dart';
-import '../../api/difficulty_api_service.dart';
+import '../../api/other/theme_api_service.dart';
+import '../../api/other/difficulty_api_service.dart';
 import '../../stores/auth_store.dart';
 
 typedef ThemesFetcher = Future<api.ApiResponse<List<dynamic>>> Function();
@@ -60,7 +60,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
   bool _loadingDifficulties = false;
   String? _difficultyError;
   bool _difficultyUnauthorized = false;
-  int? _selectedDifficultyId; // sélection unique
+  final Set<int> _selectedDifficultyIds = {}; // sélection multiple
 
   // Signature d'état d'auth
   String? _lastAuthSignature;
@@ -87,6 +87,13 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
 
       // Ne charge les données que si l'utilisateur est authentifié
       if (store.isAuthenticated) {
+        // Réinitialiser les erreurs avant de recharger
+        setState(() {
+          _loadError = null;
+          _unauthorized = false;
+          _difficultyError = null;
+          _difficultyUnauthorized = false;
+        });
         _fetchThemes();
         _fetchDifficulties();
       }
@@ -142,17 +149,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         );
       }).toList();
 
-      mapped.sort((a, b) {
-        int p(String n) =>
-            n.toLowerCase().contains('général') ||
-                n.toLowerCase().contains('general')
-            ? 0
-            : 1;
-        final pa = p(a.name), pb = p(b.name);
-        return pa != pb
-            ? (pa - pb)
-            : a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+      mapped.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
       setState(() {
         _categories = mapped;
@@ -273,22 +270,28 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       _difficulties = mapped;
       _loadingDifficulties = false;
 
-      if (_selectedDifficultyId == null && _difficulties.isNotEmpty) {
+      if (_selectedDifficultyIds.isEmpty && _difficulties.isNotEmpty) {
         final def = _difficulties.firstWhere(
           (d) => d.id == 2,
           orElse: () => _difficulties.first,
         );
-        _selectedDifficultyId = def.id;
+        _selectedDifficultyIds.add(def.id);
       }
     });
   }
 
   String _selectedDifficultyLabel() {
-    if (_selectedDifficultyId == null) return '—';
-    final match = _difficulties
-        .where((d) => d.id == _selectedDifficultyId)
-        .toList(growable: false);
-    return match.isNotEmpty ? match.first.label : '—';
+    if (_selectedDifficultyIds.isEmpty) return '—';
+    final labels = _selectedDifficultyIds
+        .map(
+          (id) => _difficulties
+              .where((d) => d.id == id)
+              .map((d) => d.label)
+              .firstOrNull,
+        )
+        .where((label) => label != null)
+        .join(', ');
+    return labels.isNotEmpty ? labels : '—';
   }
 
   // ---------------------------------------------------------------------------
@@ -315,10 +318,10 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
       return;
     }
 
-    if (_selectedDifficultyId == null) {
+    if (_selectedDifficultyIds.isEmpty) {
       ToastManager.show(
         context: context,
-        message: 'Veuillez choisir une difficulté',
+        message: 'Veuillez choisir au moins une difficulté',
         backgroundColor: TuuurTheme.brandOrange.withOpacity(0.9),
       );
       return;
@@ -369,7 +372,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         context.goSoloQuiz(
           categories: _selectedCategories.toList(),
           questions: _questionCount,
-          difficulty: _selectedDifficultyId!,
+          difficulties: _selectedDifficultyIds.toList(),
         );
       },
     );
@@ -426,30 +429,15 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: GamingButtonPrimary(
-                      text: "Se connecter",
-                      icon: FontAwesomeIcons.rightToBracket,
-                      onPressed: () => GoRouter.of(context).push('/login', extra: {'returnTo': '/solo'}),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: GamingButtonSecondary(
-                      text: "Créer un compte",
-                      icon: FontAwesomeIcons.userPlus,
-                      onPressed: () => GoRouter.of(context).push('/register', extra: {'returnTo': '/solo'}),
-                    ),
-                  ),
-                ],
-              );
-            },
+          SizedBox(
+            width: double.infinity,
+            child: GamingButtonPrimary(
+              text: "Se connecter",
+              icon: FontAwesomeIcons.rightToBracket,
+              onPressed: () => GoRouter.of(
+                context,
+              ).push('/login', extra: {'returnTo': '/solo'}),
+            ),
           ),
         ],
       ),
@@ -488,7 +476,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               if (_unauthorized)
                 GamingButtonPrimary(
                   text: 'Se connecter',
-                  onPressed: () => GoRouter.of(context).push('/login', extra: {'returnTo': '/solo'}),
+                  onPressed: () => GoRouter.of(
+                    context,
+                  ).push('/login', extra: {'returnTo': '/solo'}),
                 ),
             ],
           ),
@@ -654,7 +644,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Choisissez une ou plusieurs catégories pour votre aventure.',
+            'Sélectionnez une ou plusieurs catégories pour votre aventure.',
             style: TextStyle(color: TuuurTheme.brandGray, fontSize: 16),
           ),
           const SizedBox(height: 16),
@@ -744,8 +734,7 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
                     label: '$_questionCount',
                     onChanged: (value) {
                       setState(() {
-                        _questionCount = value
-                            .round();
+                        _questionCount = value.round();
                       });
                     },
                   ),
@@ -813,7 +802,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
               if (_difficultyUnauthorized)
                 GamingButtonPrimary(
                   text: 'Se connecter',
-                  onPressed: () => GoRouter.of(context).push('/login', extra: {'returnTo': '/solo'}),
+                  onPressed: () => GoRouter.of(
+                    context,
+                  ).push('/login', extra: {'returnTo': '/solo'}),
                 ),
             ],
           ),
@@ -836,20 +827,33 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
             fontSize: 16,
           ),
         ),
+        const SizedBox(height: 4),
+        const Text(
+          'Sélectionnez une ou plusieurs difficultés.',
+          style: TextStyle(color: TuuurTheme.brandGray, fontSize: 14),
+        ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: _difficulties.map((d) {
-            final selected = d.id == _selectedDifficultyId;
-            return CategoryButton(
-              text: d.label,
-              selected: selected,
-              onTap: () {
-                setState(() {
-                  _selectedDifficultyId = d.id;
-                });
-              },
+            final selected = _selectedDifficultyIds.contains(d.id);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: CategoryButton(
+                text: TuuurTheme.labelForDifficulty(d.id),
+                icon: TuuurTheme.iconForDifficulty(id: d.id),
+                selected: selected,
+                customColor: TuuurTheme.colorForDifficulty(id: d.id),
+                onTap: () {
+                  setState(() {
+                    if (_selectedDifficultyIds.contains(d.id)) {
+                      _selectedDifficultyIds.remove(d.id);
+                    } else {
+                      _selectedDifficultyIds.add(d.id);
+                    }
+                  });
+                },
+              ),
             );
           }).toList(),
         ),

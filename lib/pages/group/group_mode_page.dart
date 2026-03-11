@@ -1,28 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+import '../../api/api_module.dart';
+import '../../api/group/group_api_service.dart';
+import '../../stores/group_coordinator.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/navigation_header.dart';
+
 import '../../navigation/app_router.dart';
-import 'group_create_page.dart';
+import '../../stores/auth_store.dart';
 import 'group_join_page.dart';
 import 'group_lobby_page.dart';
 
-enum GroupStep { mode, create, join, lobby }
+enum GroupStep { mode, join, lobby }
 
 class GroupLobbyData {
+  /// "code" qu’on affiche et partage.
+  /// Vu ton Swagger, on utilise l’UUID renvoyé par l’API comme code.
   String code;
+
+  /// Identifiant de party côté backend (souvent identique au code ici).
+  String partyId;
+
+  bool isHost;
+
+  /// Affichage seulement (noms)
   List<String> categories;
+
+  /// Pour l’API (ids)
+  List<int> themeIds;
+  List<int> difficultyIds;
+
   int questions;
   bool shuffle;
+  bool scoreEachRound;
   String specifics;
+
+  /// Sans websocket : liste locale (démo)
   List<GroupPlayer> players;
 
   GroupLobbyData({
-    this.code = 'TUR-0000',
-    this.categories = const ['Général'],
+    this.code = '',
+    this.partyId = '',
+    this.isHost = false,
+    this.categories = const [],
+    this.themeIds = const [],
+    this.difficultyIds = const [],
     this.questions = 10,
     this.shuffle = true,
+    this.scoreEachRound = false,
     this.specifics = '',
     this.players = const [],
   });
@@ -43,41 +70,182 @@ class GroupPlayer {
 }
 
 class GroupModePage extends StatefulWidget {
-  const GroupModePage({super.key});
+  /// Injection test / override
+  final GroupApi? groupApiOverride;
+  final GroupCoordinator? groupCoordinatorOverride;
+
+  const GroupModePage({
+    super.key,
+    this.groupApiOverride,
+    this.groupCoordinatorOverride,
+  });
 
   @override
   State<GroupModePage> createState() => _GroupModePageState();
 }
 
 class _GroupModePageState extends State<GroupModePage> {
-  GroupStep step = GroupStep.mode;
-  GroupLobbyData lobby = GroupLobbyData(
-    players: [
-      const GroupPlayer(id: 1, name: 'Alice', emoji: '🦊'),
-      const GroupPlayer(id: 2, name: 'Ben', emoji: '🐼'),
-    ],
-  );
+  GroupApi get _api => widget.groupApiOverride ?? ApiModule.instance.groupApi;
+  GroupCoordinator get _coordinator => 
+      widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
 
-  void goLobbyFromCreate({
-    required List<String> categories,
-    required int questions,
-    required bool shuffle,
-    String? specifics,
-  }) {
+  GroupStep step = GroupStep.mode;
+  bool _creatingParty = false;
+
+  /// Crée directement une partie avec des paramètres par défaut
+  Future<void> _createPartyDirectly() async {
+    if (_creatingParty) return;
+
     setState(() {
-      lobby.categories = categories;
-      lobby.questions = questions;
-      lobby.shuffle = shuffle;
-      lobby.specifics = specifics ?? '';
-      lobby.code = 'TUR-${1000 + (DateTime.now().millisecond % 9000)}';
-      step = GroupStep.lobby;
+      _creatingParty = true;
     });
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final authStore = MyAuthStore.of(context);
+      final currentUserId = authStore.user?.id;
+
+      // Créer et rejoindre la partie via le coordinateur
+      final lobbyCode = await _coordinator.createAndJoinParty(
+        currentUserId: currentUserId,
+      );
+
+      if (!mounted) return;
+
+      if (lobbyCode == null) {
+        setState(() => _creatingParty = false);
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Impossible de créer la partie.'),
+            backgroundColor: TuuurTheme.brandOrange,
+          ),
+        );
+        return;
+      }
+
+      // Paramètres par défaut
+      const defaultThemeIds = [1]; // Thème "Général" par défaut
+      const defaultDifficultyIds = [2]; // Difficulté "Moyen" par défaut
+      const defaultQuestions = 10;
+      const defaultScoreEachRound = false;
+
+      // Mettre à jour les paramètres de la partie
+      final settingsUpdated = await _coordinator.updatePartySettings(
+        themes: defaultThemeIds,
+        difficulties: defaultDifficultyIds,
+        nbQuestions: defaultQuestions,
+        scoreEachRound: defaultScoreEachRound,
+      );
+
+      if (!mounted) return;
+
+      if (!settingsUpdated) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Partie créée mais erreur lors de la mise à jour des paramètres.'),
+            backgroundColor: TuuurTheme.brandOrange,
+          ),
+        );
+      }
+
+      final party = _coordinator.store.currentParty;
+      final partyId = party?.id ?? '';
+
+      setState(() => _creatingParty = false);
+
+      // Passer au lobby
+      goLobbyFromCreate(
+        partyId: partyId,
+        code: lobbyCode,
+        categories: const ['Général'],
+        themeIds: defaultThemeIds,
+        difficultyIds: defaultDifficultyIds,
+        questions: defaultQuestions,
+        shuffle: true,
+        scoreEachRound: defaultScoreEachRound,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _creatingParty = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: TuuurTheme.brandOrange,
+        ),
+      );
+    }
   }
 
-  void goLobbyFromJoin({required String code}) {
+  void goLobbyFromCreate({
+    required String partyId,
+    required String code,
+    required List<String> categories,
+    required List<int> themeIds,
+    required List<int> difficultyIds,
+    required int questions,
+    required bool shuffle,
+    required bool scoreEachRound,
+    String? specifics,
+  }) {
+    // Préparer les données du lobby
+    final lobbyData = GroupLobbyData(
+      partyId: partyId,
+      code: code,
+      isHost: true,
+      categories: categories,
+      themeIds: themeIds,
+      difficultyIds: difficultyIds,
+      questions: questions,
+      shuffle: shuffle,
+      scoreEachRound: scoreEachRound,
+      specifics: specifics ?? '',
+    );
+
+    // Navigation vers GroupLobbyPage
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupLobbyPage(
+          lobby: lobbyData,
+          onBack: () {
+            Navigator.of(context).pop();
+          },
+          groupCoordinatorOverride: widget.groupCoordinatorOverride,
+        ),
+      ),
+    );
+  }
+
+  void goLobbyFromJoin({required String partyId, required String code}) {
+    // Préparer les données du lobby
+    final lobbyData = GroupLobbyData(
+      partyId: partyId,
+      code: code,
+      isHost: false,
+    );
+
+    // Navigation vers GroupLobbyPage
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupLobbyPage(
+          lobby: lobbyData,
+          onBack: () {
+            Navigator.of(context).pop();
+          },
+          groupCoordinatorOverride: widget.groupCoordinatorOverride,
+        ),
+      ),
+    );
+  }
+
+  Future<void> resetToMode() async {
+    // Ne pas appeler leaveParty() ici car la page enfant l'a déjà fait
+    // Appeler leaveParty() ici causerait des appels multiples et des erreurs
+    
     setState(() {
-      lobby.code = code;
-      step = GroupStep.lobby;
+      step = GroupStep.mode;
     });
   }
 
@@ -86,16 +254,15 @@ class _GroupModePageState extends State<GroupModePage> {
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return; // le système a déjà géré le pop
+        if (didPop) return;
         context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,
-        appBar: const NavigationHeader(),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: _buildContent(),
+        appBar: const NavigationHeader(
+          showBack: true,
         ),
+        body: _buildContent(),
       ),
     );
   }
@@ -103,21 +270,23 @@ class _GroupModePageState extends State<GroupModePage> {
   Widget _buildContent() {
     switch (step) {
       case GroupStep.mode:
-        return _buildModeSelection();
-      case GroupStep.create:
-        return GroupCreatePage(
-          onBack: () => setState(() => step = GroupStep.mode),
-          onCreated: goLobbyFromCreate,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: _buildModeSelection(),
         );
+
       case GroupStep.join:
         return GroupJoinPage(
-          onBack: () => setState(() => step = GroupStep.mode),
+          groupApiOverride: _api,
+          groupCoordinatorOverride: widget.groupCoordinatorOverride,
+          onBack: resetToMode,
           onJoined: goLobbyFromJoin,
         );
+
       case GroupStep.lobby:
-        return GroupLobbyPage(
-          lobby: lobby,
-          onBack: () => setState(() => step = GroupStep.mode),
+        // Ne devrait plus arriver ici car on fait une vraie navigation
+        return const Center(
+          child: CircularProgressIndicator(color: TuuurTheme.brandPurple),
         );
     }
   }
@@ -127,83 +296,29 @@ class _GroupModePageState extends State<GroupModePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header (responsive)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 420;
-
-            final left = Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const FaIcon(
-                  FontAwesomeIcons.users,
-                  color: TuuurTheme.brandPurple,
-                  size: 28, // légèrement plus compact
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Mode Groupe',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 26, // compact
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
-                  ),
-                ),
-              ].animate().fadeIn(duration: 500.ms).slideX(begin: -0.25),
-            );
-
-            final right = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: TuuurStyles.pill.copyWith(
-                color: TuuurTheme.brandDarkGray.withOpacity(0.8),
-                border: Border.all(
-                  color: TuuurTheme.brandOrange.withOpacity(0.3),
-                ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const FaIcon(
+              FontAwesomeIcons.users,
+              color: TuuurTheme.brandPurple,
+              size: 28,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Mode Groupe',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w600,
+                color: TuuurTheme.brandLightGray,
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.house,
-                    color: TuuurTheme.brandOrange,
-                    size: 12,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Local / Affichage uniquement',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: TuuurTheme.brandOrange,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(delay: 250.ms);
-
-            if (narrow) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [left, const SizedBox(height: 10), right],
-              );
-            }
-
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(child: left),
-                const SizedBox(width: 12),
-                right,
-              ],
-            );
-          },
+            ),
+          ].animate().fadeIn(duration: 500.ms).slideX(begin: -0.25),
         ),
         const SizedBox(height: 24),
 
-        // Interactive Cards (responsive, 1 colonne mobile / 2 colonnes desktop)
         LayoutBuilder(
           builder: (context, constraints) {
             final twoCols = constraints.maxWidth >= 680;
@@ -214,7 +329,6 @@ class _GroupModePageState extends State<GroupModePage> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 20,
-                // pas de childAspectRatio rigide → la hauteur s’adapte au contenu
                 children: [
                   _buildModeCard(
                     icon: FontAwesomeIcons.gamepad,
@@ -222,14 +336,15 @@ class _GroupModePageState extends State<GroupModePage> {
                     description:
                         'Définissez les paramètres et partagez le code/QR avec vos amis.',
                     color: TuuurTheme.brandPurple,
-                    onTap: () => setState(() => step = GroupStep.create),
+                    onTap: _creatingParty ? null : _createPartyDirectly,
                     delay: 0,
+                    isLoading: _creatingParty,
                   ),
                   _buildModeCard(
                     icon: FontAwesomeIcons.rocket,
                     title: 'Rejoindre une partie',
                     description:
-                        'Entrez un code pour rejoindre le lobby et commencer l\'aventure.',
+                      "Entrez un code pour rejoindre le lobby et commencer l'aventure.",
                     color: TuuurTheme.brandOrange,
                     onTap: () => setState(() => step = GroupStep.join),
                     delay: 180,
@@ -238,116 +353,30 @@ class _GroupModePageState extends State<GroupModePage> {
               );
             }
 
-            // Mobile : une seule colonne, cartes pleine largeur
             return Column(
               children: [
                 _buildModeCard(
                   icon: FontAwesomeIcons.gamepad,
                   title: 'Créer une partie',
                   description:
-                      'Définissez les paramètres et partagez le code/QR avec vos amis.',
+                      'Créez instantanément un lobby et partagez le code.',
                   color: TuuurTheme.brandPurple,
-                  onTap: () => setState(() => step = GroupStep.create),
+                  onTap: _creatingParty ? null : _createPartyDirectly,
                   delay: 0,
+                  isLoading: _creatingParty,
                 ),
                 const SizedBox(height: 16),
                 _buildModeCard(
                   icon: FontAwesomeIcons.rocket,
                   title: 'Rejoindre une partie',
                   description:
-                      'Entrez un code pour rejoindre le lobby et commencer l\'aventure.',
+                      'Entrez un code (UUID ou TUR-xxxx si ton backend en génère un).',
                   color: TuuurTheme.brandOrange,
                   onTap: () => setState(() => step = GroupStep.join),
                   delay: 160,
                 ),
               ],
             );
-          },
-        ),
-        const SizedBox(height: 24),
-
-        // Tips Section (responsive)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 420;
-            final icon = Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: TuuurTheme.brandGreen.withOpacity(0.2),
-              ),
-              child: const Center(
-                child: FaIcon(
-                  FontAwesomeIcons.lightbulb,
-                  color: TuuurTheme.brandGreen,
-                  size: 14,
-                ),
-              ),
-            ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 1800.ms);
-
-            final textBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    FaIcon(
-                      FontAwesomeIcons.bullseye,
-                      color: TuuurTheme.brandPurple,
-                      size: 12,
-                    ),
-                    SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Conseils pour une partie réussie',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: TuuurTheme.brandLightGray,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ...[
-                  '• Choisissez des catégories que tous les joueurs apprécient',
-                  '• Utilisez le mélange de questions pour plus de surprise',
-                  '• Partagez le QR code pour un accès rapide',
-                ].map(
-                  (tip) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      tip,
-                      style: const TextStyle(
-                        color: TuuurTheme.brandGray,
-                        fontSize: 13,
-                        height: 1.3,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-
-            return Container(
-              padding: const EdgeInsets.all(18), // compact
-              decoration: TuuurStyles.gamingCard,
-              child: narrow
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [icon, const SizedBox(height: 10), textBlock],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        icon,
-                        const SizedBox(width: 14),
-                        Expanded(child: textBlock),
-                      ],
-                    ),
-            ).animate().fadeIn(delay: 450.ms).slideY(begin: 0.25);
           },
         ),
       ],
@@ -359,34 +388,45 @@ class _GroupModePageState extends State<GroupModePage> {
     required String title,
     required String description,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
     required int delay,
+    bool isLoading = false,
   }) {
     return GestureDetector(
           onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(18), // compact
-            decoration: TuuurStyles.gamingCard.copyWith(
-              border: Border.all(color: color.withOpacity(0.28), width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: color.withOpacity(0.2),
+          child: Opacity(
+            opacity: onTap == null ? 0.6 : 1.0,
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: TuuurStyles.gamingCard.copyWith(
+                border: Border.all(color: color.withOpacity(0.28), width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: color.withOpacity(0.2),
+                        ),
+                        child: Center(
+                          child: isLoading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: color,
+                                  ),
+                                )
+                              : FaIcon(icon, color: color, size: 18),
+                        ),
                       ),
-                      child: Center(
-                        child: FaIcon(icon, color: color, size: 18),
-                      ),
-                    ),
                     const Spacer(),
-                    // petit accent animé discret
                     Container(
                       width: 0,
                       height: 2,
@@ -424,7 +464,8 @@ class _GroupModePageState extends State<GroupModePage> {
               ],
             ),
           ),
-        )
+        ),
+      )
         .animate()
         .fadeIn(delay: delay.ms, duration: 500.ms)
         .slideY(begin: 0.25, end: 0)

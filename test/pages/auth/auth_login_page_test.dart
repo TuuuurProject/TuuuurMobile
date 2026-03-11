@@ -11,7 +11,8 @@ import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
 import 'package:tuuuur_flutter/api/api_module.dart';
 import 'package:tuuuur_flutter/api/api_client.dart';
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
@@ -75,16 +76,16 @@ Future<void> _pumpLogin(WidgetTester tester, {GoRouter? router}) async {
   await tester.pumpAndSettle();
 }
 
-AuthSession _makeSession() {
-  return AuthSession(
+AuthSessionDto _makeSession() {
+  return AuthSessionDto(
     user: UserDto(
-      id: 1,
+      id: '1',
       nickName: 'GoogleUser',
       email: 'test@gmail.com',
       isAdmin: false,
       isNew: false,
     ),
-    token: AuthToken(
+    token: AuthTokenDto(
       token: 'mock_access_token',
       refreshToken: 'mock_refresh_token',
       validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -313,18 +314,13 @@ void main() {
       await tester.enterText(fields.first, 'testuser');
       await tester.enterText(fields.at(1), 'password123');
 
-      // Act - appuyer sur le bouton de connexion
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
 
-      // Attendre que l'appel API commence
       await tester.pump(const Duration(milliseconds: 50));
 
-      // Le bouton de connexion devrait être désactivé ou afficher un état de chargement
-      // Un SnackBar devrait apparaître après l'API
       await tester.pump(const Duration(milliseconds: 100));
-      
-      // Vérifier qu'un SnackBar apparaît (soit succès, soit erreur)
+
       await tester.pumpAndSettle();
       expect(find.byType(SnackBar), findsOneWidget);
     });
@@ -337,14 +333,11 @@ void main() {
       await tester.enterText(fields.first, 'testuser');
       await tester.enterText(fields.at(1), 'password123');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
-      
-      // Attendre la réponse API
+
       await tester.pumpAndSettle();
 
-      // Un SnackBar devrait apparaître (succès ou erreur)
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
@@ -356,12 +349,10 @@ void main() {
       await tester.enterText(fields.first, 'testuser');
       await tester.enterText(fields.at(1), 'password123');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
       await tester.pumpAndSettle();
 
-      // Un message devrait s'afficher
       expect(find.byType(SnackBar), findsOneWidget);
     });
   });
@@ -371,10 +362,8 @@ void main() {
       final router = _createRouter();
       await _pumpLogin(tester, router: router);
 
-      // Le bouton Google est présent et affiche le bon texte
       expect(find.text('Continuer avec Google'), findsOneWidget);
-      
-      // Le bouton a l'icône Google
+
       expect(find.byWidgetPredicate((widget) =>
         widget is ElevatedButton &&
         widget.style?.backgroundColor?.resolve({}) == const Color(0xFF4285F4)
@@ -385,16 +374,12 @@ void main() {
       final router = _createRouter();
       await _pumpLogin(tester, router: router);
 
-      // Trouver le bouton Google
       final googleButton = find.text('Continuer avec Google');
       expect(googleButton, findsOneWidget);
 
-      // Note: Le test réel de GoogleSignIn nécessiterait des mocks natifs
-      // Ce test vérifie juste que le bouton est présent et cliquable
       await tester.tap(googleButton);
       await tester.pump();
 
-      // Pas d'exception levée
       expect(tester.takeException(), isNull);
     });
   });
@@ -402,7 +387,7 @@ void main() {
   group('AuthLoginPage - returnTo navigation', () {
     testWidgets('page créée avec returnTo conserve la valeur', (tester) async {
       const testReturnTo = '/profile';
-      
+
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
@@ -418,10 +403,8 @@ void main() {
       await tester.pumpWidget(_wrapWithApp(router));
       await tester.pumpAndSettle();
 
-      // Vérifier que la page est rendue
       expect(find.byType(AuthLoginPage), findsOneWidget);
-      
-      // Récupérer le widget pour vérifier returnTo
+
       final authLoginPage = tester.widget<AuthLoginPage>(find.byType(AuthLoginPage));
       expect(authLoginPage.returnTo, testReturnTo);
     });
@@ -441,11 +424,9 @@ void main() {
 
       expect(find.byType(AuthLoginPage), findsOneWidget);
 
-      // Détruire le widget
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
-      // Pas d'exception
       expect(tester.takeException(), isNull);
     });
 
@@ -457,15 +438,12 @@ void main() {
       await tester.enterText(fields.first, 'user');
       await tester.enterText(fields.at(1), 'pass');
 
-      // Commencer une action
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
 
-      // Détruire immédiatement le widget
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
-      // Pas d'exception grâce aux checks "if (!mounted)"
       expect(tester.takeException(), isNull);
     });
   });
@@ -478,7 +456,6 @@ void main() {
     });
 
     testWidgets('handleLogin success => toast cyan et navigation vers /verify', (tester) async {
-      // Arrange
       when(() => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
@@ -502,15 +479,12 @@ void main() {
       await tester.enterText(fields.first, 'testuser');
       await tester.enterText(fields.at(1), 'password123');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Assert - vérifier le toast cyan
       expect(find.text('Code envoyé par email. Vérifiez votre boîte 📬'), findsOneWidget);
-      
-      // Trouver tous les SnackBar et prendre le dernier (le plus récent)
+
       final snackBars = find.byType(SnackBar);
       expect(snackBars, findsWidgets);
       final snackBar = tester.widgetList<SnackBar>(snackBars).last;
@@ -518,15 +492,12 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Vérifier la navigation vers /verify avec les bons paramètres
       expect(find.byKey(const Key('page_verify extra={login: testuser, returnTo: null}')), findsOneWidget);
-      
-      // Vérifier que l'API a été appelée avec les bons paramètres
+
       verify(() => mockAuthApi.login(login: 'testuser', password: 'password123')).called(1);
     });
 
     testWidgets('handleLogin failure => toast orange avec message d\'erreur', (tester) async {
-      // Arrange
       when(() => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
@@ -552,14 +523,12 @@ void main() {
       await tester.enterText(fields.first, 'wronguser');
       await tester.enterText(fields.at(1), 'wrongpass');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Assert
       expect(find.text('Identifiants invalides'), findsOneWidget);
-      
+
       final snackBars = find.byType(SnackBar);
       expect(snackBars, findsWidgets);
       final snackBar = tester.widgetList<SnackBar>(snackBars).last;
@@ -567,14 +536,12 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Vérifier qu'on reste sur la page de login
       expect(find.byType(AuthLoginPage), findsOneWidget);
-      
+
       verify(() => mockAuthApi.login(login: 'wronguser', password: 'wrongpass')).called(1);
     });
 
     testWidgets('handleLogin failure sans message => toast par défaut', (tester) async {
-      // Arrange
       when(() => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
@@ -600,14 +567,12 @@ void main() {
       await tester.enterText(fields.first, 'user');
       await tester.enterText(fields.at(1), 'pass');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Assert - doit afficher le message par défaut
       expect(find.text('Connexion impossible.'), findsOneWidget);
-      
+
       final snackBars = find.byType(SnackBar);
       expect(snackBars, findsWidgets);
       final snackBar = tester.widgetList<SnackBar>(snackBars).last;
@@ -615,7 +580,6 @@ void main() {
     });
 
     testWidgets('handleLogin avec returnTo => passe returnTo à /verify', (tester) async {
-      // Arrange
       when(() => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
@@ -645,18 +609,15 @@ void main() {
       await tester.enterText(fields.first, 'user');
       await tester.enterText(fields.at(1), 'pass');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Assert
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('page_verify extra={login: user, returnTo: /profile}')), findsOneWidget);
     });
 
     testWidgets('handleLogin exception => toast d\'erreur avec message', (tester) async {
-      // Arrange
       when(() => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
@@ -677,18 +638,15 @@ void main() {
       await tester.enterText(fields.first, 'user');
       await tester.enterText(fields.at(1), 'pass');
 
-      // Act
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Assert - vérifie le message d'erreur
       expect(find.textContaining('Erreur :'), findsOneWidget);
       expect(find.textContaining('Network error'), findsOneWidget);
     });
 
     testWidgets('handleLogin vérifie mounted avant setState après succès', (tester) async {
-      // Arrange
       when(() => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
@@ -715,18 +673,14 @@ void main() {
       await tester.enterText(fields.first, 'user');
       await tester.enterText(fields.at(1), 'pass');
 
-      // Act - déclencher l'action puis détruire immédiatement
       await tester.tap(find.text('Se connecter'));
       await tester.pump();
-      
-      // Détruire le widget avant que la réponse API arrive
+
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
-      
-      // Attendre que l'API réponde
+
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Assert - pas d'exception grâce au check "if (!mounted)"
       expect(tester.takeException(), isNull);
     });
   });
@@ -739,16 +693,15 @@ void main() {
     });
 
     testWidgets('handleGoogleLogin success => toast vert et navigation', (tester) async {
-      // Arrange
-      final session = AuthSession(
+      final session = AuthSessionDto(
         user: UserDto(
-          id: 1,
+          id: '1',
           nickName: 'GoogleUser',
           email: 'test@gmail.com',
           isAdmin: false,
           isNew: false,
         ),
-        token: AuthToken(
+        token: AuthTokenDto(
           token: 'mock_access_token',
           refreshToken: 'mock_refresh_token',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -759,12 +712,10 @@ void main() {
 
       when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
           .thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
-      // Note: On ne peut pas vraiment tester GoogleSignIn car il nécessite
-      // des mocks natifs. Ce test couvre la logique après l'obtention du token.
-      
+
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
@@ -780,10 +731,9 @@ void main() {
     });
 
     testWidgets('handleGoogleLogin failure => toast orange avec message', (tester) async {
-      // Arrange
       when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
           .thenAnswer(
-        (_) async => ApiResponse<AuthSession>.err(
+        (_) async => ApiResponse<AuthSessionDto>.err(
           message: 'Compte Google non autorisé',
           statusCode: 401,
         ),
@@ -804,10 +754,9 @@ void main() {
     });
 
     testWidgets('handleGoogleLogin avec res.data null => toast d\'erreur', (tester) async {
-      // Arrange - simuler un succès HTTP mais sans données
       when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
           .thenAnswer(
-        (_) async => ApiResponse<AuthSession>.err(
+        (_) async => ApiResponse<AuthSessionDto>.err(
           message: 'Données de session manquantes',
           statusCode: 200,
         ),
@@ -828,16 +777,15 @@ void main() {
     });
 
     testWidgets('handleGoogleLogin vérifie mounted avant setState', (tester) async {
-      // Arrange
-      final session = AuthSession(
+      final session = AuthSessionDto(
         user: UserDto(
-          id: 1,
+          id: '1',
           nickName: 'GoogleUser',
           email: 'test@gmail.com',
           isAdmin: false,
           isNew: false,
         ),
-        token: AuthToken(
+        token: AuthTokenDto(
           token: 'mock_access_token',
           refreshToken: 'mock_refresh_token',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -850,13 +798,11 @@ void main() {
           .thenAnswer(
         (_) async {
           await Future.delayed(const Duration(milliseconds: 50));
-          return ApiResponse<AuthSession>.ok(session, statusCode: 200);
+          return ApiResponse<AuthSessionDto>.ok(session, statusCode: 200);
         },
       );
 
-      // Note: Ce test vérifie la logique de vérification mounted
-      // mais GoogleSignIn lui-même ne peut pas être testé sans mocks natifs
-      
+
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
@@ -901,7 +847,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Continuer avec Google'));
-      await tester.pump(); // frame après setState(true)
+      await tester.pump();
 
       expect(find.text('Connexion Google...'), findsOneWidget);
 
@@ -911,7 +857,6 @@ void main() {
         () => google.signIn(),
       ]);
 
-      // on termine le flow => account null
       signInCompleter.complete(null);
       await tester.pumpAndSettle();
 
@@ -965,7 +910,7 @@ void main() {
     testWidgets('API refuse (res.ok == false) => toast orange avec message', (tester) async {
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.err(message: 'Compte Google non autorisé', statusCode: 401),
+        (_) async => ApiResponse<AuthSessionDto>.err(message: 'Compte Google non autorisé', statusCode: 401),
       );
 
       final router = _routerForGoogle(authApi: authApi, google: google);
@@ -987,7 +932,7 @@ void main() {
       final session = _makeSession();
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
       final router = _routerForGoogle(
@@ -1010,7 +955,7 @@ void main() {
       final session = _makeSession();
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
       final router = _routerForGoogle(
@@ -1029,7 +974,6 @@ void main() {
       await tester.tap(find.text('Continuer avec Google'));
       await tester.pumpAndSettle();
 
-      // doit revenir sur '/'
       expect(find.byKey(const Key('go_login')), findsOneWidget);
     });
 
@@ -1037,7 +981,7 @@ void main() {
       final session = _makeSession();
       _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSession>.ok(session, statusCode: 200),
+        (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
       final router = _routerForGoogle(authApi: authApi, google: google, initialLocation: '/login');
@@ -1082,11 +1026,9 @@ void main() {
       await tester.tap(find.text('Continuer avec Google'));
       await tester.pump();
 
-      // dispose immédiat
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
-      // laisser le Future se terminer
       await tester.pump(const Duration(milliseconds: 120));
 
       expect(tester.takeException(), isNull);
@@ -1097,7 +1039,7 @@ void main() {
 
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer((_) async {
         await Future.delayed(const Duration(milliseconds: 80));
-        return ApiResponse<AuthSession>.ok(_makeSession(), statusCode: 200);
+        return ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200);
       });
 
       final router = _routerForGoogle(authApi: authApi, google: google);
@@ -1107,7 +1049,6 @@ void main() {
       await tester.tap(find.text('Continuer avec Google'));
       await tester.pump();
 
-      // dispose avant la réponse API
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 

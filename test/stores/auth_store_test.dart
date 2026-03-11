@@ -1,19 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 
-// Note: Les tests AuthStore nécessiteraient une refactorisation pour permettre l'injection
-// du FlutterSecureStorage. Pour l'instant, nous testons uniquement les DTOs.
+
+
 
 void main() {
-  // Les tests du AuthStore singleton nécessitent un binding Flutter initialisé
-  // et ne peuvent pas être facilement mockés sans refactorisation de la classe.
-  // Ils sont commentés pour l'instant.
+
+
+
 
   group('UserDto', () {
     test('fromJson crée une instance correcte', () {
       final json = {
-        'id': 42,
+        'id': '42',
         'nickName': 'johndoe',
         'email': 'john@example.com',
         'avatar': 'avatar.png',
@@ -23,7 +24,7 @@ void main() {
 
       final user = UserDto.fromJson(json);
 
-      expect(user.id, equals(42));
+      expect(user.id, equals('42'));
       expect(user.nickName, equals('johndoe'));
       expect(user.email, equals('john@example.com'));
       expect(user.avatar, equals('avatar.png'));
@@ -44,7 +45,7 @@ void main() {
 
     test('toJson sérialise correctement', () {
       final user = UserDto(
-        id: 1,
+        id: '1',
         nickName: 'test',
         email: 'test@example.com',
         avatar: 'avatar.jpg',
@@ -54,7 +55,7 @@ void main() {
 
       final json = user.toJson();
 
-      expect(json['id'], equals(1));
+      expect(json['id'], equals('1'));
       expect(json['nickName'], equals('test'));
       expect(json['email'], equals('test@example.com'));
       expect(json['avatar'], equals('avatar.jpg'));
@@ -63,7 +64,7 @@ void main() {
     });
   });
 
-  group('AuthToken', () {
+  group('AuthTokenDto', () {
     test('fromJson crée une instance correcte', () {
       final json = {
         'token': 'abc123',
@@ -71,7 +72,7 @@ void main() {
         'validTo': '2024-12-31T23:59:59.999Z',
       };
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('abc123'));
       expect(token.validFrom, isNotNull);
@@ -81,7 +82,7 @@ void main() {
     test('fromJson gère les dates nulles', () {
       final json = {'token': 'abc123'};
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('abc123'));
       expect(token.validFrom, isNull);

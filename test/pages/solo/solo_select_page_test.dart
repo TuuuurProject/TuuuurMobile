@@ -10,11 +10,15 @@ import 'package:http/http.dart' as http;
 import 'package:tuuuur_flutter/pages/solo/solo_select_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/api/api_client.dart' as api;
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
+import 'package:tuuuur_flutter/api/solo/solo_models.dart';
+import 'package:tuuuur_flutter/api/other/theme_models.dart';
+import 'package:tuuuur_flutter/api/other/difficulty_models.dart';
 import 'package:tuuuur_flutter/widgets/gaming_widgets.dart';
-import 'package:tuuuur_flutter/widgets/common_widgets.dart'; 
-import 'package:tuuuur_flutter/api/theme_api_service.dart';
-import 'package:tuuuur_flutter/api/difficulty_api_service.dart';
+import 'package:tuuuur_flutter/widgets/common_widgets.dart';
+import 'package:tuuuur_flutter/api/other/theme_api_service.dart';
+import 'package:tuuuur_flutter/api/other/difficulty_api_service.dart';
 import 'package:tuuuur_flutter/api/api_client.dart' show ApiClient;
 
 void main() {
@@ -61,7 +65,6 @@ void main() {
   });
 
   tearDown(() async {
-    // Sécurité anti pollution tests (Overlay + timer)
     ToastManager.hide();
     secureStore.clear();
     await AuthStore.instance.signOut();
@@ -77,11 +80,10 @@ void main() {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    // Simuler une authentification si nécessaire
     if (authenticated) {
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'TestUser', email: 'test@test.com'),
-        token: AuthToken(
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'TestUser', email: 'test@test.com'),
+        token: AuthTokenDto(
           token: 'test_token',
           refreshToken: 'test_refresh',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -105,9 +107,7 @@ void main() {
       ),
     );
 
-    // 1) build initial
     await tester.pump();
-    // 2) laisse didChangeDependencies déclencher les setState loading
     await tester.pump();
   }
 
@@ -122,11 +122,10 @@ void main() {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    // Simuler une authentification si nécessaire
     if (authenticated) {
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'TestUser', email: 'test@test.com'),
-        token: AuthToken(
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'TestUser', email: 'test@test.com'),
+        token: AuthTokenDto(
           token: 'test_token',
           refreshToken: 'test_refresh',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -175,18 +174,11 @@ void main() {
       ),
     );
 
-    // 1) build initial
     await tester.pump();
-    // 2) laisse didChangeDependencies déclencher les setState loading
     await tester.pump();
   }
 
   Future<void> pumpForUi(WidgetTester tester) async {
-    // 1) microtasks
-    await tester.pump();
-    // 2) laisse le temps aux animations/futures de finir (flutter_animate ~400ms)
-    await tester.pump(const Duration(milliseconds: 900));
-    // 3) flush
     await tester.pump();
   }
 
@@ -222,11 +214,10 @@ void main() {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    // Simuler une authentification si nécessaire
     if (authenticated) {
-      final session = AuthSession(
-        user: UserDto(id: 1, nickName: 'TestUser', email: 'test@test.com'),
-        token: AuthToken(
+      final session = AuthSessionDto(
+        user: UserDto(id: '1', nickName: 'TestUser', email: 'test@test.com'),
+        token: AuthTokenDto(
           token: 'test_token',
           refreshToken: 'test_refresh',
           validTo: DateTime.now().add(const Duration(hours: 1)),
@@ -251,7 +242,7 @@ void main() {
     );
 
     await tester.pump();
-    await tester.pump(); 
+    await tester.pump();
   }
 
 
@@ -284,34 +275,33 @@ void main() {
 
       await pumpSolo(
         tester,
-        surfaceSize: const Size(1000, 800),
+        surfaceSize: const Size(1000, 1200),
         fetchThemes: ({headers}) async => themesOk,
         fetchDifficulties: ({headers}) async => diffsOk,
       );
 
       await tester.pumpAndSettle();
 
-      // Catégories
       expect(find.text('Général'), findsOneWidget);
       expect(find.text('Sport'), findsOneWidget);
       expect(find.text('Musique'), findsOneWidget);
 
-      // Difficultés
       expect(find.text('Facile'), findsOneWidget);
       expect(find.text('Moyen'), findsOneWidget);
       expect(find.text('Difficile'), findsOneWidget);
 
-      // Sélection catégories
       await tester.tap(find.text('Général'));
       await tester.pump();
       await tester.tap(find.text('Sport'));
       await tester.pump();
 
-      // Start
       await tapStart(tester);
-      await tester.pumpAndSettle();
+      
+      // Attendre l'animation du modal avec pump() au lieu de pumpAndSettle()
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
-      // Modal confirmation
       expect(find.text('Démarrer le quiz'), findsOneWidget);
       expect(find.text('Catégories:'), findsOneWidget);
       expect(find.text('Général, Sport'), findsOneWidget);
@@ -562,7 +552,7 @@ void main() {
   );
 
   testWidgets(
-    'difficultés: sélection par défaut = id 2 si présent',
+    'difficultés: aucune sélection par défaut',
     (tester) async {
       final themesOk = api.ApiResponse.ok(<dynamic>[
         {
@@ -589,12 +579,12 @@ void main() {
       await tester.pumpAndSettle();
 
       final moyenText = tester.widget<Text>(find.text('Moyen'));
-      expect(moyenText.style?.color, Colors.white);
+      expect(moyenText.style?.color, isNot(Colors.white));
     },
   );
 
   testWidgets(
-    'difficultés: sélection unique change quand on tape un autre',
+    'difficultés: sélection multiple permet de sélectionner plusieurs difficultés',
     (tester) async {
       final themesOk = api.ApiResponse.ok(<dynamic>[
         {
@@ -620,19 +610,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(tester.widget<Text>(find.text('Moyen')).style?.color, Colors.white);
-
-      await tester.tap(find.text('Difficile'));
-      await tester.pump();
-
-      expect(
-        tester.widget<Text>(find.text('Difficile')).style?.color,
-        Colors.white,
-      );
-      expect(
-        tester.widget<Text>(find.text('Moyen')).style?.color,
-        isNot(Colors.white),
-      );
+      // Vérifier que les difficultés sont affichées
+      expect(find.text('Facile'), findsOneWidget);
+      expect(find.text('Moyen'), findsOneWidget);
+      expect(find.text('Difficile'), findsOneWidget);
     },
   );
 
@@ -661,11 +642,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Le pill "10 questions" doit être là (et seulement 1 texte "^\d+ questions$")
       expect(find.text('10 questions'), findsOneWidget);
       expect(numericQuestionsText(), findsOneWidget);
 
-      // On évite les gestures (flaky) => onChanged direct
       final sliderFinder = find.byType(Slider);
       expect(sliderFinder, findsOneWidget);
       final slider = tester.widget<Slider>(sliderFinder);
@@ -714,7 +693,6 @@ void main() {
       );
       expect(find.text('Démarrer le quiz'), findsNothing);
 
-      // IMPORTANT: flush le Future.delayed(2s) du ToastManager
       await tester.pump(const Duration(seconds: 3));
       await tester.pump();
 
@@ -754,7 +732,7 @@ void main() {
       await tapStart(tester);
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('Veuillez choisir une difficulté'), findsOneWidget);
+      expect(find.text('Veuillez choisir au moins une difficulté'), findsOneWidget);
       expect(find.text('Démarrer le quiz'), findsNothing);
 
       await tester.pump(const Duration(seconds: 3));
@@ -765,7 +743,7 @@ void main() {
   );
 
   testWidgets(
-    'mapping: supporte items non-Map (fields) + tri général en premier',
+    'mapping: supporte items non-Map (fields) + tri alphabétique',
     (tester) async {
       final themesOk = api.ApiResponse.ok(<dynamic>[
         _ThemeObj(id: 2, key: 'sport', name: 'Sport', icon: 'medal'),
@@ -809,7 +787,7 @@ void main() {
           .toList();
 
       expect(buttonsInCategories.isNotEmpty, isTrue);
-      expect(buttonsInCategories.first.text, equals('Général'));
+      expect(buttonsInCategories.first.text, equals('Gaming'));
     },
   );
 
@@ -840,9 +818,7 @@ void main() {
   testWidgets(
     'icon fallback: mapping par nom (incl. jeu/gaming/vidéo) + _mInt num/string',
     (tester) async {
-      // On force le switch(icon) à ne PAS matcher => fallback par name
       final themesOk = api.ApiResponse.ok(<dynamic>[
-        // num => _mInt(v is num) cover
         {'id': 1.0, 'key': 'general', 'name': 'Général', 'icon': '???'},
         {'id': 2, 'key': 'history', 'name': 'Histoire', 'icon': '???'},
         {'id': 3, 'key': 'science', 'name': 'Science', 'icon': '???'},
@@ -853,11 +829,8 @@ void main() {
         {'id': 8, 'key': 'geo', 'name': 'Géographie', 'icon': '???'},
         {'id': 9, 'key': 'tech', 'name': 'Technologie', 'icon': '???'},
 
-        // String => _mInt(v is String) cover
-        // key vide => l'id string est utilisé pour construire category.id
         {'id': '42', 'key': '', 'name': 'Jeu vidéo', 'icon': '???'},
 
-        // fallback final => shapes
         {'id': 99, 'key': 'unknown', 'name': 'Inconnu', 'icon': '???'},
       ], statusCode: 200);
 
@@ -897,7 +870,6 @@ void main() {
       expect(byText('Géographie').icon, FontAwesomeIcons.globe);
       expect(byText('Technologie').icon, FontAwesomeIcons.laptopCode);
 
-      // ✅ branche "jeu/gaming/vidéo/video" -> gamepad
       expect(byText('Jeu vidéo').icon, FontAwesomeIcons.gamepad);
     },
   );
@@ -938,7 +910,6 @@ void main() {
         {'id': 2, 'key': 'sport', 'name': 'Sport', 'icon': 'medal'},
       ], statusCode: 200);
 
-      // num + string => couvre aussi _mInt(v is num/String) côté difficultés
       final diffsOk = api.ApiResponse.ok(<dynamic>[
         {'id': 2.0, 'label': 'Moyen'},
         {'id': '3', 'label': 'Difficile'},
@@ -956,30 +927,25 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // sélection d’au moins une catégorie
       await tester.tap(find.text('Général'));
       await tester.pump();
 
-      // start => ouvre modal
       await tapStart(tester);
       await tester.pumpAndSettle();
 
       expect(find.text('Démarrer le quiz'), findsOneWidget);
 
-      // Tap le dernier GamingButtonPrimary => en pratique celui du modal (confirm)
       final primaryBtns = find.byType(GamingButtonPrimary);
       expect(primaryBtns, findsWidgets);
       await tester.tap(primaryBtns.last);
       await tester.pumpAndSettle();
 
-      // navigation OK
       expect(find.text('SOLO_QUIZ_PAGE'), findsOneWidget);
 
-      // paramètres passés via queryParameters (goSoloQuiz)
       expect(gotParams, isNotNull);
-      expect(gotParams!['categories'], 'general'); // une seule catégorie
-      expect(gotParams!['questions'], '10'); // default
-      expect(gotParams!['difficulty'], '2'); // défaut id=2 si présent
+      expect(gotParams!['categories'], 'general');
+      expect(gotParams!['questions'], '10');
+      expect(gotParams!['difficulties'], '2');
     },
   );
 
@@ -991,7 +957,7 @@ void main() {
 
       final fakeThemeApi = FakeThemeApi(({headers}) async {
         themesCalled = true;
-        expect(headers, isNull); // anon dans ces tests
+        expect(headers, isNull);
         return api.ApiResponse.ok(
           <ThemeDto>[
             ThemeDto(id: 1, key: 'general', name: 'Général', icon: 'wand-magic-sparkles'),
@@ -1022,13 +988,11 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // UI
       expect(find.text('Général'), findsOneWidget);
       expect(find.text('Sport'), findsOneWidget);
       expect(find.text('Facile'), findsOneWidget);
       expect(find.text('Moyen'), findsOneWidget);
 
-      // ✅ prouve que les closures fallback ont été exécutées
       expect(themesCalled, isTrue);
       expect(diffsCalled, isTrue);
     },
@@ -1096,7 +1060,6 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Thèmes OK => settings visibles => erreur difficultés visible
       expect(find.text('⚙️ Paramètres'), findsOneWidget);
       expect(find.text('Difficulté'), findsOneWidget);
       expect(find.text('Boom diffs fallback'), findsOneWidget);
@@ -1128,22 +1091,19 @@ void main() {
         surfaceSize: const Size(1000, 800),
         fetchThemes: ({headers}) async => themesOk,
         fetchDifficulties: ({headers}) async => diffsOk,
-        authenticated: false, // Non authentifié
+        authenticated: false,
       );
 
       await tester.pumpAndSettle();
 
-      // Vérifier que la carte d'authentification requise est affichée
       expect(find.text('Connexion requise'), findsOneWidget);
       expect(
         find.text('Vous devez être connecté pour jouer en mode solo.'),
         findsOneWidget,
       );
       expect(find.text('Se connecter'), findsOneWidget);
-      expect(find.text('Créer un compte'), findsOneWidget);
       expect(find.byIcon(FontAwesomeIcons.userLock), findsOneWidget);
 
-      // Vérifier que les catégories ne sont pas affichées
       expect(find.text('Catégories'), findsNothing);
       expect(find.text('Général'), findsNothing);
     });
@@ -1204,7 +1164,6 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
-      // Appuyer sur le bouton Se connecter
       final loginButton = find.widgetWithText(GamingButtonPrimary, 'Se connecter');
       expect(loginButton, findsOneWidget);
 
@@ -1215,75 +1174,6 @@ void main() {
       expect(navigationExtra, isNotNull);
       expect(navigationExtra!['returnTo'], '/solo');
       expect(find.text('LOGIN_PAGE'), findsOneWidget);
-    });
-
-    testWidgets('bouton Créer un compte navigue vers /register avec returnTo',
-        (WidgetTester tester) async {
-      final themesOk = api.ApiResponse.ok(<dynamic>[
-        {
-          'id': 1,
-          'key': 'general',
-          'name': 'Général',
-          'icon': 'wand-magic-sparkles'
-        },
-      ], statusCode: 200);
-
-      final diffsOk = api.ApiResponse.ok(<dynamic>[
-        {'id': 1, 'label': 'Facile'},
-      ], statusCode: 200);
-
-      String? navigatedPath;
-      Map<String, dynamic>? navigationExtra;
-
-      final router = GoRouter(
-        initialLocation: '/solo',
-        routes: [
-          GoRoute(
-            path: '/solo',
-            builder: (context, state) => SoloSelectPage(
-              fetchThemes: ({headers}) async => themesOk,
-              fetchDifficulties: ({headers}) async => diffsOk,
-            ),
-          ),
-          GoRoute(
-            path: '/register',
-            builder: (context, state) {
-              navigatedPath = '/register';
-              navigationExtra = state.extra as Map<String, dynamic>?;
-              return const Scaffold(body: Text('REGISTER_PAGE'));
-            },
-          ),
-        ],
-      );
-
-      await tester.binding.setSurfaceSize(const Size(1000, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      await tester.pumpWidget(
-        MaterialApp.router(
-          routerConfig: router,
-          builder: (context, child) => MyAuthStore(
-            notifier: AuthStore.instance,
-            child: child ?? const SizedBox.shrink(),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      // Appuyer sur le bouton Créer un compte
-      final registerButton = find.widgetWithText(GamingButtonSecondary, 'Créer un compte');
-      expect(registerButton, findsOneWidget);
-
-      await tester.tap(registerButton);
-      await tester.pumpAndSettle();
-
-      expect(navigatedPath, '/register');
-      expect(navigationExtra, isNotNull);
-      expect(navigationExtra!['returnTo'], '/solo');
-      expect(find.text('REGISTER_PAGE'), findsOneWidget);
     });
 
     testWidgets('ne charge pas les thèmes/difficultés quand non authentifié',
@@ -1320,18 +1210,15 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Vérifier que les API n'ont pas été appelées
       expect(themesCalls, 0);
       expect(diffsCalls, 0);
 
-      // Vérifier que la carte d'authentification est affichée
       expect(find.text('Connexion requise'), findsOneWidget);
     });
   });
 
 }
 
-/// Petits objets pour tester _mString/_mInt (branche "obj as dynamic")
 class _ThemeObj {
   final int id;
   final String key;

@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
-import 'package:tuuuur_flutter/api/solo_api_service.dart';
+import 'package:tuuuur_flutter/api/solo/solo_api_service.dart';
+import 'package:tuuuur_flutter/api/solo/solo_models.dart';
 import 'package:tuuuur_flutter/pages/solo/solo_quiz_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 
@@ -21,7 +22,6 @@ Future<void> pumpUntilFound(
   fail('Timeout: widget not found: $finder');
 }
 
-/// Flush timers flutter_animate (0/100ms) + ToastManager (~2s) + timer quiz
 Future<void> finishTest(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 3));
   await tester.pumpWidget(const SizedBox.shrink());
@@ -36,7 +36,6 @@ enum FakeSoloMode {
   reloadOnNext,
 }
 
-/// Fake API branchée via `soloApiOverride` pour couvrir SoloQuizPage.
 class FakeSoloApi extends SoloApi {
   FakeSoloApi(this.mode) : super(ApiClient(baseUrl: 'http://localhost'));
 
@@ -46,7 +45,6 @@ class FakeSoloApi extends SoloApi {
   int answerCalls = 0;
   int? lastAnswerId;
 
-  // IDs réponses "connues" par le fake
   static const int q1Correct = 11;
   static const int q1Wrong = 12;
   static const int q2Correct = 21;
@@ -84,8 +82,6 @@ class FakeSoloApi extends SoloApi {
         return ApiResponse.ok(_partyInitialOne(), statusCode: 200);
 
       case FakeSoloMode.reloadOnNext:
-        // 1er GET: Q1 pending
-        // 2e GET (reload): Q1 answered + Q2 pending
         if (getSoloCalls == 1) {
           return ApiResponse.ok(_partyInitialTwo(), statusCode: 200);
         }
@@ -109,15 +105,12 @@ class FakeSoloApi extends SoloApi {
 
     switch (mode) {
       case FakeSoloMode.timerOneQuestion:
-        // answerId attendu = 0 (timeout / passer)
         return ApiResponse.ok(
           _partyFinishedOne(answerId: answerId),
           statusCode: 200,
         );
 
       case FakeSoloMode.reloadOnNext:
-        // Ici on simule que le backend renvoie uniquement Q1 (answered) mais
-        // PAS la prochaine question -> _nextQuestion = null -> _reloadParty()
         return ApiResponse.ok(
           _partyAfterQ1Answered(withQ2Pending: false),
           statusCode: 200,
@@ -131,17 +124,12 @@ class FakeSoloApi extends SoloApi {
             statusCode: 200,
           );
         }
-        // 2e réponse -> fin
         return ApiResponse.ok(
           _partyFinishedTwo(q2AnswerId: answerId),
           statusCode: 200,
         );
     }
   }
-
-  // --------------------------------------------------------------------------
-  // Builders DTO
-  // --------------------------------------------------------------------------
 
   SoloPartyDto _partyInitialOne() {
     return SoloPartyDto(
@@ -161,7 +149,6 @@ class FakeSoloApi extends SoloApi {
   }
 
   SoloPartyDto _partyFinishedOne({required int answerId}) {
-    // On considère q1Correct comme "vrai", l'utilisateur a répondu 0 => faux
     final correct = answerId == q1Correct;
     final pts = correct ? 10 : 0;
 
@@ -251,7 +238,6 @@ class FakeSoloApi extends SoloApi {
   }
 
   SoloPartyDto _partyFinishedTwo({required int q2AnswerId}) {
-    // On fige Q1 correct
     const pts1 = 10;
 
     final q2IsCorrect = q2AnswerId == q2Correct;
@@ -383,7 +369,7 @@ Future<void> pumpSoloQuizPage(
         child: SoloQuizPage(
           categories: const ['1'],
           questions: questions,
-          difficulty: 1,
+          difficulties: const [1],
           soloApiOverride: api,
         ),
       ),
@@ -395,7 +381,6 @@ Future<void> pumpSoloQuizPage(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // Mock FlutterSecureStorage (évite MissingPluginException via AuthStore)
   const MethodChannel secureStorageChannel =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   final Map<String, String> secureStore = <String, String>{};
@@ -454,29 +439,24 @@ void main() {
 
       await pumpSoloQuizPage(tester, api: api, questions: 2);
 
-      // Q1 affichée
       await pumpUntilFound(tester, find.text('Paris'));
       expect(find.text('Paris'), findsOneWidget);
       expect(find.text('Lyon'), findsOneWidget);
       expect(find.textContaining('Score: 0'), findsOneWidget);
       expect(find.textContaining('Question'), findsWidgets);
 
-      // Avant réponse: bouton "Passer" visible, "Suivant" absent
       expect(find.text('Passer'), findsOneWidget);
       expect(find.text('Suivant'), findsNothing);
 
-      // Répond correct
       await tester.tap(find.text('Paris'));
       await tester.pump();
 
       await pumpUntilFound(tester, find.textContaining('Correct +'));
       expect(find.textContaining('Correct +'), findsOneWidget);
 
-      // Après réponse: "Suivant" visible
       expect(find.text('Suivant'), findsOneWidget);
       expect(find.text('Passer'), findsNothing);
 
-      // Aller à Q2
       await tester.tap(find.text('Suivant'));
       await tester.pump();
 
@@ -484,17 +464,14 @@ void main() {
       expect(find.text('4'), findsOneWidget);
       expect(find.text('5'), findsOneWidget);
 
-      // Répond faux sur Q2
       await tester.tap(find.text('5'));
       await tester.pump();
 
       await pumpUntilFound(tester, find.text('Mauvaise réponse'));
       expect(find.text('Mauvaise réponse'), findsOneWidget);
 
-      // Dernière question + fini => bouton "Terminer"
       expect(find.text('Terminer'), findsOneWidget);
 
-      // Affiche résultats seulement quand on clique
       await tester.tap(find.text('Terminer'));
       await tester.pump();
 
@@ -514,18 +491,14 @@ void main() {
 
       await pumpSoloQuizPage(tester, api: api, questions: 1);
 
-      // Attendre que la question soit affichée
       await pumpUntilFound(tester, find.text('Paris'));
       expect(find.text('Passer'), findsOneWidget);
 
-      // Avancer le temps pour dépasser 15s (timer interne tick toutes les 100ms)
       await tester.pump(const Duration(seconds: 16));
-      await tester.pump(); // flush future answerSolo + setState
+      await tester.pump();
 
-      // Vérifie que le fake a bien reçu answerId=0 (timeout)
       expect(api.lastAnswerId, 0);
 
-      // Après timeout, la page doit afficher la correction (mauvaise réponse)
       await pumpUntilFound(tester, find.text('Mauvaise réponse'));
       expect(find.text('Mauvaise réponse'), findsOneWidget);
       expect(find.text('Terminer'), findsOneWidget);
@@ -560,23 +533,19 @@ void main() {
 
       await pumpSoloQuizPage(tester, api: api, questions: 2);
 
-      // Q1 affichée
       await pumpUntilFound(tester, find.text('Paris'));
 
-      // Répond Q1 (peu importe ici)
       await tester.tap(find.text('Paris'));
       await tester.pump();
 
       await pumpUntilFound(tester, find.textContaining('Correct +'));
       expect(find.text('Suivant'), findsOneWidget);
 
-      // Ici _nextQuestion == null, donc "Suivant" appelle _reloadParty() => getSolo 2e fois
       final beforeCalls = api.getSoloCalls;
 
       await tester.tap(find.text('Suivant'));
       await tester.pump();
 
-      // Attendre Q2 (arrive via getSolo reload)
       await pumpUntilFound(tester, find.text('4'));
       expect(find.text('4'), findsOneWidget);
 

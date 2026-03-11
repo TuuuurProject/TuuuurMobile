@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TuuurTheme {
@@ -17,6 +18,70 @@ class TuuurTheme {
   static const Color brandLightGray = Color(0xFFE1E5E9);
   static const Color brandGray = Color(0xFF8B9AA8);
   static const Color brandWhite = Color(0xFFFFFFFF);
+
+  // Couleurs de difficulté (identiques à la version web)
+  static const Color difficultyEasy = Color(0xFF10b981); // vert
+  static const Color difficultyMedium = Color(0xFFf59e0b); // jaune/ambre
+  static const Color difficultyHard = Color(0xFFf97316); // orange
+  static const Color difficultyHardcore = Color(0xFFef4444); // rouge
+
+  // Labels de difficulté unifiés
+  static const String difficultyEasyLabel = 'Facile';
+  static const String difficultyMediumLabel = 'Moyen';
+  static const String difficultyHardLabel = 'Difficile';
+  static const String difficultyHardcoreLabel = 'Hardcore';
+
+  /// Retourne le label d'une difficulté en fonction de son ID
+  static String labelForDifficulty(int id) {
+    switch (id) {
+      case 1:
+        return difficultyEasyLabel;
+      case 2:
+        return difficultyMediumLabel;
+      case 3:
+        return difficultyHardLabel;
+      case 4:
+        return difficultyHardcoreLabel;
+      default:
+        return 'Inconnu';
+    }
+  }
+
+  /// Retourne la couleur associée à une difficulté en fonction de son ID ou label
+  static Color colorForDifficulty({int? id}) {
+    if (id != null) {
+      switch (id) {
+        case 1:
+          return difficultyEasy;
+        case 2:
+          return difficultyMedium;
+        case 3:
+          return difficultyHard;
+        case 4:
+          return difficultyHardcore;
+      }
+    }
+
+    return brandGray;
+  }
+
+  /// Retourne l'icône associée à une difficulté en fonction de son ID ou label
+  static IconData iconForDifficulty({int? id}) {
+    if (id != null) {
+      switch (id) {
+        case 1:
+          return FontAwesomeIcons.seedling;
+        case 2:
+          return FontAwesomeIcons.bolt;
+        case 3:
+          return FontAwesomeIcons.fire;
+        case 4:
+          return FontAwesomeIcons.skull;
+      }
+    }
+
+    return FontAwesomeIcons.gaugeHigh;
+  }
 
   // Gradients gaming
   static const LinearGradient gamingGradient = LinearGradient(
@@ -310,4 +375,30 @@ class TuuurStyles {
         ),
         boxShadow: selected ? TuuurTheme.neonShadow : null,
       );
+
+  // Category Button avec couleur personnalisée (pour les difficultés)
+  static BoxDecoration categoryButtonWithColor({
+    required bool selected,
+    required Color color,
+  }) => BoxDecoration(
+    // Fond sombre semi-transparent (plus opaque si sélectionné)
+    color: selected
+        ? TuuurTheme.brandDarkGray.withOpacity(0.8)
+        : TuuurTheme.brandDarkGray.withOpacity(0.5),
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(
+      // Bordure de la couleur si sélectionné, sinon bordure claire transparente
+      color: selected ? color : TuuurTheme.brandLightGray.withOpacity(0.1),
+      width: 2,
+    ),
+    boxShadow: selected
+        ? [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 20,
+              spreadRadius: 0,
+            ),
+          ]
+        : null,
+  );
 }

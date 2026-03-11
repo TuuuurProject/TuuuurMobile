@@ -19,6 +19,12 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Message de confirmation pour le clic sur "Tuuuur" (retour à l'accueil).
   final String homeConfirmMessage;
 
+  /// Callback appelée avant de naviguer en arrière (pour nettoyage).
+  final Future<void> Function()? onBackPressed;
+
+  /// Callback appelée avant de naviguer vers l'accueil (pour nettoyage).
+  final Future<void> Function()? onHomePressed;
+
   const NavigationHeader({
     super.key,
     this.showBack = false,
@@ -27,6 +33,8 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
     this.backConfirmMessage = 'Voulez-vous vraiment retourner en arrière ?',
     this.homeConfirmMessage =
         'Êtes-vous sûr de vouloir retourner à l\'accueil ?',
+    this.onBackPressed,
+    this.onHomePressed,
   });
 
   @override
@@ -61,7 +69,14 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
                     context,
                     confirm: confirmOnBack,
                     message: backConfirmMessage,
-                    action: () => context.goBack(),
+                    action: () async {
+                      if (onBackPressed != null) {
+                        await onBackPressed!();
+                      }
+                      if (context.mounted) {
+                        context.goBack();
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -85,7 +100,14 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
         context,
         confirm: confirmOnHome,
         message: homeConfirmMessage,
-        action: () => context.goHome(),
+        action: () async {
+          if (onHomePressed != null) {
+            await onHomePressed!();
+          }
+          if (context.mounted) {
+            context.goHome();
+          }
+        },
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -93,25 +115,14 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Logo
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [TuuurTheme.brandPurple, TuuurTheme.brandOrange],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: TuuurTheme.brandPurple.withOpacity(0.3),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(Icons.quiz, color: Colors.white, size: 16),
-              ),
+            ClipOval(
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 80,
+               height: 80,
+                fit: BoxFit.cover, // remplit le cercle sans déformer
+               filterQuality: FilterQuality.high,
+             ),
             ),
             const SizedBox(width: 8),
             const Text(

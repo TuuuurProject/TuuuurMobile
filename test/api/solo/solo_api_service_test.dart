@@ -3,7 +3,8 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
-import 'package:tuuuur_flutter/api/solo_api_service.dart';
+import 'package:tuuuur_flutter/api/solo/solo_api_service.dart';
+import 'package:tuuuur_flutter/api/solo/solo_models.dart';
 
 import 'solo_api_service_test.mocks.dart';
 

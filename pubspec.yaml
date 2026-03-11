@@ -30,6 +30,10 @@ dependencies:
   google_sign_in: ^6.2.1
   auto_size_text: ^3.0.0
   http: any
+  # WebSocket SignalR pour mode groupe
+  signalr_core: ^1.1.1
+  # Confetti pour animations de résultats
+  confetti: ^0.7.0
 
 dev_dependencies:
   flutter_test:

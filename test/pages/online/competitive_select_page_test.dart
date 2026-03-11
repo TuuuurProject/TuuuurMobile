@@ -21,7 +21,6 @@ Future<void> _pumpCompetitiveSelect(
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        // Comme c'est un gros Column, on wrap en scroll en test
         body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -35,23 +34,23 @@ Future<void> _pumpCompetitiveSelect(
     ),
   );
 
+  // Pump several frames to let animations start
   await tester.pump();
-  // Pas de pumpAndSettle() (animations repeat)
-  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 Future<void> _disposeTree(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
+  // Pump a few times to ensure cleanup
   await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
 }
 
-/// Toggle une catégorie en appelant directement le onTap du GestureDetector
-/// (beaucoup plus stable qu'un tap hit-test, avec flutter_animate).
 Future<void> _toggleCategoryByLabel(WidgetTester tester, String label) async {
   final labelFinder = find.text(label);
   expect(labelFinder, findsOneWidget);
 
-  // Remonte au GestureDetector du chip
   final gdFinder = find.ancestor(
     of: labelFinder,
     matching: find.byType(GestureDetector),
@@ -64,15 +63,12 @@ Future<void> _toggleCategoryByLabel(WidgetTester tester, String label) async {
       .where((gd) => gd.onTap != null)
       .toList();
 
-  // Un seul GestureDetector pour le chip
   expect(gds.length, 1);
 
   gds.single.onTap!.call();
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-/// Appuie sur un bouton GamingButton* en déclenchant onPressed.
-/// On le cible par son texte (plus robuste que byType si plusieurs).
 Future<void> _pressButtonByText(
   WidgetTester tester,
   String text,
@@ -158,7 +154,6 @@ void main() {
         onSearch: (cats) => searched = cats,
       );
 
-      // Header: on vérifie la présence de l’icône + le texte dans le même header
       final fireIcon = find.byWidgetPredicate(
         (w) => w is FaIcon && w.icon == FontAwesomeIcons.fire,
       );
@@ -174,7 +169,6 @@ void main() {
 
       expect(find.text('Choisissez vos catégories favorites'), findsOneWidget);
 
-      // Card header
       expect(find.text('Catégories de Combat'), findsOneWidget);
       expect(
         find.text(
@@ -183,13 +177,10 @@ void main() {
         findsOneWidget,
       );
 
-      // Info block
-      // "Mode Compétitif" apparaît 2 fois (header + bloc info)
       expect(find.text('Mode Compétitif'), findsNWidgets(2));
       expect(find.text('Matchmaking équilibré'), findsOneWidget);
       expect(find.text('Rang dynamique'), findsOneWidget);
 
-      // Catégories (labels)
       for (final name in const [
         'Général',
         'Histoire',
@@ -203,19 +194,15 @@ void main() {
         expect(find.text(name), findsOneWidget);
       }
 
-      // Boutons
       expect(find.text('← Retour'), findsOneWidget);
       expect(find.text('🔍 Lancer la recherche'), findsOneWidget);
 
-      // Layout wide des boutons: Row(mainAxisAlignment.end) présent
       expect(_actionsRowFinder(), findsOneWidget);
 
-      // État initial: "general" sélectionné => proceed envoie ["Général"]
       await _pressButtonByText(tester, '🔍 Lancer la recherche');
       expect(searched, isNotNull);
       expect(searched, equals(['Général']));
 
-      // Back
       await _pressButtonByText(tester, '← Retour');
       expect(backCalls, 1);
 
@@ -233,19 +220,15 @@ void main() {
         onSearch: (cats) => searched = cats,
       );
 
-      // On ajoute "Sport"
       await _toggleCategoryByLabel(tester, 'Sport');
 
-      // Recherche => ["Général", "Sport"] (ordre = celui de la liste categories)
       await _pressButtonByText(tester, '🔍 Lancer la recherche');
       expect(searched, equals(['Général', 'Sport']));
 
-      // On enlève "Général" (possible car length > 1)
       await _toggleCategoryByLabel(tester, 'Général');
       await _pressButtonByText(tester, '🔍 Lancer la recherche');
       expect(searched, equals(['Sport']));
 
-      // On tente d'enlever "Sport" (dernier restant) => doit rester sélectionné
       await _toggleCategoryByLabel(tester, 'Sport');
       await _pressButtonByText(tester, '🔍 Lancer la recherche');
       expect(searched, equals(['Sport']));
@@ -255,15 +238,11 @@ void main() {
 
     testWidgets('layout narrow : boutons empilés en Column (stretch)',
         (tester) async {
-      // NOTE:
-      // Sur certaines largeurs très étroites, il y a un RenderFlex overflow
-      // dans des sous-widgets (tags) car le contenu est un Row non-ellipsé.
-      // On ignore *uniquement* ces overflows pour pouvoir tester le layout des boutons.
       final oldOnError = FlutterError.onError;
       FlutterError.onError = (FlutterErrorDetails details) {
         final msg = details.exceptionAsString();
         if (msg.contains('A RenderFlex overflowed')) {
-          return; // ignore overflow
+          return;
         }
         if (oldOnError != null) oldOnError(details);
       };
@@ -276,14 +255,11 @@ void main() {
         onSearch: (_) {},
       );
 
-      // Textes boutons présents
       expect(find.text('← Retour'), findsOneWidget);
       expect(find.text('🔍 Lancer la recherche'), findsOneWidget);
 
-      // On vérifie que la zone boutons est en Column (narrow < 420)
       expect(_actionsColumnFinder(), findsOneWidget);
 
-      // Sur narrow: pas le Row mainAxisAlignment.end pour les boutons
       expect(_actionsRowFinder(), findsNothing);
 
       await _disposeTree(tester);

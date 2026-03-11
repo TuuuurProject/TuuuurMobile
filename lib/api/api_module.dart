@@ -1,19 +1,23 @@
 import 'package:http/http.dart' as http;
 
 import '../stores/auth_store.dart';
+import '../stores/group_coordinator.dart';
 import 'api_client.dart';
-import 'auth_api_service.dart';
-import 'difficulty_api_service.dart';
-import 'history_api_service.dart';
-import 'solo_api_service.dart';
-import 'theme_api_service.dart';
-import 'token_provider.dart';
+import 'api_config.dart';
+import 'auth/auth_api_service.dart';
+import 'other/difficulty_api_service.dart';
+import 'group/group_api_service.dart';
+import 'group/group_rest_api_service.dart';
+import 'other/history_api_service.dart';
+import 'solo/solo_api_service.dart';
+import 'other/theme_api_service.dart';
+import 'auth/token_provider.dart';
 
-/// Implémentation de TokenProvider qui utilise AuthStore.
+/// TokenProvider implementation using AuthStore.
 class _AuthStoreTokenProvider implements TokenProvider {
   final AuthStore _authStore;
   final AuthApi Function() _authApiGetter;
-  
+
   Future<void>? _refreshInProgress;
 
   _AuthStoreTokenProvider(this._authStore, this._authApiGetter);
@@ -38,13 +42,15 @@ class _AuthStoreTokenProvider implements TokenProvider {
 
     final now = DateTime.now();
     final expiresAt = token.validTo;
-    
+
     if (expiresAt == null) {
       return;
     }
 
-    final shouldRefresh = now.isAfter(expiresAt.subtract(const Duration(minutes: 5)));
-    
+    final shouldRefresh = now.isAfter(
+      expiresAt.subtract(const Duration(minutes: 5)),
+    );
+
     if (!shouldRefresh) return;
 
     final refreshToken = token.refreshToken;
@@ -58,7 +64,7 @@ class _AuthStoreTokenProvider implements TokenProvider {
     }
 
     _refreshInProgress = _performRefresh(token.token, refreshToken);
-    
+
     try {
       await _refreshInProgress;
     } finally {
@@ -78,13 +84,12 @@ class _AuthStoreTokenProvider implements TokenProvider {
         await _authStore.signInWithSession(res.data!);
       }
     } catch (e) {
-      // En cas d'erreur, on ne fait rien pour éviter de bloquer les requêtes
+      // On error, do nothing to avoid blocking requests
     }
   }
 }
 
-/// Module central pour les instances API.
-/// Crée et partage un seul http.Client et un seul ApiClient pour toutes les classes API.
+/// Central module for API instances. Shares a single http.Client and ApiClient.
 class ApiModule {
   ApiModule._();
 
@@ -100,11 +105,13 @@ class ApiModule {
   late final ThemeApi _themeApi;
   late final DifficultyApi _difficultyApi;
   late final HistoryApi _historyApi;
+  late final GroupApi _groupApi;
+  late final GroupRestApiService _groupRestApi;
+  late final GroupCoordinator _groupCoordinator;
 
   bool _initialized = false;
 
-  /// Initialise le module avec l'AuthStore.
-  /// Doit être appelé une fois au démarrage de l'application.
+  /// Initializes the module with AuthStore. Must be called once at app startup.
   void initialize({required AuthStore authStore}) {
     if (_initialized) return;
 
@@ -120,37 +127,82 @@ class ApiModule {
     _themeApi = ThemeApi(_apiClient);
     _difficultyApi = DifficultyApi(_apiClient);
     _historyApi = HistoryApi(_apiClient);
+    _groupApi = GroupApi(_apiClient);
+    _groupRestApi = GroupRestApiService(apiClient: _apiClient);
+    _groupCoordinator = GroupCoordinator.create(
+      apiClient: _apiClient,
+      tokenProvider: _tokenProvider,
+      webSocketHubUrl: ApiConfig.groupWebSocketUrl,
+    );
 
     _initialized = true;
   }
 
-  /// Accès aux instances API.
   AuthApi get authApi {
-    assert(_initialized, 'ApiModule.initialize() doit être appelé avant d\'utiliser les API');
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
     return _authApi;
   }
 
   SoloApi get soloApi {
-    assert(_initialized, 'ApiModule.initialize() doit être appelé avant d\'utiliser les API');
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
     return _soloApi;
   }
 
   ThemeApi get themeApi {
-    assert(_initialized, 'ApiModule.initialize() doit être appelé avant d\'utiliser les API');
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
     return _themeApi;
   }
 
   DifficultyApi get difficultyApi {
-    assert(_initialized, 'ApiModule.initialize() doit être appelé avant d\'utiliser les API');
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
     return _difficultyApi;
   }
 
   HistoryApi get historyApi {
-    assert(_initialized, 'ApiModule.initialize() doit être appelé avant d\'utiliser les API');
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
     return _historyApi;
   }
 
-  /// Dispose des ressources (à appeler à la fermeture de l'app si nécessaire).
+  GroupApi get groupApi {
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
+    return _groupApi;
+  }
+
+  GroupRestApiService get groupRestApi {
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
+    return _groupRestApi;
+  }
+
+  GroupCoordinator get groupCoordinator {
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
+    return _groupCoordinator;
+  }
+
+  /// Disposes resources.
   void dispose() {
     if (_initialized) {
       _apiClient.dispose();

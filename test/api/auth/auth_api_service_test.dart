@@ -3,7 +3,8 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
-import 'package:tuuuur_flutter/api/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 
 import 'auth_api_service_test.mocks.dart';
 
@@ -22,7 +23,7 @@ void main() {
 
       final user = UserDto.fromJson(json);
 
-      expect(user.id, equals(123));
+      expect(user.id, equals('123'));
       expect(user.nickName, equals('testUser'));
       expect(user.email, equals('test@example.com'));
       expect(user.avatar, equals('avatar.png'));
@@ -43,19 +44,19 @@ void main() {
 
     test('fromJson gère les types de données variés', () {
       final json = {
-        'id': '456', // String au lieu de int
-        'isAdmin': 'true', // String au lieu de bool
+        'id': '456',
+        'isAdmin': 'true',
       };
 
       final user = UserDto.fromJson(json);
 
-      expect(user.id, equals(456));
+      expect(user.id, equals('456'));
       expect(user.isAdmin, isTrue);
     });
 
     test('toJson sérialise correctement', () {
       final user = UserDto(
-        id: 1,
+        id: '1',
         nickName: 'John',
         email: 'john@test.com',
         avatar: 'pic.jpg',
@@ -65,7 +66,7 @@ void main() {
 
       final json = user.toJson();
 
-      expect(json['id'], equals(1));
+      expect(json['id'], equals('1'));
       expect(json['nickName'], equals('John'));
       expect(json['email'], equals('john@test.com'));
       expect(json['avatar'], equals('pic.jpg'));
@@ -74,7 +75,7 @@ void main() {
     });
   });
 
-  group('AuthToken', () {
+  group('AuthTokenDto', () {
     test('fromJson crée un token valide', () {
       final json = {
         'token': 'test_token_abc123',
@@ -82,7 +83,7 @@ void main() {
         'validTo': '2024-12-31T23:59:59Z',
       };
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('test_token_abc123'));
       expect(token.validFrom, isNotNull);
@@ -92,7 +93,7 @@ void main() {
     test('fromJson gère un token sans dates', () {
       final json = {'token': 'simple_token'};
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('simple_token'));
       expect(token.validFrom, isNull);
@@ -100,19 +101,19 @@ void main() {
     });
 
     test('fromJson utilise une string vide si token manquant', () {
-      final token = AuthToken.fromJson({});
+      final token = AuthTokenDto.fromJson({});
 
       expect(token.token, equals(''));
     });
   });
 
-  group('AuthSession', () {
+  group('AuthSessionDto', () {
     test('crée une session complète', () {
-      final user = UserDto(id: 1, nickName: 'test');
-      final token = AuthToken(token: 'abc');
+      final user = UserDto(id: '1', nickName: 'test');
+      final token = AuthTokenDto(token: 'abc');
       final raw = {'extra': 'data'};
 
-      final session = AuthSession(
+      final session = AuthSessionDto(
         user: user,
         token: token,
         isGoogleUser: false,
@@ -126,10 +127,10 @@ void main() {
     });
   });
 
-  group('RegisterResult', () {
+  group('RegisterResultDto', () {
     test('crée un résultat d\'inscription', () {
       final raw = {'status': 'pending'};
-      final result = RegisterResult(
+      final result = RegisterResultDto(
         verificationRequired: true,
         delivery: 'email',
         raw: raw,
@@ -143,9 +144,9 @@ void main() {
     });
   });
 
-  group('LoginResult', () {
+  group('LoginResultDto', () {
     test('crée un résultat de login avec 2FA', () {
-      final result = LoginResult(
+      final result = LoginResultDto(
         requires2fa: true,
         delivery: 'sms',
         emailHint: '+33***1234',
@@ -158,16 +159,16 @@ void main() {
     });
 
     test('crée un résultat de login direct', () {
-      final user = UserDto(id: 1);
-      final token = AuthToken(token: 'token');
-      final session = AuthSession(
+      final user = UserDto(id: '1');
+      final token = AuthTokenDto(token: 'token');
+      final session = AuthSessionDto(
         user: user,
         token: token,
         isGoogleUser: false,
         raw: {},
       );
 
-      final result = LoginResult(
+      final result = LoginResultDto(
         requires2fa: false,
         session: session,
       );
@@ -527,7 +528,7 @@ void main() {
         );
 
         expect(result.ok, isTrue);
-        expect(result.data?.id, equals(123));
+        expect(result.data?.id, equals('123'));
         expect(result.data?.nickName, equals('UpdatedUser'));
         expect(result.data?.email, equals('user@test.com'));
       });
@@ -557,7 +558,7 @@ void main() {
         );
 
         expect(result.ok, isTrue);
-        expect(result.data?.id, equals(456));
+        expect(result.data?.id, equals('456'));
         expect(result.data?.nickName, equals('ListUser'));
       });
 
@@ -1005,7 +1006,7 @@ void main() {
 
         expect(result.ok, isTrue);
         expect(result.data, isNotNull);
-        expect(result.data!.id, equals(42));
+        expect(result.data!.id, equals('42'));
         expect(result.data!.nickName, equals('CurrentUser'));
         expect(result.data!.email, equals('current@example.com'));
 
@@ -1154,7 +1155,7 @@ void main() {
         'refreshTokenExpiresAt': '2026-01-22T10:00:00Z',
       };
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('access_token'));
       expect(token.refreshToken, equals('refresh_token'));
@@ -1162,7 +1163,7 @@ void main() {
     });
 
     test('toJson sérialise tous les champs', () {
-      final token = AuthToken(
+      final token = AuthTokenDto(
         token: 'access_token',
         validFrom: DateTime.parse('2026-01-15T10:00:00Z'),
         validTo: DateTime.parse('2026-01-15T11:00:00Z'),
@@ -1185,7 +1186,7 @@ void main() {
         'validTo': '2026-01-15T11:00:00Z',
       };
 
-      final token = AuthToken.fromJson(json);
+      final token = AuthTokenDto.fromJson(json);
 
       expect(token.token, equals('access_only'));
       expect(token.refreshToken, isNull);
@@ -1193,7 +1194,7 @@ void main() {
     });
 
     test('toJson gère les champs null', () {
-      final token = AuthToken(token: 'basic_token');
+      final token = AuthTokenDto(token: 'basic_token');
 
       final json = token.toJson();
 

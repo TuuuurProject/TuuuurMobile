@@ -358,6 +358,7 @@ class CategoryButton extends StatelessWidget {
   final IconData? icon;
   final bool selected;
   final VoidCallback onTap;
+  final Color? customColor; // Couleur personnalisée (pour les difficultés)
 
   const CategoryButton({
     super.key,
@@ -365,12 +366,18 @@ class CategoryButton extends StatelessWidget {
     this.icon,
     required this.selected,
     required this.onTap,
+    this.customColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: TuuurStyles.categoryButton(selected: selected),
+      decoration: customColor != null
+          ? TuuurStyles.categoryButtonWithColor(
+              selected: selected,
+              color: customColor!,
+            )
+          : TuuurStyles.categoryButton(selected: selected),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -384,7 +391,9 @@ class CategoryButton extends StatelessWidget {
                 if (icon != null) ...[
                   FaIcon(
                     icon,
-                    color: selected ? Colors.white : TuuurTheme.brandLightGray,
+                    color:
+                        customColor ??
+                        (selected ? Colors.white : TuuurTheme.brandLightGray),
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -392,7 +401,9 @@ class CategoryButton extends StatelessWidget {
                 Text(
                   text,
                   style: TextStyle(
-                    color: selected ? Colors.white : TuuurTheme.brandLightGray,
+                    color:
+                        customColor ??
+                        (selected ? Colors.white : TuuurTheme.brandLightGray),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

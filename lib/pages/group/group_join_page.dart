@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+import '../../api/api_module.dart';
+import '../../api/group/group_api_service.dart';
+import '../../stores/auth_store.dart';
+import '../../stores/group_coordinator.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 
 class GroupJoinPage extends StatefulWidget {
   final VoidCallback onBack;
-  final Function({required String code}) onJoined;
+
+  final void Function({required String partyId, required String code}) onJoined;
+
+  final GroupApi? groupApiOverride;
+  final GroupCoordinator? groupCoordinatorOverride;
 
   const GroupJoinPage({
     super.key,
     required this.onBack,
     required this.onJoined,
+    this.groupApiOverride,
+    this.groupCoordinatorOverride,
   });
 
   @override
@@ -19,25 +31,78 @@ class GroupJoinPage extends StatefulWidget {
 }
 
 class _GroupJoinPageState extends State<GroupJoinPage> {
+  GroupCoordinator get _coordinator =>
+      widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
+
   final TextEditingController codeController = TextEditingController();
-  bool isValidCode = false;
 
-  @override
-  void initState() {
-    super.initState();
-    codeController.addListener(_validateCode);
+  bool _joining = false;
+  String? _error;
+
+  void _snack(String message, {Color? color}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color ?? TuuurTheme.brandOrange,
+      ),
+    );
   }
 
-  void _validateCode() {
-    final code = codeController.text.trim().toUpperCase();
+  Future<void> joinGame() async {
+    if (_joining) return;
+
     setState(() {
-      isValidCode = code.startsWith('TUR-') && code.length >= 8;
+      _joining = true;
+      _error = null;
     });
-  }
 
-  void joinGame() {
-    if (isValidCode) {
-      widget.onJoined(code: codeController.text.trim().toUpperCase());
+    try {
+      final enteredCode = codeController.text.trim();
+      
+      if (enteredCode.isEmpty) {
+        setState(() {
+          _joining = false;
+          _error = 'Veuillez entrer un code de partie.';
+        });
+        _snack(_error!, color: TuuurTheme.brandOrange);
+        return;
+      }
+
+      // Obtenir l'ID de l'utilisateur actuel
+      final authStore = MyAuthStore.of(context);
+      final currentUserId = authStore.user?.id;
+
+      // Rejoindre via le coordinateur
+      final success = await _coordinator.joinParty(
+        enteredCode,
+        currentUserId: currentUserId,
+      );
+
+      if (!mounted) return;
+
+      if (!success) {
+        setState(() {
+          _joining = false;
+          _error = 'Impossible de rejoindre la partie. Code invalide ?';
+        });
+        _snack(_error!, color: TuuurTheme.brandOrange);
+        return;
+      }
+
+      final party = _coordinator.store.currentParty;
+      final partyId = party?.id ?? '';
+      final lobbyCode = party?.code ?? enteredCode;
+
+      setState(() => _joining = false);
+      widget.onJoined(partyId: partyId, code: lobbyCode);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _joining = false;
+        _error = 'Erreur: $e';
+      });
+      _snack(_error!, color: TuuurTheme.brandOrange);
     }
   }
 
@@ -52,31 +117,19 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
     return LayoutBuilder(
       builder: (context, outer) {
         final narrow = outer.maxWidth < 420;
+        final code = codeController.text.trim();
 
-        // ---------- HEADER ----------
         final header = narrow
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: widget.onBack,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: TuuurStyles.pill,
-                      child: const FaIcon(
-                        FontAwesomeIcons.arrowLeft,
-                        color: TuuurTheme.brandLightGray,
-                        size: 16,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'Rejoindre une partie',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 26, // compact sur mobile
+                      fontSize: 26,
                       fontWeight: FontWeight.w600,
                       color: TuuurTheme.brandLightGray,
                     ),
@@ -86,7 +139,7 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
             : Row(
                 children: [
                   GestureDetector(
-                    onTap: widget.onBack,
+                    onTap: _joining ? null : widget.onBack,
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: TuuurStyles.pill,
@@ -112,13 +165,17 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                 ],
               );
 
-        // ---------- CARD ----------
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             header.animate().fadeIn().slideX(begin: -0.25),
-            const SizedBox(height: 24),
-
+            const SizedBox(height: 16),
+            if (_error != null)
+              Text(
+                _error!,
+                style: const TextStyle(color: TuuurTheme.brandOrange),
+              ),
+            const SizedBox(height: 8),
             Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 500),
@@ -131,14 +188,12 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
 
                     final iconSize = isVeryNarrow ? 64.0 : 80.0;
                     final titleSize = isVeryNarrow ? 20.0 : 24.0;
-                    final descSize = 14.0;
                     final codeFont = isVeryNarrow ? 18.0 : 20.0;
                     final vertical = isVeryNarrow ? 10.0 : 14.0;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Icone
                         Container(
                           width: iconSize,
                           height: iconSize,
@@ -155,10 +210,8 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                           ),
                         ),
                         SizedBox(height: vertical + 6),
-
-                        // Titre
                         Text(
-                          'Entrez le code de la partie',
+                          'Entrez le code à 6 chiffres',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: titleSize,
@@ -166,37 +219,30 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                             color: TuuurTheme.brandLightGray,
                           ),
                         ),
-                        const SizedBox(height: 8),
-
-                        // Description
-                        Text(
-                          'Demandez le code à l\'organisateur ou scannez le QR code.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: TuuurTheme.brandGray,
-                            fontSize: descSize,
-                          ),
-                        ),
                         SizedBox(height: vertical + 6),
-
-                        // Input du code
                         TextField(
                           controller: codeController,
+                          enabled: !_joining,
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           textAlign: TextAlign.center,
-                          // autofocus: true,
                           style: TextStyle(
                             color: TuuurTheme.brandLightGray,
                             fontSize: codeFont,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 2,
+                            letterSpacing: 1.6,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'TUR-0000',
+                            counterText: '',
+                            hintText: '••••••',
                             hintStyle: TextStyle(
                               color: TuuurTheme.brandGray.withOpacity(0.5),
                               fontSize: codeFont,
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 2,
+                              letterSpacing: 1.6,
                             ),
                             filled: true,
                             fillColor: TuuurTheme.brandDarkGray.withOpacity(
@@ -219,7 +265,7 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
-                                color: isValidCode
+                                color: (code.length == 6)
                                     ? TuuurTheme.brandGreen
                                     : TuuurTheme.brandOrange.withOpacity(0.3),
                                 width: 2,
@@ -229,77 +275,22 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                               horizontal: 20,
                               vertical: 14,
                             ),
-                            suffixIcon: isValidCode
+                            suffixIcon: (code.length == 6)
                                 ? const Icon(
                                     Icons.check_circle,
                                     color: TuuurTheme.brandGreen,
                                   )
                                 : null,
                           ),
-                          textCapitalization: TextCapitalization.characters,
                           onSubmitted: (_) => joinGame(),
+                          onChanged: (_) => setState(() {}),
                         ),
                         SizedBox(height: vertical),
-
-                        // Bouton Rejoindre
                         SizedBox(
                           width: double.infinity,
                           child: GamingButtonPrimary(
-                            text: 'Rejoindre',
-                            onPressed: isValidCode ? joinGame : null,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Bouton Scanner
-                        SizedBox(
-                          width: double.infinity,
-                          child: GamingButtonSecondary(
-                            text: 'Scanner QR Code',
-                            onPressed: () {
-                              // TODO: Implement QR scanner
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Scanner QR non disponible en démo',
-                                  ),
-                                  backgroundColor: TuuurTheme.brandOrange,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        SizedBox(height: vertical + 6),
-
-                        // Tips
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: TuuurTheme.brandGreen.withOpacity(0.1),
-                            border: Border.all(
-                              color: TuuurTheme.brandGreen.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              FaIcon(
-                                FontAwesomeIcons.lightbulb,
-                                color: TuuurTheme.brandGreen,
-                                size: 16,
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Le code commence toujours par "TUR-" suivi de 4 chiffres',
-                                  style: TextStyle(
-                                    color: TuuurTheme.brandGreen,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            text: _joining ? 'Connexion…' : 'Rejoindre',
+                            onPressed: _joining ? null : joinGame,
                           ),
                         ),
                       ],

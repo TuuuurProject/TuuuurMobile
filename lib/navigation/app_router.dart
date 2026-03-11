@@ -15,30 +15,48 @@ import '../pages/auth/forgot_password_page.dart';
 import '../pages/auth/reset_password_page.dart';
 import '../pages/auth/change_password_page.dart';
 import '../pages/leaderboard/leaderboard_page.dart';
+import '../pages/history/history_quiz_page.dart';
 
 // Modèles pour la navigation
 class SoloQuizParams {
   final List<String> categories;
   final int questions;
-  final int difficulty; // 1=Facile, 2=Moyen, 3=Difficile, 4=Extrême
+  final List<int> difficulties; // IDs des difficultés sélectionnées
+  final String? partyId; // ID de la partie à reprendre (optionnel)
 
   SoloQuizParams({
     required this.categories,
     required this.questions,
-    required this.difficulty,
+    required this.difficulties,
+    this.partyId,
   });
 
-  Map<String, String> toJson() => {
-        'categories': categories.join(','),
-        'questions': questions.toString(),
-        'difficulty': difficulty.toString(),
-      };
+  Map<String, String> toJson() {
+    final json = {
+      'categories': categories.join(','),
+      'questions': questions.toString(),
+      'difficulties': difficulties.join(','),
+    };
+    if (partyId != null) {
+      json['partyId'] = partyId!;
+    }
+    return json;
+  }
 
   factory SoloQuizParams.fromJson(Map<String, String> params) {
+    final difficultiesStr = params['difficulties'] ?? '2';
+    final difficultiesList = difficultiesStr
+        .split(',')
+        .map((s) => int.tryParse(s))
+        .where((i) => i != null)
+        .cast<int>()
+        .toList();
+
     return SoloQuizParams(
       categories: params['categories']?.split(',') ?? ['general'],
       questions: int.tryParse(params['questions'] ?? '10') ?? 10,
-      difficulty: int.tryParse(params['difficulty'] ?? '2') ?? 2,
+      difficulties: difficultiesList.isNotEmpty ? difficultiesList : [2],
+      partyId: params['partyId'],
     );
   }
 }
@@ -70,7 +88,8 @@ final GoRouter appRouter = GoRouter(
         return SoloQuizPage(
           categories: params.categories,
           questions: params.questions,
-          difficulty: params.difficulty,
+          difficulties: params.difficulties,
+          partyId: params.partyId,
         );
       },
     ),
@@ -94,6 +113,18 @@ final GoRouter appRouter = GoRouter(
       path: '/profile',
       name: 'profile',
       builder: (context, state) => const ProfilePage(),
+    ),
+
+    // Détail d'une partie historique
+    GoRoute(
+      path: '/history/:partyId',
+      name: 'history-quiz',
+      builder: (context, state) {
+        final partyId = state.pathParameters['partyId'] ?? '';
+        final mode = (state.uri.queryParameters['mode'] ?? 'group').toLowerCase();
+        final isSolo = mode == 'solo';
+        return HistoryQuizPage(partyId: partyId, isSolo: isSolo,);
+      },
     ),
 
     // Connexion
@@ -192,6 +223,7 @@ extension AppNavigation on BuildContext {
   // Navigation vers les différentes pages
   void goHome() => go('/');
   void goSolo() => go('/solo');
+  void goGroupMode() => go('/group');
   void goGroup() => go('/group');
   void goOnline() => go('/online');
   void goProfile() => go('/profile');
@@ -199,23 +231,26 @@ extension AppNavigation on BuildContext {
   void goRegister() => go('/register');
   void goLeaderboard() => go('/leaderboard');
 
+  // Navigation vers le détail d'une partie historique
+  void goHistoryQuiz(String partyId, {bool isSolo = false}) {
+    final mode = isSolo ? 'solo' : 'other';
+    push('/history/$partyId?mode=$mode');
+  }
+
   // Navigation avec paramètres pour le quiz solo
   void goSoloQuiz({
     required List<String> categories,
     required int questions,
-    required int difficulty,
+    required List<int> difficulties,
   }) {
     final params = SoloQuizParams(
       categories: categories,
       questions: questions,
-      difficulty: difficulty,
+      difficulties: difficulties,
     ).toJson();
 
     // Utilise le NOM de la route ('solo-quiz') + queryParameters
-    GoRouter.of(this).pushNamed(
-      'solo-quiz',
-      queryParameters: params,
-    );
+    GoRouter.of(this).pushNamed('solo-quiz', queryParameters: params);
   }
 
   // Navigation avec retour
@@ -237,14 +272,4 @@ extension AppNavigation on BuildContext {
     // 3) Plus rien à pop → on va à l'accueil
     goHome();
   }
-}
-
-// Utilitaire pour construire les query strings
-String _buildQueryString(Map<String, dynamic> params) {
-  return params.entries
-      .map(
-        (entry) =>
-            '${entry.key}=${Uri.encodeComponent(entry.value.toString())}',
-      )
-      .join('&');
 }
