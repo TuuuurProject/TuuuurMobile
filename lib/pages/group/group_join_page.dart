@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../api/api_module.dart';
+import '../../api/auth/auth_api_service.dart';
 import '../../api/group/group_api_service.dart';
 import '../../stores/auth_store.dart';
 import '../../stores/group_coordinator.dart';
@@ -17,6 +18,7 @@ class GroupJoinPage extends StatefulWidget {
 
   final GroupApi? groupApiOverride;
   final GroupCoordinator? groupCoordinatorOverride;
+  final AuthApi? authApiOverride;
 
   const GroupJoinPage({
     super.key,
@@ -24,6 +26,7 @@ class GroupJoinPage extends StatefulWidget {
     required this.onJoined,
     this.groupApiOverride,
     this.groupCoordinatorOverride,
+    this.authApiOverride,
   });
 
   @override
@@ -34,7 +37,10 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
   GroupCoordinator get _coordinator =>
       widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
 
+  AuthApi get _authApi => widget.authApiOverride ?? ApiModule.instance.authApi;
+
   final TextEditingController codeController = TextEditingController();
+  final TextEditingController nicknameController = TextEditingController();
 
   bool _joining = false;
   String? _error;
@@ -59,7 +65,7 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
 
     try {
       final enteredCode = codeController.text.trim();
-      
+
       if (enteredCode.isEmpty) {
         setState(() {
           _joining = false;
@@ -71,6 +77,31 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
 
       // Obtenir l'ID de l'utilisateur actuel
       final authStore = MyAuthStore.of(context);
+
+      if (!authStore.isAuthenticated) {
+        final nickname = nicknameController.text.trim();
+        if (nickname.isEmpty) {
+          setState(() {
+            _joining = false;
+            _error = 'Veuillez entrer un pseudo.';
+          });
+          _snack(_error!, color: TuuurTheme.brandOrange);
+          return;
+        }
+
+        final res = await _authApi.loginAsGuest(nickName: nickname);
+        if (res.ok && res.data != null) {
+          await authStore.signInWithSession(res.data!);
+        } else {
+          setState(() {
+            _joining = false;
+            _error = res.message ?? 'Erreur lors de la connexion invité.';
+          });
+          _snack(_error!, color: TuuurTheme.brandOrange);
+          return;
+        }
+      }
+
       final currentUserId = authStore.user?.id;
 
       // Rejoindre via le coordinateur
@@ -109,15 +140,63 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
   @override
   void dispose() {
     codeController.dispose();
+    nicknameController.dispose();
     super.dispose();
+  }
+
+  InputDecoration _buildInputDecoration({
+    required String hintText,
+    required bool isValid,
+    required double fontSize,
+    double? letterSpacing,
+  }) {
+    return InputDecoration(
+      counterText: '',
+      hintText: hintText,
+      hintStyle: TextStyle(
+        color: TuuurTheme.brandGray.withOpacity(0.5),
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        letterSpacing: letterSpacing,
+      ),
+      filled: true,
+      fillColor: TuuurTheme.brandDarkGray.withOpacity(0.3),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: TuuurTheme.brandOrange.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: TuuurTheme.brandOrange, width: 2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: isValid
+              ? TuuurTheme.brandGreen
+              : TuuurTheme.brandOrange.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      suffixIcon: isValid
+          ? const Icon(Icons.check_circle, color: TuuurTheme.brandGreen)
+          : null,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isAuthenticated = MyAuthStore.of(context).isAuthenticated;
+
     return LayoutBuilder(
       builder: (context, outer) {
         final narrow = outer.maxWidth < 420;
         final code = codeController.text.trim();
+        final nickname = nicknameController.text.trim();
 
         final header = narrow
             ? Column(
@@ -165,141 +244,141 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                 ],
               );
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            header.animate().fadeIn().slideX(begin: -0.25),
-            const SizedBox(height: 16),
-            if (_error != null)
-              Text(
-                _error!,
-                style: const TextStyle(color: TuuurTheme.brandOrange),
-              ),
-            const SizedBox(height: 8),
-            Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 500),
-                padding: EdgeInsets.all(narrow ? 20 : 28),
-                decoration: TuuurStyles.gamingCard,
-                child: LayoutBuilder(
-                  builder: (context, box) {
-                    final vw = box.maxWidth;
-                    final isVeryNarrow = vw < 340;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              header.animate().fadeIn().slideX(begin: -0.25),
+              const SizedBox(height: 16),
+              if (_error != null)
+                Text(
+                  _error!,
+                  style: const TextStyle(color: TuuurTheme.brandOrange),
+                ),
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  padding: EdgeInsets.all(narrow ? 20 : 28),
+                  decoration: TuuurStyles.gamingCard,
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final vw = box.maxWidth;
+                      final isVeryNarrow = vw < 340;
 
-                    final iconSize = isVeryNarrow ? 64.0 : 80.0;
-                    final titleSize = isVeryNarrow ? 20.0 : 24.0;
-                    final codeFont = isVeryNarrow ? 18.0 : 20.0;
-                    final vertical = isVeryNarrow ? 10.0 : 14.0;
+                      final iconSize = isVeryNarrow ? 64.0 : 80.0;
+                      final titleSize = isVeryNarrow ? 20.0 : 24.0;
+                      final codeFont = isVeryNarrow ? 18.0 : 20.0;
+                      final vertical = isVeryNarrow ? 10.0 : 14.0;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: iconSize,
-                          height: iconSize,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: TuuurTheme.brandOrange.withOpacity(0.2),
-                          ),
-                          child: const Center(
-                            child: FaIcon(
-                              FontAwesomeIcons.rocket,
-                              color: TuuurTheme.brandOrange,
-                              size: 28,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: iconSize,
+                            height: iconSize,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: TuuurTheme.brandOrange.withOpacity(0.2),
+                            ),
+                            child: const Center(
+                              child: FaIcon(
+                                FontAwesomeIcons.rocket,
+                                color: TuuurTheme.brandOrange,
+                                size: 28,
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(height: vertical + 6),
-                        Text(
-                          'Entrez le code à 6 chiffres',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: titleSize,
-                            fontWeight: FontWeight.w600,
-                            color: TuuurTheme.brandLightGray,
+                          SizedBox(height: vertical + 6),
+                          Text(
+                            'Entrez le code à 6 chiffres',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: titleSize,
+                              fontWeight: FontWeight.w600,
+                              color: TuuurTheme.brandLightGray,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: vertical + 6),
-                        TextField(
-                          controller: codeController,
-                          enabled: !_joining,
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: TuuurTheme.brandLightGray,
-                            fontSize: codeFont,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.6,
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            hintText: '••••••',
-                            hintStyle: TextStyle(
-                              color: TuuurTheme.brandGray.withOpacity(0.5),
+                          SizedBox(height: vertical + 6),
+                          TextField(
+                            controller: codeController,
+                            enabled: !_joining,
+                            keyboardType: TextInputType.number,
+                            maxLength: 6,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: TuuurTheme.brandLightGray,
                               fontSize: codeFont,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.6,
                             ),
-                            filled: true,
-                            fillColor: TuuurTheme.brandDarkGray.withOpacity(
-                              0.3,
+                            decoration: _buildInputDecoration(
+                              hintText: '••••••',
+                              isValid: code.length == 6,
+                              fontSize: codeFont,
+                              letterSpacing: 1.6,
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: TuuurTheme.brandOrange.withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(
-                                color: TuuurTheme.brandOrange,
-                                width: 2,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: (code.length == 6)
-                                    ? TuuurTheme.brandGreen
-                                    : TuuurTheme.brandOrange.withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            suffixIcon: (code.length == 6)
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: TuuurTheme.brandGreen,
-                                  )
-                                : null,
+                            onSubmitted: (_) =>
+                                isAuthenticated ? joinGame() : null,
+                            onChanged: (_) => setState(() {}),
                           ),
-                          onSubmitted: (_) => joinGame(),
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        SizedBox(height: vertical),
-                        SizedBox(
-                          width: double.infinity,
-                          child: GamingButtonPrimary(
-                            text: _joining ? 'Connexion…' : 'Rejoindre',
-                            onPressed: _joining ? null : joinGame,
+                          if (!isAuthenticated) ...[
+                            SizedBox(height: vertical + 6),
+                            Text(
+                              'Choisissez un pseudo',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w600,
+                                color: TuuurTheme.brandLightGray,
+                              ),
+                            ),
+                            SizedBox(height: vertical + 6),
+                            TextField(
+                              controller: nicknameController,
+                              enabled: !_joining,
+                              keyboardType: TextInputType.text,
+                              maxLength: 50,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: TuuurTheme.brandLightGray,
+                                fontSize: codeFont,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              decoration: _buildInputDecoration(
+                                hintText: 'Pseudo',
+                                isValid: nickname.isNotEmpty,
+                                fontSize: codeFont,
+                              ),
+                              onSubmitted: (_) => joinGame(),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ],
+                          SizedBox(height: vertical),
+                          SizedBox(
+                            width: double.infinity,
+                            child: GamingButtonPrimary(
+                              text: _joining ? 'Connexion…' : 'Rejoindre',
+                              onPressed: _joining ? null : joinGame,
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.25),
-          ],
+              ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.25),
+            ],
+          ),
         );
       },
     );

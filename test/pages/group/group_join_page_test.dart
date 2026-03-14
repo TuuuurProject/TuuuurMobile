@@ -6,6 +6,9 @@ import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/stores/group_store.dart';
 
 import 'group_test_helpers.dart';
+import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
+import 'package:tuuuur_flutter/api/api_client.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -52,13 +55,79 @@ Future<({FakeGroupCoordinator coord, GroupStore store, _JoinCapture capture})>
     ),
   );
 
-  await tester.pump();
+  await tester.pumpAndSettle();
   return (coord: coord, store: store, capture: capture);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
+
+
+class FakeAuthApi implements AuthApi {
+  bool failNextGuestLogin = false;
+
+  @override
+  Future<ApiResponse<AuthSessionDto>> loginAsGuest({required String nickName}) async {
+    if (failNextGuestLogin) {
+      return ApiResponse.err(message: 'Guest login failed', statusCode: 500);
+    }
+    return ApiResponse.ok(
+      AuthSessionDto(
+        user: UserDto(
+          id: 'guest-1',
+          nickName: nickName,
+          email: '',
+          avatar: null,
+          isAdmin: false,
+          isNew: false,
+        ),
+        token: AuthTokenDto(
+          token: 'fake-access-token',
+          refreshToken: 'fake-refresh-token',
+        ),
+        isGoogleUser: false,
+        raw: {},
+      ),
+      statusCode: 200,
+    );
+  }
+  
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Future<({FakeGroupCoordinator coord, GroupStore store, _JoinCapture capture, FakeAuthApi authApi})> pumpJoinPageUnauth(WidgetTester tester, {Size size = const Size(600, 700)}) async {
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  final ws = FakeGroupWebSocketService();
+  final store = GroupStore(webSocketService: ws);
+  final coord = FakeGroupCoordinator(groupStore: store, ws: ws);
+  final capture = _JoinCapture();
+  final authApi = FakeAuthApi();
+
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: MyAuthStore(
+          notifier: AuthStore.instance,
+          child: GroupJoinPage(
+            groupCoordinatorOverride: coord,
+            authApiOverride: authApi,
+            onBack: () {},
+            onJoined: ({required String partyId, required String code}) {
+              capture.partyId = partyId;
+              capture.code = code;
+            },
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return (coord: coord, store: store, capture: capture, authApi: authApi);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -92,6 +161,7 @@ void main() {
 
       // Tap Rejoindre without entering a code
       final btn = find.text('Rejoindre');
+      await tester.ensureVisible(btn);
       await tester.tap(btn);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -112,6 +182,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '654321');
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Rejoindre'));
       await tester.tap(find.text('Rejoindre'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -129,6 +200,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '999999');
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Rejoindre'));
       await tester.tap(find.text('Rejoindre'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -156,4 +228,65 @@ void main() {
       await finishGroupTest(tester);
     });
   });
+
+  group('GroupJoinPage Unauthenticated', () {
+    setUp(() async {
+      kSecureStore.clear();
+      await AuthStore.instance.signOut();
+    });
+
+    testWidgets('affiche les deux champs: pseudo et code', (tester) async {
+      await pumpJoinPageUnauth(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rejoindre une partie'), findsOneWidget);
+      expect(find.text('Choisissez un pseudo'), findsOneWidget);
+      expect(find.text('Entrez le code à 6 chiffres'), findsOneWidget);
+      expect(find.byType(TextField), findsNWidgets(2)); // Pseudo + Code
+      
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('pseudo manquant -> erreur', (tester) async {
+      final res = await pumpJoinPageUnauth(tester);
+
+      // Saisir uniquement le code
+      // Le deuxième champ est le code
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.first, '123456');
+      await tester.pump();
+      
+      final btn = find.text('Rejoindre');
+      await tester.ensureVisible(btn);
+      await tester.tap(btn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Veuillez entrer un pseudo.'), findsAtLeastNWidgets(1));
+      expect(res.capture.partyId, isNull);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('pseudo et code valides -> loginGuest et join succès', (tester) async {
+      final res = await pumpJoinPageUnauth(tester);
+
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.last, 'GuestNick');
+      await tester.enterText(textFields.first, '654321');
+      await tester.pump();
+
+      final btn = find.text('Rejoindre');
+      await tester.ensureVisible(btn);
+      await tester.tap(btn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300)); // Laisse le loginAsGuest finir
+      await tester.pumpAndSettle();
+
+      expect(res.capture.code, '654321');
+      expect(res.capture.partyId, isNotNull);
+      
+      await finishGroupTest(tester);
+    });
+  });
+
 }

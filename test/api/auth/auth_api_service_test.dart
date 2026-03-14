@@ -379,6 +379,73 @@ void main() {
       });
     });
 
+    group('loginAsGuest', () {
+      test('retourne succès pour un pseudo valide', () async {
+        final responseData = {
+          'user': {
+            'id': 999,
+            'nickName': 'GuestUser',
+            'email': null,
+          },
+          'token': {
+            'token': 'guest_token_123',
+          }
+        };
+
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
+
+        final result = await authApi.loginAsGuest(nickName: 'GuestUser');
+
+        expect(result.ok, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data!.user.nickName, equals('GuestUser'));
+        expect(result.data!.token.token, equals('guest_token_123'));
+      });
+
+      test('trim le pseudo', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.ok({}, statusCode: 200),
+        );
+
+        await authApi.loginAsGuest(nickName: '  MyGuest  ');
+
+        final captured = verify(mockApiClient.postJson(
+          captureAny,
+          body: captureAnyNamed('body'),
+        )).captured;
+
+        final body = captured[1] as Map<String, dynamic>;
+        expect(body['nickName'], equals('MyGuest'));
+        expect(captured[0], equals('/api/v1/Auth/invited'));
+      });
+
+      test('retourne erreur', () async {
+        when(mockApiClient.postJson(
+          any,
+          body: anyNamed('body'),
+        )).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Invalid nickname',
+            statusCode: 400,
+          ),
+        );
+
+        final result = await authApi.loginAsGuest(nickName: '!!');
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Invalid nickname'));
+        expect(result.statusCode, equals(400));
+      });
+    });
+
     group('loginWithGoogle', () {
       test('retourne une session valide', () async {
         final responseData = {

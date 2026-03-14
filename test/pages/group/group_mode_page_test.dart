@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
 import 'package:tuuuur_flutter/api/group/group_api_service.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 import 'package:tuuuur_flutter/pages/group/group_mode_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/stores/group_store.dart';
@@ -157,4 +158,61 @@ void main() {
       await finishGroupTest(tester);
     });
   });
+
+  group('GroupModePage Unauthenticated / Guest', () {
+    setUp(() async {
+      kSecureStore.clear();
+      await AuthStore.instance.signOut();
+    });
+
+    testWidgets('Créer une partie est désactivé si non connecté', (tester) async {
+      final res = await pumpModePage(tester);
+      await pumpAnimations(tester);
+
+      // On vérifie que Créer une partie est visible
+      final createText = find.text('Créer une partie');
+      expect(createText, findsOneWidget);
+
+      await tester.tap(createText);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Si c'était actif, goLobby() serait appelé et currentParty serait non null
+      expect(res.store.currentParty, isNull);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('Guest est déconnecté lors du dispose', (tester) async {
+      // Connecter en tant que guest manuellement dans le AuthStore
+      await AuthStore.instance.signInWithSession(AuthSessionDto(
+        user: UserDto(
+          id: 'guest-1',
+          nickName: 'Guest',
+          email: '',
+          avatar: null,
+          isAdmin: false,
+          isNew: false,
+        ),
+        token: AuthTokenDto(token: 'token'),
+        isGoogleUser: false,
+        raw: {},
+      ));
+      
+      expect(AuthStore.instance.isGuest, isTrue);
+
+      await pumpModePage(tester);
+      await pumpAnimations(tester);
+
+      // Trigger dispose by replacing the widget with an empty box
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
+      // Dispose devrait appeler signOut
+      expect(AuthStore.instance.isAuthenticated, isFalse);
+
+      await finishGroupTest(tester);
+    });
+  });
+
 }
