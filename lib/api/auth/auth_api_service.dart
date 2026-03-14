@@ -92,6 +92,20 @@ class AuthApi {
     return _buildAuthSession(m, res.statusCode, defaultIsGoogleUser: true);
   }
 
+  Future<ApiResponse<AuthSessionDto>> loginAsGuest({
+    required String nickName,
+  }) async {
+    final res = await _api.postJson(
+      '/api/v1/Auth/invited',
+      body: {'nickName': nickName.trim()},
+    );
+    if (!res.ok) {
+      return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
+    }
+    final m = res.data ?? <String, dynamic>{};
+    return _buildAuthSession(m, res.statusCode);
+  }
+
   Future<ApiResponse<bool>> passwordForgot({
     required String login,
   }) async {

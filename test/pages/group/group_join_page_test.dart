@@ -52,7 +52,7 @@ Future<({FakeGroupCoordinator coord, GroupStore store, _JoinCapture capture})>
     ),
   );
 
-  await tester.pump();
+  await tester.pumpAndSettle();
   return (coord: coord, store: store, capture: capture);
 }
 
@@ -92,6 +92,7 @@ void main() {
 
       // Tap Rejoindre without entering a code
       final btn = find.text('Rejoindre');
+      await tester.ensureVisible(btn);
       await tester.tap(btn);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -112,6 +113,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '654321');
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Rejoindre'));
       await tester.tap(find.text('Rejoindre'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -129,6 +131,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '999999');
       await tester.pump();
 
+      await tester.ensureVisible(find.text('Rejoindre'));
       await tester.tap(find.text('Rejoindre'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

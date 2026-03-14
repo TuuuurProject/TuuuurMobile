@@ -86,7 +86,7 @@ class GroupModePage extends StatefulWidget {
 
 class _GroupModePageState extends State<GroupModePage> {
   GroupApi get _api => widget.groupApiOverride ?? ApiModule.instance.groupApi;
-  GroupCoordinator get _coordinator => 
+  GroupCoordinator get _coordinator =>
       widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
 
   GroupStep step = GroupStep.mode;
@@ -145,7 +145,9 @@ class _GroupModePageState extends State<GroupModePage> {
         if (!mounted) return;
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Partie créée mais erreur lors de la mise à jour des paramètres.'),
+            content: Text(
+              'Partie créée mais erreur lors de la mise à jour des paramètres.',
+            ),
             backgroundColor: TuuurTheme.brandOrange,
           ),
         );
@@ -215,7 +217,9 @@ class _GroupModePageState extends State<GroupModePage> {
           groupCoordinatorOverride: widget.groupCoordinatorOverride,
         ),
       ),
-    );
+    ).then((_) {
+      if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
+    });
   }
 
   void goLobbyFromJoin({required String partyId, required String code}) {
@@ -237,16 +241,26 @@ class _GroupModePageState extends State<GroupModePage> {
           groupCoordinatorOverride: widget.groupCoordinatorOverride,
         ),
       ),
-    );
+    ).then((_) {
+      if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
+    });
   }
 
   Future<void> resetToMode() async {
     // Ne pas appeler leaveParty() ici car la page enfant l'a déjà fait
     // Appeler leaveParty() ici causerait des appels multiples et des erreurs
-    
+
     setState(() {
       step = GroupStep.mode;
     });
+  }
+
+  @override
+  void dispose() {
+    if (AuthStore.instance.isGuest) {
+      AuthStore.instance.signOut();
+    }
+    super.dispose();
   }
 
   @override
@@ -258,10 +272,9 @@ class _GroupModePageState extends State<GroupModePage> {
         context.goBack();
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         backgroundColor: TuuurTheme.brandDark,
-        appBar: const NavigationHeader(
-          showBack: true,
-        ),
+        appBar: const NavigationHeader(showBack: true),
         body: _buildContent(),
       ),
     );
@@ -292,6 +305,8 @@ class _GroupModePageState extends State<GroupModePage> {
   }
 
   Widget _buildModeSelection() {
+    final isAuthenticated = MyAuthStore.of(context).isAuthenticated;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -333,10 +348,15 @@ class _GroupModePageState extends State<GroupModePage> {
                   _buildModeCard(
                     icon: FontAwesomeIcons.gamepad,
                     title: 'Créer une partie',
-                    description:
-                        'Définissez les paramètres et partagez le code/QR avec vos amis.',
-                    color: TuuurTheme.brandPurple,
-                    onTap: _creatingParty ? null : _createPartyDirectly,
+                    description: isAuthenticated
+                        ? 'Définissez les paramètres et partagez le code/QR avec vos amis.'
+                        : 'Connectez-vous pour créer une partie.',
+                    color: isAuthenticated
+                        ? TuuurTheme.brandPurple
+                        : TuuurTheme.brandGray,
+                    onTap: (!isAuthenticated || _creatingParty)
+                        ? null
+                        : _createPartyDirectly,
                     delay: 0,
                     isLoading: _creatingParty,
                   ),
@@ -344,7 +364,7 @@ class _GroupModePageState extends State<GroupModePage> {
                     icon: FontAwesomeIcons.rocket,
                     title: 'Rejoindre une partie',
                     description:
-                      "Entrez un code pour rejoindre le lobby et commencer l'aventure.",
+                        "Entrez un code pour rejoindre le lobby et commencer l'aventure.",
                     color: TuuurTheme.brandOrange,
                     onTap: () => setState(() => step = GroupStep.join),
                     delay: 180,
@@ -358,10 +378,15 @@ class _GroupModePageState extends State<GroupModePage> {
                 _buildModeCard(
                   icon: FontAwesomeIcons.gamepad,
                   title: 'Créer une partie',
-                  description:
-                      'Créez instantanément un lobby et partagez le code.',
-                  color: TuuurTheme.brandPurple,
-                  onTap: _creatingParty ? null : _createPartyDirectly,
+                  description: isAuthenticated
+                      ? 'Créez instantanément un lobby et partagez le code.'
+                      : 'Connectez-vous pour créer une partie.',
+                  color: isAuthenticated
+                      ? TuuurTheme.brandPurple
+                      : TuuurTheme.brandGray,
+                  onTap: (!isAuthenticated || _creatingParty)
+                      ? null
+                      : _createPartyDirectly,
                   delay: 0,
                   isLoading: _creatingParty,
                 ),
@@ -426,46 +451,46 @@ class _GroupModePageState extends State<GroupModePage> {
                               : FaIcon(icon, color: color, size: 18),
                         ),
                       ),
-                    const Spacer(),
-                    Container(
-                      width: 0,
-                      height: 2,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(1),
+                      const Spacer(),
+                      Container(
+                        width: 0,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ).animate().scaleX(
+                        duration: 450.ms,
+                        delay: (delay + 700).ms,
+                        curve: Curves.easeOutBack,
                       ),
-                    ).animate().scaleX(
-                      duration: 450.ms,
-                      delay: (delay + 700).ms,
-                      curve: Curves.easeOutBack,
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: TuuurTheme.brandLightGray,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    color: TuuurTheme.brandGray,
-                    fontSize: 14,
-                    height: 1.35,
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: TuuurTheme.brandGray,
+                      fontSize: 14,
+                      height: 1.35,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      )
+        )
         .animate()
         .fadeIn(delay: delay.ms, duration: 500.ms)
         .slideY(begin: 0.25, end: 0)

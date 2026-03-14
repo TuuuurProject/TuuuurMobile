@@ -206,6 +206,13 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
 
       await _coordinator.leaveParty();
 
+      if (mounted) {
+        final authStore = MyAuthStore.of(context);
+        if (authStore.isGuest) {
+          await authStore.signOut();
+        }
+      }
+
       if (!mounted) return;
 
       Navigator.of(context).pop();

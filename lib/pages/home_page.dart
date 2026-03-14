@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme/tuuuur_theme.dart';
 import '../widgets/gaming_widgets.dart';
 import '../navigation/app_router.dart';
+import '../stores/auth_store.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -39,11 +40,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (AuthStore.instance.isGuest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
+      });
+    }
+
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return; // le système a déjà géré le pop
-        context.goBack(); 
+        context.goBack();
       },
       child: Scaffold(
         body: Container(
@@ -228,7 +235,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       filterQuality: FilterQuality.high,
                     ),
                   ),
-
                 );
               },
             ),
