@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tuuuur_flutter/api/group/group_models.dart' hide Theme;
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 import 'package:tuuuur_flutter/pages/group/group_lobby_page.dart';
 import 'package:tuuuur_flutter/pages/group/group_mode_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/stores/group_store.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'group_test_helpers.dart';
 
@@ -190,6 +192,57 @@ void main() {
 
       // GroupQuizPage should have been pushed — look for its countdown text
       expect(find.text('La question arrive dans...'), findsOneWidget);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('Guest sign-out upon leaving', (tester) async {
+      final party = makeGroupParty(
+        code: '123456',
+        hostUserId: 'host-user',
+        users: [
+          PartyUser(
+            idUser: 'guest-1',
+            idParty: 'p1',
+            user: GroupUser(id: 'guest-1', nickName: 'Guest Tester'),
+          ),
+        ]
+      );
+      
+      // Setup Guest
+      await AuthStore.instance.signInWithSession(AuthSessionDto(
+        user: UserDto(
+          id: 'guest-1',
+          nickName: 'Guest Tester',
+          email: '',
+          avatar: null,
+          isAdmin: false,
+          isNew: false,
+        ),
+        token: AuthTokenDto(token: 'fake'),
+        isGoogleUser: false,
+        raw: {},
+      ));
+      
+      final res = await pumpLobbyPage(tester, party: party, currentUserId: 'guest-1');
+      await pumpAnimations(tester);
+
+      expect(AuthStore.instance.isGuest, isTrue);
+
+      final iconButton = find.byIcon(FontAwesomeIcons.rightFromBracket);
+      await tester.ensureVisible(iconButton);
+      await tester.tap(iconButton);
+      await tester.pumpAndSettle();
+
+      // Tap on confirm
+      final confirmBtn = find.text('Oui');
+      await tester.ensureVisible(confirmBtn);
+      await tester.tap(confirmBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      expect(AuthStore.instance.isAuthenticated, isFalse);
 
       await finishGroupTest(tester);
     });

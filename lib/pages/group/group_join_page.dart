@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../api/api_module.dart';
+import '../../api/auth/auth_api_service.dart';
 import '../../api/group/group_api_service.dart';
 import '../../stores/auth_store.dart';
 import '../../stores/group_coordinator.dart';
@@ -17,6 +18,7 @@ class GroupJoinPage extends StatefulWidget {
 
   final GroupApi? groupApiOverride;
   final GroupCoordinator? groupCoordinatorOverride;
+  final AuthApi? authApiOverride;
 
   const GroupJoinPage({
     super.key,
@@ -24,6 +26,7 @@ class GroupJoinPage extends StatefulWidget {
     required this.onJoined,
     this.groupApiOverride,
     this.groupCoordinatorOverride,
+    this.authApiOverride,
   });
 
   @override
@@ -33,6 +36,9 @@ class GroupJoinPage extends StatefulWidget {
 class _GroupJoinPageState extends State<GroupJoinPage> {
   GroupCoordinator get _coordinator =>
       widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
+
+  AuthApi get _authApi =>
+      widget.authApiOverride ?? ApiModule.instance.authApi;
 
   final TextEditingController codeController = TextEditingController();
   final TextEditingController nicknameController = TextEditingController();
@@ -84,7 +90,7 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
           return;
         }
 
-        final res = await ApiModule.instance.authApi.loginAsGuest(
+        final res = await _authApi.loginAsGuest(
           nickName: nickname,
         );
         if (res.ok && res.data != null) {
