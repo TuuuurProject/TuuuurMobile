@@ -487,13 +487,12 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         color: color.withOpacity(0.1),
-        border: Border(
-          top: BorderSide(color: color, width: 3),
-          left: BorderSide(color: color.withOpacity(0.3)),
-          right: BorderSide(color: color.withOpacity(0.3)),
-        ),
+        border: Border.all(color: color, width: 2),
       ),
-      child: content,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: content,
+      ),
     );
   }
 
