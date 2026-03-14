@@ -37,8 +37,7 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
   GroupCoordinator get _coordinator =>
       widget.groupCoordinatorOverride ?? ApiModule.instance.groupCoordinator;
 
-  AuthApi get _authApi =>
-      widget.authApiOverride ?? ApiModule.instance.authApi;
+  AuthApi get _authApi => widget.authApiOverride ?? ApiModule.instance.authApi;
 
   final TextEditingController codeController = TextEditingController();
   final TextEditingController nicknameController = TextEditingController();
@@ -90,9 +89,7 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
           return;
         }
 
-        final res = await _authApi.loginAsGuest(
-          nickName: nickname,
-        );
+        final res = await _authApi.loginAsGuest(nickName: nickname);
         if (res.ok && res.data != null) {
           await authStore.signInWithSession(res.data!);
         } else {
@@ -145,6 +142,50 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
     codeController.dispose();
     nicknameController.dispose();
     super.dispose();
+  }
+
+  InputDecoration _buildInputDecoration({
+    required String hintText,
+    required bool isValid,
+    required double fontSize,
+    double? letterSpacing,
+  }) {
+    return InputDecoration(
+      counterText: '',
+      hintText: hintText,
+      hintStyle: TextStyle(
+        color: TuuurTheme.brandGray.withOpacity(0.5),
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        letterSpacing: letterSpacing,
+      ),
+      filled: true,
+      fillColor: TuuurTheme.brandDarkGray.withOpacity(0.3),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: TuuurTheme.brandOrange.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: TuuurTheme.brandOrange, width: 2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: isValid
+              ? TuuurTheme.brandGreen
+              : TuuurTheme.brandOrange.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      suffixIcon: isValid
+          ? const Icon(Icons.check_circle, color: TuuurTheme.brandGreen)
+          : null,
+    );
   }
 
   @override
@@ -204,7 +245,12 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
               );
 
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -275,54 +321,11 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.6,
                             ),
-                            decoration: InputDecoration(
-                              counterText: '',
+                            decoration: _buildInputDecoration(
                               hintText: '••••••',
-                              hintStyle: TextStyle(
-                                color: TuuurTheme.brandGray.withOpacity(0.5),
-                                fontSize: codeFont,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.6,
-                              ),
-                              filled: true,
-                              fillColor: TuuurTheme.brandDarkGray.withOpacity(
-                                0.3,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                  color: TuuurTheme.brandOrange.withOpacity(
-                                    0.3,
-                                  ),
-                                  width: 2,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: const BorderSide(
-                                  color: TuuurTheme.brandOrange,
-                                  width: 2,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                  color: (code.length == 6)
-                                      ? TuuurTheme.brandGreen
-                                      : TuuurTheme.brandOrange.withOpacity(0.3),
-                                  width: 2,
-                                ),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 14,
-                              ),
-                              suffixIcon: (code.length == 6)
-                                  ? const Icon(
-                                      Icons.check_circle,
-                                      color: TuuurTheme.brandGreen,
-                                    )
-                                  : null,
+                              isValid: code.length == 6,
+                              fontSize: codeFont,
+                              letterSpacing: 1.6,
                             ),
                             onSubmitted: (_) =>
                                 isAuthenticated ? joinGame() : null,
@@ -351,55 +354,10 @@ class _GroupJoinPageState extends State<GroupJoinPage> {
                                 fontSize: codeFont,
                                 fontWeight: FontWeight.w600,
                               ),
-                              decoration: InputDecoration(
-                                counterText: '',
+                              decoration: _buildInputDecoration(
                                 hintText: 'Pseudo',
-                                hintStyle: TextStyle(
-                                  color: TuuurTheme.brandGray.withOpacity(0.5),
-                                  fontSize: codeFont,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                filled: true,
-                                fillColor: TuuurTheme.brandDarkGray.withOpacity(
-                                  0.3,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(
-                                    color: TuuurTheme.brandOrange.withOpacity(
-                                      0.3,
-                                    ),
-                                    width: 2,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: const BorderSide(
-                                    color: TuuurTheme.brandOrange,
-                                    width: 2,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(
-                                    color: (nickname.isNotEmpty)
-                                        ? TuuurTheme.brandGreen
-                                        : TuuurTheme.brandOrange.withOpacity(
-                                            0.3,
-                                          ),
-                                    width: 2,
-                                  ),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 14,
-                                ),
-                                suffixIcon: (nickname.isNotEmpty)
-                                    ? const Icon(
-                                        Icons.check_circle,
-                                        color: TuuurTheme.brandGreen,
-                                      )
-                                    : null,
+                                isValid: nickname.isNotEmpty,
+                                fontSize: codeFont,
                               ),
                               onSubmitted: (_) => joinGame(),
                               onChanged: (_) => setState(() {}),
