@@ -77,7 +77,7 @@ void main() {
   });
 
   group('GroupResultsPage', () {
-    testWidgets('affiche le titre "Partie terminée !"', (tester) async {
+    testWidgets('affiche le titre "Partie terminée"', (tester) async {
       await pumpResultsPage(
         tester,
         finalScores: [
@@ -88,7 +88,7 @@ void main() {
       );
       await pumpAnimations(tester);
 
-      expect(find.text('Partie terminée !'), findsOneWidget);
+      expect(find.textContaining('Partie terminée'), findsWidgets);
 
       await finishGroupTest(tester);
     });
@@ -128,15 +128,15 @@ void main() {
       );
       await pumpAnimations(tester);
 
-      expect(find.text('Votre résultat'), findsOneWidget);
-      expect(find.text('Classement'), findsOneWidget);
-      expect(find.text('Score'), findsWidgets);
+      expect(find.text('Classement complet'), findsWidgets);
+      expect(find.text('Groupe'), findsWidgets);
 
       await finishGroupTest(tester);
     });
 
-    testWidgets(
-        'utilisateur au top 3 → affiche "Félicitations !"', (tester) async {
+    testWidgets('utilisateur au top 3 s\'affiche dans le podium', (
+      tester,
+    ) async {
       // Pump with a short timeout to avoid hanging on confetti animation
       await pumpResultsPage(
         tester,
@@ -148,12 +148,15 @@ void main() {
       );
       await pumpAnimations(tester);
 
-      expect(find.text('Félicitations !'), findsOneWidget);
+      expect(find.text('Podium'), findsOneWidget);
+      expect(find.textContaining('Tester'), findsWidgets);
 
       await finishGroupTest(tester);
     });
 
-    testWidgets('affiche le classement complet avec 4+ joueurs', (tester) async {
+    testWidgets('affiche le classement complet avec 4+ joueurs', (
+      tester,
+    ) async {
       await pumpResultsPage(
         tester,
         finalScores: [
@@ -172,9 +175,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets(
-        'affiche le récapitulatif des questions quand historyPresent',
-        (tester) async {
+    testWidgets('affiche le récapitulatif des questions quand historyPresent', (
+      tester,
+    ) async {
       await pumpResultsPage(
         tester,
         finalScores: [
@@ -198,10 +201,7 @@ void main() {
       await pumpAnimations(tester);
 
       expect(find.text('Récapitulatif des questions'), findsOneWidget);
-      expect(
-        find.text('Quelle est la capitale de la France ?'),
-        findsWidgets,
-      );
+      expect(find.text('Quelle est la capitale de la France ?'), findsWidgets);
 
       await finishGroupTest(tester);
     });
@@ -221,9 +221,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets(
-        'pas de résumé utilisateur si userId absent des scores',
-        (tester) async {
+    testWidgets('pas de résumé utilisateur si userId absent des scores', (
+      tester,
+    ) async {
       await pumpResultsPage(
         tester,
         finalScores: [

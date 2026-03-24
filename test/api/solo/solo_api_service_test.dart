@@ -12,12 +12,7 @@ import 'solo_api_service_test.mocks.dart';
 void main() {
   group('SoloAnswerDto', () {
     test('fromJson crée une instance correcte', () {
-      final json = {
-        'id': 1,
-        'idQuestion': 10,
-        'value': 'Paris',
-        'valid': true,
-      };
+      final json = {'id': 1, 'idQuestion': 10, 'value': 'Paris', 'valid': true};
 
       final dto = SoloAnswerDto.fromJson(json);
 
@@ -64,10 +59,7 @@ void main() {
       final json = {
         'id': 1,
         'label': 'Question test',
-        'difficulty': {
-          'id': 3,
-          'label': 'Difficile',
-        },
+        'difficulty': {'id': 3, 'label': 'Difficile'},
         'answer': [],
       };
 
@@ -78,10 +70,7 @@ void main() {
     });
 
     test('fromJson crée liste vide si pas de réponses', () {
-      final json = {
-        'id': 1,
-        'label': 'Test',
-      };
+      final json = {'id': 1, 'label': 'Test'};
 
       final dto = SoloQuestionDto.fromJson(json);
 
@@ -122,9 +111,7 @@ void main() {
     });
 
     test('isAnswered retourne true si answerId existe', () {
-      final dto = SoloUserPartyQuestionDto.fromJson({
-        'idAnswer': 5,
-      });
+      final dto = SoloUserPartyQuestionDto.fromJson({'idAnswer': 5});
 
       expect(dto.isAnswered, isTrue);
     });
@@ -155,15 +142,15 @@ void main() {
 
     group('createSolo', () {
       test('retourne succès avec partyId', () async {
-        final responseData = {
-          'data': 'party-uuid-123',
-        };
+        final responseData = {'data': 'party-uuid-123'};
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.postJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 201),
         );
 
@@ -178,11 +165,13 @@ void main() {
       });
 
       test('envoie le bon body', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.postJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok({'data': 'id'}, statusCode: 200),
         );
 
@@ -192,11 +181,13 @@ void main() {
           nbQuestions: 15,
         );
 
-        final captured = verify(mockApiClient.postJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-          auth: captureAnyNamed('auth'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.postJson(
+            captureAny,
+            body: captureAnyNamed('body'),
+            auth: captureAnyNamed('auth'),
+          ),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['themes'], equals([1, 3]));
@@ -205,15 +196,15 @@ void main() {
       });
 
       test('retourne erreur en cas d\'échec', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Invalid request',
-            statusCode: 400,
+        when(
+          mockApiClient.postJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
           ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Invalid request', statusCode: 400),
         );
 
         final result = await soloApi.createSolo(

@@ -14,7 +14,12 @@ class ResetPasswordPage extends StatefulWidget {
   final AuthApi? authApiOverride;
   final String? returnTo;
 
-  const ResetPasswordPage({super.key, this.initialLogin, this.authApiOverride, this.returnTo});
+  const ResetPasswordPage({
+    super.key,
+    this.initialLogin,
+    this.authApiOverride,
+    this.returnTo,
+  });
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();

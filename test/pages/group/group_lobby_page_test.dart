@@ -89,11 +89,10 @@ void main() {
   });
 
   group('GroupLobbyPage', () {
-    testWidgets('vue hôte : affiche "Lancer la partie" et code', (tester) async {
-      final party = makeGroupParty(
-        code: '123456',
-        hostUserId: 'user-1',
-      );
+    testWidgets('vue hôte : affiche "Lancer la partie" et code', (
+      tester,
+    ) async {
+      final party = makeGroupParty(code: '123456', hostUserId: 'user-1');
       await pumpLobbyPage(tester, party: party, currentUserId: 'user-1');
       await pumpAnimations(tester);
 
@@ -175,26 +174,27 @@ void main() {
     });
 
     testWidgets(
-        'changement d\'état store → countdown → navigue vers GroupQuizPage',
-        (tester) async {
-      final party = makeGroupParty(
-        code: '111222',
-        hostUserId: 'user-1',
-      );
-      final (:coord, :store) =
-          await pumpLobbyPage(tester, party: party, currentUserId: 'user-1');
-      await pumpAnimations(tester);
+      'changement d\'état store → countdown → navigue vers GroupQuizPage',
+      (tester) async {
+        final party = makeGroupParty(code: '111222', hostUserId: 'user-1');
+        final (:coord, :store) = await pumpLobbyPage(
+          tester,
+          party: party,
+          currentUserId: 'user-1',
+        );
+        await pumpAnimations(tester);
 
-      // Simulate WebSocket countdown event
-      store.onCountdown(3);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        // Simulate WebSocket countdown event
+        store.onCountdown(3);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      // GroupQuizPage should have been pushed — look for its countdown text
-      expect(find.text('La question arrive dans...'), findsOneWidget);
+        // GroupQuizPage should have been pushed — look for its countdown text
+        expect(find.text('La question arrive dans...'), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
     testWidgets('Guest sign-out upon leaving', (tester) async {
       final party = makeGroupParty(
@@ -206,25 +206,31 @@ void main() {
             idParty: 'p1',
             user: GroupUser(id: 'guest-1', nickName: 'Guest Tester'),
           ),
-        ]
+        ],
       );
-      
+
       // Setup Guest
-      await AuthStore.instance.signInWithSession(AuthSessionDto(
-        user: UserDto(
-          id: 'guest-1',
-          nickName: 'Guest Tester',
-          email: '',
-          avatar: null,
-          isAdmin: false,
-          isNew: false,
+      await AuthStore.instance.signInWithSession(
+        AuthSessionDto(
+          user: UserDto(
+            id: 'guest-1',
+            nickName: 'Guest Tester',
+            email: '',
+            avatar: null,
+            isAdmin: false,
+            isNew: false,
+          ),
+          token: AuthTokenDto(token: 'fake'),
+          isGoogleUser: false,
+          raw: {},
         ),
-        token: AuthTokenDto(token: 'fake'),
-        isGoogleUser: false,
-        raw: {},
-      ));
-      
-      final res = await pumpLobbyPage(tester, party: party, currentUserId: 'guest-1');
+      );
+
+      final res = await pumpLobbyPage(
+        tester,
+        party: party,
+        currentUserId: 'guest-1',
+      );
       await pumpAnimations(tester);
 
       expect(AuthStore.instance.isGuest, isTrue);

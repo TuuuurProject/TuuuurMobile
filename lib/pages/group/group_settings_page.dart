@@ -128,7 +128,9 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       }
 
       final themes = res.data ?? [];
-      themes.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      themes.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
 
       setState(() {
         _themes = themes;
@@ -321,13 +323,10 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     return FontAwesomeIcons.shapes;
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const NavigationHeader(
-        showBack: true,
-      ),
+      appBar: const NavigationHeader(showBack: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,8 +84,10 @@ class FakeSoloApi extends SoloApi {
         if (getSoloCalls == 1) {
           return ApiResponse.ok(_partyInitialTwo(), statusCode: 200);
         }
-        return ApiResponse.ok(_partyAfterQ1Answered(withQ2Pending: true),
-            statusCode: 200);
+        return ApiResponse.ok(
+          _partyAfterQ1Answered(withQ2Pending: true),
+          statusCode: 200,
+        );
 
       case FakeSoloMode.happyTwoQuestions:
       case FakeSoloMode.unauthorizedOnCreate:
@@ -381,8 +382,9 @@ Future<void> pumpSoloQuizPage(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const MethodChannel secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const MethodChannel secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
   final Map<String, String> secureStore = <String, String>{};
 
   setUpAll(() async {
@@ -430,8 +432,9 @@ void main() {
   });
 
   group('SoloQuizPage', () {
-    testWidgets('happy path: Q1 correct -> Suivant -> Q2 wrong -> Terminer',
-        (tester) async {
+    testWidgets('happy path: Q1 correct -> Suivant -> Q2 wrong -> Terminer', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
       addTearDown(() async => tester.binding.setSurfaceSize(null));
 
@@ -482,8 +485,9 @@ void main() {
       await finishTest(tester);
     });
 
-    testWidgets('timer: expiration -> auto-submit answerId=0 -> Terminer',
-        (tester) async {
+    testWidgets('timer: expiration -> auto-submit answerId=0 -> Terminer', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
       addTearDown(() async => tester.binding.setSurfaceSize(null));
 
@@ -506,8 +510,9 @@ void main() {
       await finishTest(tester);
     });
 
-    testWidgets('createSolo 401 -> carte erreur + bouton "Se connecter"',
-        (tester) async {
+    testWidgets('createSolo 401 -> carte erreur + bouton "Se connecter"', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
       addTearDown(() async => tester.binding.setSurfaceSize(null));
 
@@ -524,34 +529,35 @@ void main() {
     });
 
     testWidgets(
-        'si answerSolo ne renvoie pas la prochaine question -> "Suivant" déclenche _reloadParty()',
-        (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1000, 800));
-      addTearDown(() async => tester.binding.setSurfaceSize(null));
+      'si answerSolo ne renvoie pas la prochaine question -> "Suivant" déclenche _reloadParty()',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1000, 800));
+        addTearDown(() async => tester.binding.setSurfaceSize(null));
 
-      final api = FakeSoloApi(FakeSoloMode.reloadOnNext);
+        final api = FakeSoloApi(FakeSoloMode.reloadOnNext);
 
-      await pumpSoloQuizPage(tester, api: api, questions: 2);
+        await pumpSoloQuizPage(tester, api: api, questions: 2);
 
-      await pumpUntilFound(tester, find.text('Paris'));
+        await pumpUntilFound(tester, find.text('Paris'));
 
-      await tester.tap(find.text('Paris'));
-      await tester.pump();
+        await tester.tap(find.text('Paris'));
+        await tester.pump();
 
-      await pumpUntilFound(tester, find.textContaining('Correct +'));
-      expect(find.text('Suivant'), findsOneWidget);
+        await pumpUntilFound(tester, find.textContaining('Correct +'));
+        expect(find.text('Suivant'), findsOneWidget);
 
-      final beforeCalls = api.getSoloCalls;
+        final beforeCalls = api.getSoloCalls;
 
-      await tester.tap(find.text('Suivant'));
-      await tester.pump();
+        await tester.tap(find.text('Suivant'));
+        await tester.pump();
 
-      await pumpUntilFound(tester, find.text('4'));
-      expect(find.text('4'), findsOneWidget);
+        await pumpUntilFound(tester, find.text('4'));
+        expect(find.text('4'), findsOneWidget);
 
-      expect(api.getSoloCalls, greaterThan(beforeCalls));
+        expect(api.getSoloCalls, greaterThan(beforeCalls));
 
-      await finishTest(tester);
-    });
+        await finishTest(tester);
+      },
+    );
   });
 }

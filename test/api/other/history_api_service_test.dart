@@ -12,10 +12,7 @@ import 'history_api_service_test.mocks.dart';
 void main() {
   group('HistoryPartyTypeDto', () {
     test('fromJson crée une instance correcte', () {
-      final json = {
-        'id': 1,
-        'label': 'Solo',
-      };
+      final json = {'id': 1, 'label': 'Solo'};
 
       final dto = HistoryPartyTypeDto.fromJson(json);
 
@@ -35,10 +32,7 @@ void main() {
 
   group('HistoryDifficultyDto', () {
     test('fromJson crée une instance correcte', () {
-      final json = {
-        'id': 2,
-        'label': 'Moyen',
-      };
+      final json = {'id': 2, 'label': 'Moyen'};
 
       final dto = HistoryDifficultyDto.fromJson(json);
 
@@ -49,11 +43,7 @@ void main() {
 
   group('HistoryThemeDto', () {
     test('fromJson crée une instance avec icon', () {
-      final json = {
-        'id': 5,
-        'label': 'Musique',
-        'icon': 'fa-music',
-      };
+      final json = {'id': 5, 'label': 'Musique', 'icon': 'fa-music'};
 
       final dto = HistoryThemeDto.fromJson(json);
 
@@ -63,10 +53,7 @@ void main() {
     });
 
     test('fromJson gère icon optionnel', () {
-      final json = {
-        'id': 3,
-        'label': 'Sport',
-      };
+      final json = {'id': 3, 'label': 'Sport'};
 
       final dto = HistoryThemeDto.fromJson(json);
 
@@ -78,10 +65,7 @@ void main() {
     test('fromJson avec difficulty imbriquée', () {
       final json = {
         'id': 1,
-        'difficulty': {
-          'id': 2,
-          'label': 'Difficile',
-        },
+        'difficulty': {'id': 2, 'label': 'Difficile'},
       };
 
       final dto = HistoryPartyDifficultyDto.fromJson(json);
@@ -106,11 +90,7 @@ void main() {
     test('fromJson avec theme imbriqué', () {
       final json = {
         'id': 1,
-        'theme': {
-          'id': 5,
-          'label': 'Géographie',
-          'icon': 'fa-globe',
-        },
+        'theme': {'id': 5, 'label': 'Géographie', 'icon': 'fa-globe'},
       };
 
       final dto = HistoryPartyThemeDto.fromJson(json);
@@ -132,10 +112,7 @@ void main() {
         'score': 8,
         'time': 120,
         'percent': 80,
-        'partyType': {
-          'id': 1,
-          'label': 'Solo',
-        },
+        'partyType': {'id': 1, 'label': 'Solo'},
         'partyDifficulty': [
           {
             'id': 1,
@@ -182,11 +159,7 @@ void main() {
     });
 
     test('fromJson gère elapsedSeconds comme alternative à time', () {
-      final json = {
-        'id': 'test',
-        'finish': true,
-        'elapsedSeconds': 45,
-      };
+      final json = {'id': 'test', 'finish': true, 'elapsedSeconds': 45};
 
       final dto = HistoryMatchDto.fromJson(json);
 
@@ -194,10 +167,7 @@ void main() {
     });
 
     test('fromJson gère isFinished comme alternative à finish', () {
-      final json = {
-        'id': 'test',
-        'isFinished': true,
-      };
+      final json = {'id': 'test', 'isFinished': true};
 
       final dto = HistoryMatchDto.fromJson(json);
 
@@ -307,51 +277,57 @@ void main() {
     });
 
     group('getHistory', () {
-      test('retourne la page d\'historique avec paramètres par défaut', () async {
-        final responseData = {
-          'history': [
-            {
-              'id': 'match-1',
-              'finish': true,
-              'partyDifficulty': [],
-              'partyTheme': [],
-            },
-          ],
-          'totalParties': 20,
-        };
+      test(
+        'retourne la page d\'historique avec paramètres par défaut',
+        () async {
+          final responseData = {
+            'history': [
+              {
+                'id': 'match-1',
+                'finish': true,
+                'partyDifficulty': [],
+                'partyTheme': [],
+              },
+            ],
+            'totalParties': 20,
+          };
 
-        when(mockApiClient.getJson('/api/v1/history?page=1&size=10', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+          when(
+            mockApiClient.getJson('/api/v1/history?page=1&size=10', auth: true),
+          ).thenAnswer(
+            (_) async => ApiResponse.ok(responseData, statusCode: 200),
+          );
 
-        final result = await historyApi.getHistory();
+          final result = await historyApi.getHistory();
 
-        expect(result.ok, isTrue);
-        expect(result.data!.items.length, equals(1));
-        expect(result.data!.totalCount, equals(20));
-      });
+          expect(result.ok, isTrue);
+          expect(result.data!.items.length, equals(1));
+          expect(result.data!.totalCount, equals(20));
+        },
+      );
 
       test('accepte les paramètres page et size personnalisés', () async {
-        final responseData = {
-          'history': [],
-          'page': 2,
-        };
+        final responseData = {'history': [], 'page': 2};
 
-        when(mockApiClient.getJson('/api/v1/history?page=2&size=20', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/history?page=2&size=20', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await historyApi.getHistory(page: 2, size: 20);
 
         expect(result.ok, isTrue);
-        verify(mockApiClient.getJson('/api/v1/history?page=2&size=20', auth: true))
-            .called(1);
+        verify(
+          mockApiClient.getJson('/api/v1/history?page=2&size=20', auth: true),
+        ).called(1);
       });
 
       test('retourne une erreur si la requête échoue', () async {
-        when(mockApiClient.getJson(any, auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Non autorisé',
-                  statusCode: 401,
-                ));
+        when(mockApiClient.getJson(any, auth: true)).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Non autorisé', statusCode: 401),
+        );
 
         final result = await historyApi.getHistory();
 
@@ -372,8 +348,11 @@ void main() {
           'users': [],
         };
 
-        when(mockApiClient.getJson('/api/v1/history/party-123', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/group/party-123', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await historyApi.getPartyDetail('party-123');
 
@@ -382,11 +361,12 @@ void main() {
       });
 
       test('retourne une erreur si la partie n\'existe pas', () async {
-        when(mockApiClient.getJson('/api/v1/history/not-found', auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Partie non trouvée',
-                  statusCode: 404,
-                ));
+        when(
+          mockApiClient.getJson('/api/v1/group/not-found', auth: true),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Partie non trouvée', statusCode: 404),
+        );
 
         final result = await historyApi.getPartyDetail('not-found');
 
@@ -405,8 +385,11 @@ void main() {
           'users': [],
         };
 
-        when(mockApiClient.getJson('/api/v1/solo/solo-456', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/solo/solo-456', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await historyApi.getSoloPartyDetail('solo-456');
 
@@ -415,11 +398,12 @@ void main() {
       });
 
       test('retourne une erreur en cas d\'échec', () async {
-        when(mockApiClient.getJson('/api/v1/solo/error', auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Erreur serveur',
-                  statusCode: 500,
-                ));
+        when(
+          mockApiClient.getJson('/api/v1/solo/error', auth: true),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Erreur serveur', statusCode: 500),
+        );
 
         final result = await historyApi.getSoloPartyDetail('error');
 

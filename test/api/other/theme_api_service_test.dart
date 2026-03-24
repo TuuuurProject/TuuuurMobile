@@ -12,11 +12,7 @@ import 'theme_api_service_test.mocks.dart';
 void main() {
   group('ThemeItemDto', () {
     test('fromJson crée une instance correcte', () {
-      final json = {
-        'id': 1,
-        'icon': 'fa-music',
-        'label': 'Musique',
-      };
+      final json = {'id': 1, 'icon': 'fa-music', 'label': 'Musique'};
 
       final dto = ThemeItemDto.fromJson(json);
 
@@ -26,11 +22,7 @@ void main() {
     });
 
     test('fromJson parse l\'id depuis String', () {
-      final json = {
-        'id': '42',
-        'icon': 'test',
-        'label': 'Test',
-      };
+      final json = {'id': '42', 'icon': 'test', 'label': 'Test'};
 
       final dto = ThemeItemDto.fromJson(json);
 
@@ -68,11 +60,7 @@ void main() {
     });
 
     test('fromJson gère themeId comme clé alternative pour id', () {
-      final json = {
-        'themeId': 5,
-        'code': 'history',
-        'name': 'Histoire',
-      };
+      final json = {'themeId': 5, 'code': 'history', 'name': 'Histoire'};
 
       final dto = ThemeDto.fromJson(json);
 
@@ -113,20 +101,27 @@ void main() {
     });
 
     test('fromJson gère faIcon et iconName comme alternatives à icon', () {
-      final json1 = {'id': 1, 'code': 'test', 'name': 'Test', 'faIcon': 'fa-test'};
+      final json1 = {
+        'id': 1,
+        'code': 'test',
+        'name': 'Test',
+        'faIcon': 'fa-test',
+      };
       final dto1 = ThemeDto.fromJson(json1);
       expect(dto1.icon, equals('fa-test'));
 
-      final json2 = {'id': 2, 'code': 'test2', 'name': 'Test2', 'iconName': 'icon-test'};
+      final json2 = {
+        'id': 2,
+        'code': 'test2',
+        'name': 'Test2',
+        'iconName': 'icon-test',
+      };
       final dto2 = ThemeDto.fromJson(json2);
       expect(dto2.icon, equals('icon-test'));
     });
 
     test('fromJson utilise id comme code par défaut', () {
-      final json = {
-        'id': 99,
-        'name': 'Theme',
-      };
+      final json = {'id': 99, 'name': 'Theme'};
 
       final dto = ThemeDto.fromJson(json);
 
@@ -134,10 +129,7 @@ void main() {
     });
 
     test('fromJson utilise code comme name par défaut', () {
-      final json = {
-        'id': 1,
-        'code': 'default',
-      };
+      final json = {'id': 1, 'code': 'default'};
 
       final dto = ThemeDto.fromJson(json);
 
@@ -175,8 +167,9 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await themeApi.getThemes();
 
@@ -193,8 +186,9 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await themeApi.getThemes();
 
@@ -209,8 +203,9 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await themeApi.getThemes();
 
@@ -221,8 +216,9 @@ void main() {
       test('retourne une liste vide si pas de données', () async {
         final responseData = <String, dynamic>{};
 
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await themeApi.getThemes();
 
@@ -231,11 +227,10 @@ void main() {
       });
 
       test('retourne une erreur si la requête échoue', () async {
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Erreur serveur',
-                  statusCode: 500,
-                ));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Erreur serveur', statusCode: 500),
+        );
 
         final result = await themeApi.getThemes();
 
@@ -254,8 +249,9 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await themeApi.getThemes();
 
@@ -270,8 +266,9 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/theme', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(mockApiClient.getJson('/api/v1/theme', auth: true)).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await themeApi.getThemes();
 

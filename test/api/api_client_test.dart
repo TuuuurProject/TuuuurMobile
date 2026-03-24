@@ -48,12 +48,9 @@ void main() {
     group('getJson', () {
       test('retourne succès avec données valides', () async {
         final responseBody = jsonEncode({'result': 'success'});
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 200),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response(responseBody, 200));
 
         final result = await apiClient.getJson('/test');
 
@@ -64,12 +61,9 @@ void main() {
 
       test('retourne erreur avec code 404', () async {
         final responseBody = jsonEncode({'error': 'Not found'});
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 404),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response(responseBody, 404));
 
         final result = await apiClient.getJson('/notfound');
 
@@ -79,10 +73,9 @@ void main() {
       });
 
       test('retourne erreur en cas d\'exception réseau', () async {
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenThrow(Exception('Network error'));
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenThrow(Exception('Network error'));
 
         final result = await apiClient.getJson('/test');
 
@@ -91,19 +84,15 @@ void main() {
       });
 
       test('ajoute les bons headers', () async {
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 200),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{}', 200));
 
         await apiClient.getJson('/test', headers: {'X-Custom': 'value'});
 
-        final captured = verify(mockHttpClient.get(
-          captureAny,
-          headers: captureAnyNamed('headers'),
-        )).captured;
+        final captured = verify(
+          mockHttpClient.get(captureAny, headers: captureAnyNamed('headers')),
+        ).captured;
 
         final headers = captured[1] as Map<String, String>;
         expect(headers['Accept'], equals('application/json'));
@@ -114,15 +103,18 @@ void main() {
     group('postJson', () {
       test('retourne succès avec données valides', () async {
         final responseBody = jsonEncode({'id': 123});
-        when(mockHttpClient.post(
-          any,
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 201),
-        );
+        when(
+          mockHttpClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(responseBody, 201));
 
-        final result = await apiClient.postJson('/create', body: {'name': 'test'});
+        final result = await apiClient.postJson(
+          '/create',
+          body: {'name': 'test'},
+        );
 
         expect(result.ok, isTrue);
         expect(result.data, equals({'id': 123}));
@@ -130,21 +122,23 @@ void main() {
       });
 
       test('envoie le body JSON correctement', () async {
-        when(mockHttpClient.post(
-          any,
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 200),
-        );
+        when(
+          mockHttpClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response('{}', 200));
 
         await apiClient.postJson('/test', body: {'key': 'value'});
 
-        final captured = verify(mockHttpClient.post(
-          captureAny,
-          headers: captureAnyNamed('headers'),
-          body: captureAnyNamed('body'),
-        )).captured;
+        final captured = verify(
+          mockHttpClient.post(
+            captureAny,
+            headers: captureAnyNamed('headers'),
+            body: captureAnyNamed('body'),
+          ),
+        ).captured;
 
         final body = captured[2] as String;
         expect(body, equals('{"key":"value"}'));
@@ -153,15 +147,15 @@ void main() {
       test('gère les erreurs 400', () async {
         final responseBody = jsonEncode({
           'title': 'Bad Request',
-          'detail': 'Invalid data'
+          'detail': 'Invalid data',
         });
-        when(mockHttpClient.post(
-          any,
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 400),
-        );
+        when(
+          mockHttpClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(responseBody, 400));
 
         final result = await apiClient.postJson('/test', body: {});
 
@@ -174,13 +168,13 @@ void main() {
     group('putJson', () {
       test('retourne succès avec données valides', () async {
         final responseBody = jsonEncode({'updated': true});
-        when(mockHttpClient.put(
-          any,
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 200),
-        );
+        when(
+          mockHttpClient.put(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(responseBody, 200));
 
         final result = await apiClient.putJson('/update', body: {'id': 1});
 
@@ -189,13 +183,13 @@ void main() {
       });
 
       test('gère les erreurs de conflit 409', () async {
-        when(mockHttpClient.put(
-          any,
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 409),
-        );
+        when(
+          mockHttpClient.put(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response('{}', 409));
 
         final result = await apiClient.putJson('/update', body: {});
 
@@ -207,12 +201,9 @@ void main() {
 
     group('delete', () {
       test('retourne succès', () async {
-        when(mockHttpClient.delete(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 204),
-        );
+        when(
+          mockHttpClient.delete(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{}', 204));
 
         final result = await apiClient.delete('/delete/123');
 
@@ -221,12 +212,9 @@ void main() {
       });
 
       test('gère les erreurs 404', () async {
-        when(mockHttpClient.delete(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{"error": "Not found"}', 404),
-        );
+        when(
+          mockHttpClient.delete(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{"error": "Not found"}', 404));
 
         final result = await apiClient.delete('/delete/999');
 
@@ -239,14 +227,11 @@ void main() {
       test('extrait les erreurs avec title et detail', () async {
         final responseBody = jsonEncode({
           'title': 'Validation Error',
-          'detail': 'Email is required'
+          'detail': 'Email is required',
         });
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 422),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response(responseBody, 422));
 
         final result = await apiClient.getJson('/test');
 
@@ -259,15 +244,12 @@ void main() {
         final responseBody = jsonEncode({
           'errors': [
             {'description': 'First error'},
-            {'description': 'Second error'}
-          ]
+            {'description': 'Second error'},
+          ],
         });
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 400),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response(responseBody, 400));
 
         final result = await apiClient.getJson('/test');
 
@@ -277,12 +259,9 @@ void main() {
 
       test('utilise le message direct si disponible', () async {
         final responseBody = jsonEncode({'message': 'Custom error message'});
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response(responseBody, 500),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response(responseBody, 500));
 
         final result = await apiClient.getJson('/test');
 
@@ -293,19 +272,15 @@ void main() {
 
     group('URI construction', () {
       test('normalise les chemins avec slash', () async {
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 200),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{}', 200));
 
         await apiClient.getJson('test');
 
-        final captured = verify(mockHttpClient.get(
-          captureAny,
-          headers: anyNamed('headers'),
-        )).captured;
+        final captured = verify(
+          mockHttpClient.get(captureAny, headers: anyNamed('headers')),
+        ).captured;
 
         final uri = captured[0] as Uri;
         expect(uri.toString(), equals('https://api.test.com/test'));
@@ -317,19 +292,15 @@ void main() {
           baseUrl: 'https://api.test.com///',
         );
 
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 200),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{}', 200));
 
         await client.getJson('/test');
 
-        final captured = verify(mockHttpClient.get(
-          captureAny,
-          headers: anyNamed('headers'),
-        )).captured;
+        final captured = verify(
+          mockHttpClient.get(captureAny, headers: anyNamed('headers')),
+        ).captured;
 
         final uri = captured[0] as Uri;
         expect(uri.toString(), equals('https://api.test.com/test'));
@@ -338,35 +309,23 @@ void main() {
 
     group('timeout', () {
       test('utilise le timeout par défaut de 10 secondes', () async {
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 200),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{}', 200));
 
         await apiClient.getJson('/test');
 
-        verify(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).called(1);
+        verify(mockHttpClient.get(any, headers: anyNamed('headers'))).called(1);
       });
 
       test('permet de spécifier un timeout personnalisé', () async {
-        when(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).thenAnswer(
-          (_) async => http.Response('{}', 200),
-        );
+        when(
+          mockHttpClient.get(any, headers: anyNamed('headers')),
+        ).thenAnswer((_) async => http.Response('{}', 200));
 
         await apiClient.getJson('/test', timeout: Duration(seconds: 5));
 
-        verify(mockHttpClient.get(
-          any,
-          headers: anyNamed('headers'),
-        )).called(1);
+        verify(mockHttpClient.get(any, headers: anyNamed('headers'))).called(1);
       });
     });
 

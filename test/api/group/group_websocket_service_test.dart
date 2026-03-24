@@ -83,7 +83,7 @@ class _RecordingHandler implements GroupWebSocketEventHandler {
 /// Service with spoofed `isConnected = true` to reach code paths that need it.
 class _ConnectedSpyService extends GroupWebSocketService {
   _ConnectedSpyService()
-      : super(hubUrl: 'http://localhost:1', tokenProvider: _FakeTokenProvider());
+    : super(hubUrl: 'http://localhost:1', tokenProvider: _FakeTokenProvider());
 
   @override
   bool get isConnected => true;
@@ -132,7 +132,7 @@ class _ThrowingHandler implements GroupWebSocketEventHandler {
 /// testDispatch* @visibleForTesting methods on GroupWebSocketService directly.
 class _StateOverrideService extends GroupWebSocketService {
   _StateOverrideService()
-      : super(hubUrl: 'http://localhost:1', tokenProvider: _FakeTokenProvider());
+    : super(hubUrl: 'http://localhost:1', tokenProvider: _FakeTokenProvider());
 
   WebSocketConnectionState? _overrideState;
 
@@ -150,9 +150,9 @@ class _StateOverrideService extends GroupWebSocketService {
 // ─────────────────────────────────────────────────────────────────────────────
 
 GroupWebSocketService _makeService() => GroupWebSocketService(
-      hubUrl: 'http://localhost:1',
-      tokenProvider: _FakeTokenProvider(),
-    );
+  hubUrl: 'http://localhost:1',
+  tokenProvider: _FakeTokenProvider(),
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
@@ -208,31 +208,39 @@ void main() {
       expect(() => svc.removeEventHandler(h), returnsNormally);
     });
 
-    test('removeEventHandler sur un handler absent ne lève pas d\'exception', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      expect(() => svc.removeEventHandler(h), returnsNormally);
-    });
+    test(
+      'removeEventHandler sur un handler absent ne lève pas d\'exception',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        expect(() => svc.removeEventHandler(h), returnsNormally);
+      },
+    );
 
     test(
-        'les handlers ajoutés reçoivent les notifications de déconnexion lors du dispose',
-        () async {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+      'les handlers ajoutés reçoivent les notifications de déconnexion lors du dispose',
+      () async {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      await svc.dispose(); // internally calls disconnect which clears handlers
-      // After dispose, handlers list is cleared — no events possible
-    });
+        await svc
+            .dispose(); // internally calls disconnect which clears handlers
+        // After dispose, handlers list is cleared — no events possible
+      },
+    );
   });
 
   group('GroupWebSocketService — disconnect', () {
-    test('disconnect est idempotent quand déjà déconnecté et sans hub', () async {
-      final svc = _makeService();
-      await expectLater(svc.disconnect(), completes);
-      // Appel répété — toujours sans erreur
-      await expectLater(svc.disconnect(), completes);
-    });
+    test(
+      'disconnect est idempotent quand déjà déconnecté et sans hub',
+      () async {
+        final svc = _makeService();
+        await expectLater(svc.disconnect(), completes);
+        // Appel répété — toujours sans erreur
+        await expectLater(svc.disconnect(), completes);
+      },
+    );
 
     test('disconnect modifie l\'état en disconnected quand hub nul', () async {
       final svc = _makeService();
@@ -256,23 +264,27 @@ void main() {
       );
     });
 
-    test('lève ArgumentError pour answerId = 0 quand isConnected est true',
-        () async {
-      final svc = _ConnectedSpyService();
-      await expectLater(
-        () => svc.sendAnswer(0),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'lève ArgumentError pour answerId = 0 quand isConnected est true',
+      () async {
+        final svc = _ConnectedSpyService();
+        await expectLater(
+          () => svc.sendAnswer(0),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
-    test('lève ArgumentError pour answerId négatif quand isConnected est true',
-        () async {
-      final svc = _ConnectedSpyService();
-      await expectLater(
-        () => svc.sendAnswer(-5),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'lève ArgumentError pour answerId négatif quand isConnected est true',
+      () async {
+        final svc = _ConnectedSpyService();
+        await expectLater(
+          () => svc.sendAnswer(-5),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
   });
 
   group('GroupWebSocketService — startGroupParty', () {
@@ -292,10 +304,13 @@ void main() {
   });
 
   group('GroupWebSocketService — dispose', () {
-    test('dispose se termine sans erreur sur un service non connecté', () async {
-      final svc = _makeService();
-      await expectLater(svc.dispose(), completes);
-    });
+    test(
+      'dispose se termine sans erreur sur un service non connecté',
+      () async {
+        final svc = _makeService();
+        await expectLater(svc.dispose(), completes);
+      },
+    );
 
     test('dispose peut être appelé plusieurs fois sans erreur', () async {
       final svc = _makeService();
@@ -303,60 +318,67 @@ void main() {
       await expectLater(svc.dispose(), completes);
     });
 
-    test('dispose retire tous les handlers (plus aucune notification ensuite)',
-        () async {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      'dispose retire tous les handlers (plus aucune notification ensuite)',
+      () async {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      await svc.dispose();
+        await svc.dispose();
 
-      // Reconnecting handler is not active anymore — no crash
-      expect(svc.connectionState, WebSocketConnectionState.disconnected);
-    });
+        // Reconnecting handler is not active anymore — no crash
+        expect(svc.connectionState, WebSocketConnectionState.disconnected);
+      },
+    );
   });
 
   group('GroupWebSocketService — connect (gardes de concurrence)', () {
     test(
-        'le 2ème connect() retourne immédiatement si le 1er est en cours '
-        '(état connecting positionné de manière synchrone avant le 1er await)',
-        () async {
-      final svc = _makeService();
+      'le 2ème connect() retourne immédiatement si le 1er est en cours '
+      '(état connecting positionné de manière synchrone avant le 1er await)',
+      () async {
+        final svc = _makeService();
 
-      // connect() positionne _connectionState = connecting AVANT le 1er await,
-      // donc après cet appel synchrone l\'état est déjà connecting.
-      final firstFuture = svc.connect();
+        // connect() positionne _connectionState = connecting AVANT le 1er await,
+        // donc après cet appel synchrone l\'état est déjà connecting.
+        final firstFuture = svc.connect();
 
-      // Le 2ème appel doit retourner immédiatement (guard).
-      await svc.connect();
+        // Le 2ème appel doit retourner immédiatement (guard).
+        await svc.connect();
 
-      // Nettoyer l\'erreur réseau attendue du 1er appel.
-      await firstFuture.then((_) {}, onError: (_) {});
-      await svc.dispose();
-    });
+        // Nettoyer l\'erreur réseau attendue du 1er appel.
+        await firstFuture.then((_) {}, onError: (_) {});
+        await svc.dispose();
+      },
+    );
 
     test(
-        'connectionState revient à disconnected après un échec de connexion',
-        () async {
-      final svc = _makeService();
-      try {
-        await svc.connect();
-      } catch (_) {
-        // Attendu : échec réseau sur localhost:1
-      }
-      expect(svc.connectionState, WebSocketConnectionState.disconnected);
-    });
+      'connectionState revient à disconnected après un échec de connexion',
+      () async {
+        final svc = _makeService();
+        try {
+          await svc.connect();
+        } catch (_) {
+          // Attendu : échec réseau sur localhost:1
+        }
+        expect(svc.connectionState, WebSocketConnectionState.disconnected);
+      },
+    );
 
-    test('les handlers reçoivent onError après un échec de connexion', () async {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
-      try {
-        await svc.connect();
-      } catch (_) {}
-      expect(h.errors, isNotEmpty);
-      await svc.dispose();
-    });
+    test(
+      'les handlers reçoivent onError après un échec de connexion',
+      () async {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
+        try {
+          await svc.connect();
+        } catch (_) {}
+        expect(h.errors, isNotEmpty);
+        await svc.dispose();
+      },
+    );
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -396,20 +418,22 @@ void main() {
   });
 
   group('GroupWebSocketService — handleServerEvents via testDispatch*', () {
-    test('_handlePlayerJoined notifie onPlayerJoined avec les données correctes',
-        () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      '_handlePlayerJoined notifie onPlayerJoined avec les données correctes',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchPlayerJoined([
-        {'id': 'u1', 'nickName': 'Alice', 'isAdmin': false, 'isNew': false},
-      ]);
+        svc.testDispatchPlayerJoined([
+          {'id': 'u1', 'nickName': 'Alice', 'isAdmin': false, 'isNew': false},
+        ]);
 
-      expect(h.joinedUsers.length, 1);
-      expect(h.joinedUsers.first.id, 'u1');
-      expect(h.joinedUsers.first.nickName, 'Alice');
-    });
+        expect(h.joinedUsers.length, 1);
+        expect(h.joinedUsers.first.id, 'u1');
+        expect(h.joinedUsers.first.nickName, 'Alice');
+      },
+    );
 
     test('_handlePlayerJoined avec arguments null → rien notifié', () {
       final svc = _makeService();
@@ -655,8 +679,7 @@ void main() {
       expect(h.allAnswered, isEmpty);
     });
 
-    test(
-        '_handleDisconnected ne notifie pas si déjà disconnected', () {
+    test('_handleDisconnected ne notifie pas si déjà disconnected', () {
       final svc = _makeService();
       final h = _RecordingHandler();
       svc.addEventHandler(h);
@@ -666,19 +689,22 @@ void main() {
       expect(h.disconnectedCount, 0);
     });
 
-    test('_handleDisconnected notifie et passe à disconnected quand état non-disconnected', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      '_handleDisconnected notifie et passe à disconnected quand état non-disconnected',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      // Set state to reconnecting first, then disconnect
-      svc.testDispatchReconnecting();
-      expect(svc.connectionState, WebSocketConnectionState.reconnecting);
+        // Set state to reconnecting first, then disconnect
+        svc.testDispatchReconnecting();
+        expect(svc.connectionState, WebSocketConnectionState.reconnecting);
 
-      svc.testDispatchDisconnected();
-      expect(h.disconnectedCount, 1);
-      expect(svc.connectionState, WebSocketConnectionState.disconnected);
-    });
+        svc.testDispatchDisconnected();
+        expect(h.disconnectedCount, 1);
+        expect(svc.connectionState, WebSocketConnectionState.disconnected);
+      },
+    );
 
     test('_handleReconnecting met l\'état à reconnecting et notifie', () {
       final svc = _makeService();
@@ -703,25 +729,21 @@ void main() {
 
   group('GroupWebSocketService — sendAnswer (ConnectedSpy)', () {
     test(
-        'sendAnswer lève une exception réseau (hub nul) même avec isConnected spoofé',
-        () async {
-      final svc = _ConnectedSpyService();
-      // hub est null → appel à _hubConnection! lèvera une exception au runtime
-      await expectLater(
-        () => svc.sendAnswer(1),
-        throwsA(anything),
-      );
-    });
+      'sendAnswer lève une exception réseau (hub nul) même avec isConnected spoofé',
+      () async {
+        final svc = _ConnectedSpyService();
+        // hub est null → appel à _hubConnection! lèvera une exception au runtime
+        await expectLater(() => svc.sendAnswer(1), throwsA(anything));
+      },
+    );
 
     test(
-        'startGroupParty lève une exception réseau (hub nul) avec isConnected spoofé',
-        () async {
-      final svc = _ConnectedSpyService();
-      await expectLater(
-        () => svc.startGroupParty(),
-        throwsA(anything),
-      );
-    });
+      'startGroupParty lève une exception réseau (hub nul) avec isConnected spoofé',
+      () async {
+        final svc = _ConnectedSpyService();
+        await expectLater(() => svc.startGroupParty(), throwsA(anything));
+      },
+    );
   });
 
   group('GroupWebSocketService — multiple handlers + removeEventHandler', () {
@@ -776,24 +798,37 @@ void main() {
       'idDifficulty': 1,
       'difficulty': <String, Object?>{'id': 1, 'label': 'Facile'},
       'answer': <Object?>[
-        <String, Object?>{'id': 101, 'idQuestion': 42, 'value': 'Answer A', 'valid': null},
-        <String, Object?>{'id': 102, 'idQuestion': 42, 'value': 'Answer B', 'valid': null},
+        <String, Object?>{
+          'id': 101,
+          'idQuestion': 42,
+          'value': 'Answer A',
+          'valid': null,
+        },
+        <String, Object?>{
+          'id': 102,
+          'idQuestion': 42,
+          'value': 'Answer B',
+          'valid': null,
+        },
       ],
     },
   };
 
   group('GroupWebSocketService — _handlePartyUpdated via testDispatch*', () {
-    test('_handlePartyUpdated notifie onPartyUpdated avec les données correctes', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      '_handlePartyUpdated notifie onPartyUpdated avec les données correctes',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchPartyUpdated([kPartyJson]);
+        svc.testDispatchPartyUpdated([kPartyJson]);
 
-      expect(h.updatedParties.length, 1);
-      expect(h.updatedParties.first.id, 'party-test-99');
-      expect(h.updatedParties.first.code, 'TEST99');
-    });
+        expect(h.updatedParties.length, 1);
+        expect(h.updatedParties.first.id, 'party-test-99');
+        expect(h.updatedParties.first.code, 'TEST99');
+      },
+    );
 
     test('_handlePartyUpdated avec arguments null → rien notifié', () {
       final svc = _makeService();
@@ -837,16 +872,19 @@ void main() {
   });
 
   group('GroupWebSocketService — _handlePartyStarted via testDispatch*', () {
-    test('_handlePartyStarted notifie onPartyStarted avec les données correctes', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      '_handlePartyStarted notifie onPartyStarted avec les données correctes',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchPartyStarted([kPartyJson]);
+        svc.testDispatchPartyStarted([kPartyJson]);
 
-      expect(h.startedParties.length, 1);
-      expect(h.startedParties.first.id, 'party-test-99');
-    });
+        expect(h.startedParties.length, 1);
+        expect(h.startedParties.first.id, 'party-test-99');
+      },
+    );
 
     test('_handlePartyStarted avec arguments null → rien notifié', () {
       final svc = _makeService();
@@ -890,18 +928,21 @@ void main() {
   });
 
   group('GroupWebSocketService — _handleQuestionSend via testDispatch*', () {
-    test('_handleQuestionSend notifie onQuestionSend avec les données correctes', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      '_handleQuestionSend notifie onQuestionSend avec les données correctes',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchQuestionSend([kQuestionJson]);
+        svc.testDispatchQuestionSend([kQuestionJson]);
 
-      expect(h.questionsSent.length, 1);
-      expect(h.questionsSent.first.currentIndex, 1);
-      expect(h.questionsSent.first.score, 15);
-      expect(h.questionsSent.first.question.id, 42);
-    });
+        expect(h.questionsSent.length, 1);
+        expect(h.questionsSent.first.currentIndex, 1);
+        expect(h.questionsSent.first.score, 15);
+        expect(h.questionsSent.first.question.id, 42);
+      },
+    );
 
     test('_handleQuestionSend avec arguments null → rien notifié', () {
       final svc = _makeService();
@@ -944,110 +985,139 @@ void main() {
     });
   });
 
-  group('GroupWebSocketService — _handleQuestionAnswerSend via testDispatch*', () {
-    test('_handleQuestionAnswerSend notifie onQuestionAnswerSend avec les données correctes', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+  group(
+    'GroupWebSocketService — _handleQuestionAnswerSend via testDispatch*',
+    () {
+      test(
+        '_handleQuestionAnswerSend notifie onQuestionAnswerSend avec les données correctes',
+        () {
+          final svc = _makeService();
+          final h = _RecordingHandler();
+          svc.addEventHandler(h);
 
-      svc.testDispatchQuestionAnswerSend([kQuestionJson]);
+          svc.testDispatchQuestionAnswerSend([kQuestionJson]);
 
-      expect(h.questionsAnswerSent.length, 1);
-      expect(h.questionsAnswerSent.first.question.label, 'Test question label?');
-    });
+          expect(h.questionsAnswerSent.length, 1);
+          expect(
+            h.questionsAnswerSent.first.question.label,
+            'Test question label?',
+          );
+        },
+      );
 
-    test('_handleQuestionAnswerSend avec arguments null → rien notifié', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+      test('_handleQuestionAnswerSend avec arguments null → rien notifié', () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchQuestionAnswerSend(null);
-      expect(h.questionsAnswerSent, isEmpty);
-    });
+        svc.testDispatchQuestionAnswerSend(null);
+        expect(h.questionsAnswerSent, isEmpty);
+      });
 
-    test('_handleQuestionAnswerSend avec liste vide → rien notifié', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+      test('_handleQuestionAnswerSend avec liste vide → rien notifié', () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchQuestionAnswerSend([]);
-      expect(h.questionsAnswerSent, isEmpty);
-    });
+        svc.testDispatchQuestionAnswerSend([]);
+        expect(h.questionsAnswerSent, isEmpty);
+      });
 
-    test('_handleQuestionAnswerSend avec données malformées → rien notifié', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+      test(
+        '_handleQuestionAnswerSend avec données malformées → rien notifié',
+        () {
+          final svc = _makeService();
+          final h = _RecordingHandler();
+          svc.addEventHandler(h);
 
-      svc.testDispatchQuestionAnswerSend([999]);
-      expect(h.questionsAnswerSent, isEmpty);
-    });
+          svc.testDispatchQuestionAnswerSend([999]);
+          expect(h.questionsAnswerSent, isEmpty);
+        },
+      );
 
-    test('_handleQuestionAnswerSend notifie plusieurs handlers', () {
-      final svc = _makeService();
-      final h1 = _RecordingHandler();
-      final h2 = _RecordingHandler();
-      svc.addEventHandler(h1);
-      svc.addEventHandler(h2);
+      test('_handleQuestionAnswerSend notifie plusieurs handlers', () {
+        final svc = _makeService();
+        final h1 = _RecordingHandler();
+        final h2 = _RecordingHandler();
+        svc.addEventHandler(h1);
+        svc.addEventHandler(h2);
 
-      svc.testDispatchQuestionAnswerSend([kQuestionJson]);
+        svc.testDispatchQuestionAnswerSend([kQuestionJson]);
 
-      expect(h1.questionsAnswerSent.length, 1);
-      expect(h2.questionsAnswerSent.length, 1);
-    });
-  });
+        expect(h1.questionsAnswerSent.length, 1);
+        expect(h2.questionsAnswerSent.length, 1);
+      });
+    },
+  );
 
   group('GroupWebSocketService — _ThrowingHandler silence', () {
-    test('handler qui lève exception sur onPlayerJoined n\'affecte pas les suivants', () {
-      final svc = _makeService();
-      final throwing = _ThrowingHandler();
-      final recording = _RecordingHandler();
-      svc.addEventHandler(throwing);
-      svc.addEventHandler(recording);
+    test(
+      'handler qui lève exception sur onPlayerJoined n\'affecte pas les suivants',
+      () {
+        final svc = _makeService();
+        final throwing = _ThrowingHandler();
+        final recording = _RecordingHandler();
+        svc.addEventHandler(throwing);
+        svc.addEventHandler(recording);
 
-      svc.testDispatchPlayerJoined([
-        {'id': 'u-throw', 'nickName': 'Thrower', 'isAdmin': false, 'isNew': false},
-      ]);
+        svc.testDispatchPlayerJoined([
+          {
+            'id': 'u-throw',
+            'nickName': 'Thrower',
+            'isAdmin': false,
+            'isNew': false,
+          },
+        ]);
 
-      expect(recording.joinedUsers.length, 1);
-      expect(recording.joinedUsers.first.id, 'u-throw');
-    });
+        expect(recording.joinedUsers.length, 1);
+        expect(recording.joinedUsers.first.id, 'u-throw');
+      },
+    );
 
-    test('handler qui lève exception sur onPartyUpdated n\'affecte pas les suivants', () {
-      final svc = _makeService();
-      final throwing = _ThrowingHandler();
-      final recording = _RecordingHandler();
-      svc.addEventHandler(throwing);
-      svc.addEventHandler(recording);
+    test(
+      'handler qui lève exception sur onPartyUpdated n\'affecte pas les suivants',
+      () {
+        final svc = _makeService();
+        final throwing = _ThrowingHandler();
+        final recording = _RecordingHandler();
+        svc.addEventHandler(throwing);
+        svc.addEventHandler(recording);
 
-      svc.testDispatchPartyUpdated([kPartyJson]);
+        svc.testDispatchPartyUpdated([kPartyJson]);
 
-      expect(recording.updatedParties.length, 1);
-    });
+        expect(recording.updatedParties.length, 1);
+      },
+    );
 
-    test('handler qui lève exception sur onCountdown n\'affecte pas les suivants', () {
-      final svc = _makeService();
-      final throwing = _ThrowingHandler();
-      final recording = _RecordingHandler();
-      svc.addEventHandler(throwing);
-      svc.addEventHandler(recording);
+    test(
+      'handler qui lève exception sur onCountdown n\'affecte pas les suivants',
+      () {
+        final svc = _makeService();
+        final throwing = _ThrowingHandler();
+        final recording = _RecordingHandler();
+        svc.addEventHandler(throwing);
+        svc.addEventHandler(recording);
 
-      svc.testDispatchCountdown([5]);
+        svc.testDispatchCountdown([5]);
 
-      expect(recording.countdowns, [5]);
-    });
+        expect(recording.countdowns, [5]);
+      },
+    );
 
-    test('handler qui lève exception sur onQuestionSend n\'affecte pas les suivants', () {
-      final svc = _makeService();
-      final throwing = _ThrowingHandler();
-      final recording = _RecordingHandler();
-      svc.addEventHandler(throwing);
-      svc.addEventHandler(recording);
+    test(
+      'handler qui lève exception sur onQuestionSend n\'affecte pas les suivants',
+      () {
+        final svc = _makeService();
+        final throwing = _ThrowingHandler();
+        final recording = _RecordingHandler();
+        svc.addEventHandler(throwing);
+        svc.addEventHandler(recording);
 
-      svc.testDispatchQuestionSend([kQuestionJson]);
+        svc.testDispatchQuestionSend([kQuestionJson]);
 
-      expect(recording.questionsSent.length, 1);
-    });
+        expect(recording.questionsSent.length, 1);
+      },
+    );
   });
 
   group('GroupWebSocketService — state transitions complètes', () {
@@ -1103,73 +1173,88 @@ void main() {
       expect(h2.startedParties.length, 1);
     });
 
-    test('addEventHandler dédupliqué n\'entraîne pas de double notification', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
-      svc.addEventHandler(h); // duplicate
+    test(
+      'addEventHandler dédupliqué n\'entraîne pas de double notification',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
+        svc.addEventHandler(h); // duplicate
 
-      svc.testDispatchCountdown([10]);
+        svc.testDispatchCountdown([10]);
 
-      // Despite adding twice, handler is deduped → should receive once
-      // (depends on implementation; at minimum no error)
-      expect(h.countdowns, isNotEmpty);
-    });
+        // Despite adding twice, handler is deduped → should receive once
+        // (depends on implementation; at minimum no error)
+        expect(h.countdowns, isNotEmpty);
+      },
+    );
   });
 
   group('GroupWebSocketService — testDispatchConnected', () {
-    test('testDispatchConnected notifie onConnected et met état à connected', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      'testDispatchConnected notifie onConnected et met état à connected',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchConnected();
+        svc.testDispatchConnected();
 
-      expect(h.connectedCount, 1);
-      expect(svc.connectionState, WebSocketConnectionState.connected);
-    });
+        expect(h.connectedCount, 1);
+        expect(svc.connectionState, WebSocketConnectionState.connected);
+      },
+    );
 
-    test('testDispatchConnected puis testDispatchDisconnected cycle complet', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      'testDispatchConnected puis testDispatchDisconnected cycle complet',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchConnected();
-      svc.testDispatchDisconnected();
+        svc.testDispatchConnected();
+        svc.testDispatchDisconnected();
 
-      expect(h.connectedCount, 1);
-      expect(h.disconnectedCount, 1);
-      expect(svc.connectionState, WebSocketConnectionState.disconnected);
-    });
+        expect(h.connectedCount, 1);
+        expect(h.disconnectedCount, 1);
+        expect(svc.connectionState, WebSocketConnectionState.disconnected);
+      },
+    );
 
-    test('cycle complet connected → reconnecting → reconnected → disconnected', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      'cycle complet connected → reconnecting → reconnected → disconnected',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      svc.testDispatchConnected();
-      svc.testDispatchReconnecting();
-      svc.testDispatchReconnected();
-      svc.testDispatchDisconnected();
+        svc.testDispatchConnected();
+        svc.testDispatchReconnecting();
+        svc.testDispatchReconnected();
+        svc.testDispatchDisconnected();
 
-      expect(h.connectedCount, 1);
-      expect(h.reconnectingCount, 1);
-      expect(h.reconnectedCount, 1);
-      expect(h.disconnectedCount, 1);
-      expect(svc.connectionState, WebSocketConnectionState.disconnected);
-    });
+        expect(h.connectedCount, 1);
+        expect(h.reconnectingCount, 1);
+        expect(h.reconnectedCount, 1);
+        expect(h.disconnectedCount, 1);
+        expect(svc.connectionState, WebSocketConnectionState.disconnected);
+      },
+    );
   });
 
   group('GroupWebSocketService — _handleError avec données invalides', () {
-    test('_handleError avec valeur non-String en args[0] → onError avec Server error', () {
-      final svc = _makeService();
-      final h = _RecordingHandler();
-      svc.addEventHandler(h);
+    test(
+      '_handleError avec valeur non-String en args[0] → onError avec Server error',
+      () {
+        final svc = _makeService();
+        final h = _RecordingHandler();
+        svc.addEventHandler(h);
 
-      // args[0] is not a String → cast fails → catch branch fires
-      svc.testDispatchError([12345]);
-      expect(h.errors, isNotEmpty);
-      expect(h.errors.first, contains('Server error'));
-    });
+        // args[0] is not a String → cast fails → catch branch fires
+        svc.testDispatchError([12345]);
+        expect(h.errors, isNotEmpty);
+        expect(h.errors.first, contains('Server error'));
+      },
+    );
   });
 }

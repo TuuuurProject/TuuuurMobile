@@ -1,5 +1,5 @@
 /// Export principal pour le système de groupe WebSocket
-/// 
+///
 /// Usage:
 /// ```dart
 /// import 'package:tuuuur_flutter/group_system.dart';

@@ -40,7 +40,9 @@ class TuuurPill extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
-        mainAxisAlignment: bounded ? MainAxisAlignment.center : MainAxisAlignment.start,
+        mainAxisAlignment: bounded
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
         children: [
           if (icon != null) ...[
             FaIcon(icon!, size: 10, color: textColor),
@@ -107,11 +109,7 @@ class ThemePill extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
 
-  const ThemePill({
-    super.key,
-    required this.label,
-    this.onTap,
-  });
+  const ThemePill({super.key, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {

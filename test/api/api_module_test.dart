@@ -7,7 +7,6 @@ import 'package:tuuuur_flutter/stores/auth_store.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-
   FlutterSecureStorage.setMockInitialValues({});
 
   group('ApiModule integration', () {
@@ -35,22 +34,16 @@ void main() {
 
       final authApi1 = module.authApi;
 
-
       module.initialize(authStore: authStore);
 
       final authApi2 = module.authApi;
-
 
       expect(identical(authApi1, authApi2), isTrue);
     });
 
     test('leve une assertion si on accede aux API sans initialiser', () {
-
-
-
       final module = ApiModule.instance;
       module.initialize(authStore: authStore);
-
 
       expect(module.authApi, isNotNull);
       expect(module.soloApi, isNotNull);
@@ -62,7 +55,6 @@ void main() {
     test('dispose nettoie les ressources', () {
       final module = ApiModule.instance;
       module.initialize(authStore: authStore);
-
 
       expect(() => module.dispose(), returnsNormally);
     });

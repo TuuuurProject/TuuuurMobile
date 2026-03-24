@@ -6,15 +6,12 @@ class HistoryPartyTypeDto {
   final int? id;
   final String label;
 
-  const HistoryPartyTypeDto({
-    this.id,
-    required this.label,
-  });
+  const HistoryPartyTypeDto({this.id, required this.label});
 
   factory HistoryPartyTypeDto.fromJson(Map<String, dynamic> j) {
     return HistoryPartyTypeDto(
       id: asInt(get(j, 'id')),
-      label: asString(get(j, 'label')) ?? '',
+      label: asString(get(j, 'label') ?? get(j, 'name')) ?? '',
     );
   }
 }
@@ -23,10 +20,7 @@ class HistoryDifficultyDto {
   final int? id;
   final String label;
 
-  const HistoryDifficultyDto({
-    this.id,
-    required this.label,
-  });
+  const HistoryDifficultyDto({this.id, required this.label});
 
   factory HistoryDifficultyDto.fromJson(Map<String, dynamic> j) {
     return HistoryDifficultyDto(
@@ -40,10 +34,7 @@ class HistoryPartyDifficultyDto {
   final int? id;
   final HistoryDifficultyDto? difficulty;
 
-  const HistoryPartyDifficultyDto({
-    this.id,
-    this.difficulty,
-  });
+  const HistoryPartyDifficultyDto({this.id, this.difficulty});
 
   factory HistoryPartyDifficultyDto.fromJson(Map<String, dynamic> j) {
     final diffJson = get(j, 'difficulty');
@@ -61,11 +52,7 @@ class HistoryThemeDto {
   final String label;
   final String? icon;
 
-  const HistoryThemeDto({
-    this.id,
-    required this.label,
-    this.icon,
-  });
+  const HistoryThemeDto({this.id, required this.label, this.icon});
 
   factory HistoryThemeDto.fromJson(Map<String, dynamic> j) {
     return HistoryThemeDto(
@@ -80,10 +67,7 @@ class HistoryPartyThemeDto {
   final int? id;
   final HistoryThemeDto? theme;
 
-  const HistoryPartyThemeDto({
-    this.id,
-    this.theme,
-  });
+  const HistoryPartyThemeDto({this.id, this.theme});
 
   factory HistoryPartyThemeDto.fromJson(Map<String, dynamic> j) {
     final themeJson = get(j, 'theme');
@@ -101,6 +85,7 @@ class HistoryMatchDto {
   final String id;
   final DateTime? dt;
   final bool finish;
+  final int? idPartyType;
   final int? nbQuestions;
   final int? score;
   final int? time;
@@ -113,6 +98,7 @@ class HistoryMatchDto {
     required this.id,
     this.dt,
     required this.finish,
+    this.idPartyType,
     this.nbQuestions,
     this.score,
     this.time,
@@ -148,10 +134,17 @@ class HistoryMatchDto {
     return HistoryMatchDto(
       id: asString(get(j, 'id')) ?? '',
       dt: asDateTime(get(j, 'dt') ?? get(j, 'date')),
-      finish: asBool(get(j, 'finish') ?? get(j, 'finished') ?? get(j, 'isFinished')) ?? false,
+      finish:
+          asBool(
+            get(j, 'finish') ?? get(j, 'finished') ?? get(j, 'isFinished'),
+          ) ??
+          false,
+      idPartyType: asInt(get(j, 'idPartyType')),
       nbQuestions: asInt(get(j, 'nbQuestions')),
       score: asInt(get(j, 'score')),
-      time: asInt(get(j, 'time') ?? get(j, 'duration') ?? get(j, 'elapsedSeconds')),
+      time: asInt(
+        get(j, 'time') ?? get(j, 'duration') ?? get(j, 'elapsedSeconds'),
+      ),
       percent: asInt(get(j, 'percent') ?? get(j, 'successPercent')),
       partyType: ptJson is Map<String, dynamic>
           ? HistoryPartyTypeDto.fromJson(ptJson)
@@ -218,6 +211,7 @@ class HistoryPageDto {
 /// User model for party detail
 class HistoryUserDto {
   final int? id;
+  final String? userId;
   final String nickName;
   final String? email;
   final String? avatar;
@@ -226,6 +220,7 @@ class HistoryUserDto {
 
   const HistoryUserDto({
     this.id,
+    this.userId,
     required this.nickName,
     this.email,
     this.avatar,
@@ -233,10 +228,15 @@ class HistoryUserDto {
     required this.isNew,
   });
 
+  String get displayName => nickName.isNotEmpty ? nickName : 'Joueur';
+
   factory HistoryUserDto.fromJson(Map<String, dynamic> j) {
+    final rawId = get(j, 'id');
+
     return HistoryUserDto(
-      id: asInt(get(j, 'id')),
-      nickName: asString(get(j, 'nickName')) ?? '',
+      id: asInt(rawId),
+      userId: asString(rawId),
+      nickName: asString(get(j, 'nickName') ?? get(j, 'name')) ?? '',
       email: asString(get(j, 'email')),
       avatar: asString(get(j, 'avatar')),
       isAdmin: asBool(get(j, 'isAdmin')) ?? false,
@@ -400,14 +400,18 @@ class PartyDetailDto {
   final bool active;
   final bool finish;
 
-  final bool? inProgress;   // <-- NEW (optionnel)
-  final int? nbQuestions;   // <-- NEW (optionnel)
+  final bool? inProgress;
+  final int? nbQuestions;
 
   final int? percent;
   final int? score;
   final int? time;
   final HistoryPartyTypeDto? partyType;
   final HistoryUserDto? user;
+
+  final List<HistoryPartyUserDto> partyUsers;
+  final List<HistoryUserScoreDto> userScores;
+
   final List<HistoryPartyDifficultyDto> partyDifficulty;
   final List<HistoryPartyThemeDto> partyTheme;
   final List<HistoryPartyQuestionDto> partyQuestions;
@@ -426,6 +430,8 @@ class PartyDetailDto {
     this.time,
     this.partyType,
     this.user,
+    required this.partyUsers,
+    required this.userScores,
     required this.partyDifficulty,
     required this.partyTheme,
     required this.partyQuestions,
@@ -437,6 +443,8 @@ class PartyDetailDto {
     final pdJson = get(j, 'partyDifficulty');
     final ptmJson = get(j, 'partyTheme');
     final pqJson = get(j, 'partyQuestions');
+    final partyUsersJson = get(j, 'partyUsers');
+    final userScoresJson = get(j, 'userScores');
 
     final inProg = asBool(get(j, 'inProgress'));
 
@@ -467,10 +475,30 @@ class PartyDetailDto {
       }
     }
 
-    // Fallbacks:
+    final partyUsers = <HistoryPartyUserDto>[];
+    if (partyUsersJson is List) {
+      for (final e in partyUsersJson) {
+        if (e is Map<String, dynamic>) {
+          partyUsers.add(HistoryPartyUserDto.fromJson(e));
+        }
+      }
+    }
+
+    final userScores = <HistoryUserScoreDto>[];
+    if (userScoresJson is List) {
+      for (final e in userScoresJson) {
+        if (e is Map<String, dynamic>) {
+          userScores.add(HistoryUserScoreDto.fromJson(e));
+        }
+      }
+    }
+
     final active = asBool(get(j, 'active')) ?? (inProg ?? false);
-    final finish = asBool(get(j, 'finish') ?? get(j, 'finished') ?? get(j, 'isFinished'))
-        ?? ((inProg == true) ? false : false);
+    final finish =
+        asBool(
+          get(j, 'finish') ?? get(j, 'finished') ?? get(j, 'isFinished'),
+        ) ??
+        false;
 
     return PartyDetailDto(
       id: asString(get(j, 'id')) ?? '',
@@ -490,9 +518,60 @@ class PartyDetailDto {
       user: userJson is Map<String, dynamic>
           ? HistoryUserDto.fromJson(userJson)
           : null,
+      partyUsers: partyUsers,
+      userScores: userScores,
       partyDifficulty: pds,
       partyTheme: themes,
       partyQuestions: questions,
+    );
+  }
+}
+
+class HistoryPartyUserDto {
+  final int? id;
+  final String? idUser;
+  final HistoryUserDto? user;
+
+  const HistoryPartyUserDto({
+    this.id,
+    this.idUser,
+    this.user,
+  });
+
+  factory HistoryPartyUserDto.fromJson(Map<String, dynamic> j) {
+    final userJson = get(j, 'user');
+
+    return HistoryPartyUserDto(
+      id: asInt(get(j, 'id')),
+      idUser: asString(get(j, 'idUser')),
+      user: userJson is Map<String, dynamic>
+          ? HistoryUserDto.fromJson(userJson)
+          : null,
+    );
+  }
+}
+
+class HistoryUserScoreDto {
+  final String? userId;
+  final int score;
+  final HistoryUserDto? user;
+
+  const HistoryUserScoreDto({
+    this.userId,
+    required this.score,
+    this.user,
+  });
+
+  factory HistoryUserScoreDto.fromJson(Map<String, dynamic> j) {
+    final userJson = get(j, 'user');
+    final parsedUser = userJson is Map<String, dynamic>
+        ? HistoryUserDto.fromJson(userJson)
+        : null;
+
+    return HistoryUserScoreDto(
+      userId: asString(get(j, 'userId')) ?? parsedUser?.userId,
+      score: asInt(get(j, 'score')) ?? 0,
+      user: parsedUser,
     );
   }
 }

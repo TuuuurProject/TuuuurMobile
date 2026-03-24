@@ -1,7 +1,7 @@
 /// Shared JSON parsing helpers for all API services.
 
 /// Gets a value from JSON map.
-dynamic get(Map<String, dynamic>? json, String key) => 
+dynamic get(Map<String, dynamic>? json, String key) =>
     json == null ? null : json[key];
 
 /// Converts value to String.
@@ -36,8 +36,7 @@ DateTime? asDateTime(dynamic value) {
   if (value is String) {
     try {
       final hasTzInfo =
-          value.endsWith('Z') ||
-          value.contains(RegExp(r'[+-]\d{2}:\d{2}$'));
+          value.endsWith('Z') || value.contains(RegExp(r'[+-]\d{2}:\d{2}$'));
 
       final parsed = DateTime.parse(value);
 

@@ -15,8 +15,9 @@ import 'package:tuuuur_flutter/stores/auth_store.dart';
 // Secure-storage mock (copié du pattern group_test_helpers)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MethodChannel _kSecureStorageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const MethodChannel _kSecureStorageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 final Map<String, String> _kSecureStore = {};
 
 void _setupSecureStorageMock() {
@@ -70,14 +71,16 @@ class FakeHistoryApi extends HistoryApi {
   Future<ApiResponse<PartyDetailDto>> getPartyDetail(String partyId) async {
     if (delayFuture != null) await delayFuture;
     if (simulateNetworkError) throw Exception('Network error');
-    return groupResponse ?? ApiResponse.ok(_makeFinishedGroupParty(), statusCode: 200);
+    return groupResponse ??
+        ApiResponse.ok(_makeFinishedGroupParty(), statusCode: 200);
   }
 
   @override
   Future<ApiResponse<PartyDetailDto>> getSoloPartyDetail(String partyId) async {
     if (delayFuture != null) await delayFuture;
     if (simulateNetworkError) throw Exception('Network error');
-    return soloResponse ?? ApiResponse.ok(_makeFinishedSoloParty(), statusCode: 200);
+    return soloResponse ??
+        ApiResponse.ok(_makeFinishedSoloParty(), statusCode: 200);
   }
 }
 
@@ -109,9 +112,21 @@ PartyDetailDto _makeFinishedGroupParty({
       ),
     ],
     partyQuestions: [
-      _makePartyQuestion(order: 1, wasCorrect: true, score: 10, questionLabel: 'Q1 ?'),
-      _makePartyQuestion(order: 2, wasCorrect: false, score: 0, questionLabel: 'Q2 ?'),
+      _makePartyQuestion(
+        order: 1,
+        wasCorrect: true,
+        score: 10,
+        questionLabel: 'Q1 ?',
+      ),
+      _makePartyQuestion(
+        order: 2,
+        wasCorrect: false,
+        score: 0,
+        questionLabel: 'Q2 ?',
+      ),
     ],
+    partyUsers: const [],
+    userScores: const [],
     score: score,
   );
 }
@@ -129,8 +144,15 @@ PartyDetailDto _makeFinishedSoloParty({
     partyDifficulty: [],
     partyTheme: [],
     partyQuestions: [
-      _makePartyQuestion(order: 1, wasCorrect: true, score: 20, questionLabel: 'Solo Q1 ?'),
+      _makePartyQuestion(
+        order: 1,
+        wasCorrect: true,
+        score: 20,
+        questionLabel: 'Solo Q1 ?',
+      ),
     ],
+    partyUsers: const [],
+    userScores: const [],
     score: 20,
   );
 }
@@ -263,8 +285,9 @@ void main() {
 
   // ─────────────────────────── État de chargement ─────────────────────────
   group('HistoryQuizPage — état de chargement', () {
-    testWidgets('affiche un CircularProgressIndicator pendant le chargement',
-        (tester) async {
+    testWidgets('affiche un CircularProgressIndicator pendant le chargement', (
+      tester,
+    ) async {
       // On bloque le retour de l'API avec un Completer pour rester en loading
       final blocker = Completer<void>();
       final slowApi = FakeHistoryApi()..delayFuture = blocker.future;
@@ -323,57 +346,68 @@ void main() {
 
   // ─────────────────────────── État d'erreur API ──────────────────────────
   group('HistoryQuizPage — état d\'erreur', () {
-    testWidgets('affiche un message d\'erreur quand l\'API retourne une erreur',
-        (tester) async {
-      final api = FakeHistoryApi()
-        ..groupResponse = ApiResponse.err(
-          message: 'Partie introuvable',
-          statusCode: 404,
+    testWidgets(
+      'affiche un message d\'erreur quand l\'API retourne une erreur',
+      (tester) async {
+        final api = FakeHistoryApi()
+          ..groupResponse = ApiResponse.err(
+            message: 'Partie introuvable',
+            statusCode: 404,
+          );
+
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
+
+        expect(
+          find.textContaining('Partie introuvable'),
+          findsAtLeastNWidgets(1),
         );
 
-      await _pumpHistoryPage(tester, api: api);
-      await _pumpAnimations(tester);
+        await _finishTest(tester);
+      },
+    );
 
-      expect(find.textContaining('Partie introuvable'), findsAtLeastNWidgets(1));
+    testWidgets(
+      'affiche un message d\'erreur quand l\'API lance une exception',
+      (tester) async {
+        final api = FakeHistoryApi()..simulateNetworkError = true;
 
-      await _finishTest(tester);
-    });
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
 
-    testWidgets('affiche un message d\'erreur quand l\'API lance une exception',
-        (tester) async {
-      final api = FakeHistoryApi()..simulateNetworkError = true;
+        expect(find.textContaining('Erreur'), findsAtLeastNWidgets(1));
 
-      await _pumpHistoryPage(tester, api: api);
-      await _pumpAnimations(tester);
+        await _finishTest(tester);
+      },
+    );
 
-      expect(find.textContaining('Erreur'), findsAtLeastNWidgets(1));
+    testWidgets(
+      'affiche un message d\'erreur par défaut quand message est null',
+      (tester) async {
+        final api = FakeHistoryApi()
+          ..groupResponse = ApiResponse.err(message: null, statusCode: 500);
 
-      await _finishTest(tester);
-    });
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
 
-    testWidgets('affiche un message d\'erreur par défaut quand message est null',
-        (tester) async {
+        // Le fallback est "Impossible de charger la partie"
+        expect(
+          find.textContaining('Impossible de charger'),
+          findsAtLeastNWidgets(1),
+        );
+
+        await _finishTest(tester);
+      },
+    );
+
+    testWidgets('bouton Retour est présent dans l\'état d\'erreur', (
+      tester,
+    ) async {
       final api = FakeHistoryApi()
         ..groupResponse = ApiResponse.err(
-          message: null,
+          message: 'Erreur 500',
           statusCode: 500,
         );
-
-      await _pumpHistoryPage(tester, api: api);
-      await _pumpAnimations(tester);
-
-      // Le fallback est "Impossible de charger la partie"
-      expect(
-        find.textContaining('Impossible de charger'),
-        findsAtLeastNWidgets(1),
-      );
-
-      await _finishTest(tester);
-    });
-
-    testWidgets('bouton Retour est présent dans l\'état d\'erreur', (tester) async {
-      final api = FakeHistoryApi()
-        ..groupResponse = ApiResponse.err(message: 'Erreur 500', statusCode: 500);
 
       await _pumpHistoryPage(tester, api: api);
       await _pumpAnimations(tester);
@@ -386,7 +420,9 @@ void main() {
 
   // ─────────────────────────── Partie de groupe terminée ───────────────────
   group('HistoryQuizPage — partie groupe terminée', () {
-    testWidgets('affiche "Partie terminée" pour une partie finie', (tester) async {
+    testWidgets('affiche "Partie terminée" pour une partie finie', (
+      tester,
+    ) async {
       final api = FakeHistoryApi()
         ..groupResponse = ApiResponse.ok(
           _makeFinishedGroupParty(finish: true),
@@ -401,8 +437,9 @@ void main() {
       await _finishTest(tester);
     });
 
-    testWidgets('affiche "Partie en cours" pour une partie non terminée',
-        (tester) async {
+    testWidgets('affiche "Partie en cours" pour une partie non terminée', (
+      tester,
+    ) async {
       final api = FakeHistoryApi()
         ..groupResponse = ApiResponse.ok(
           _makeFinishedGroupParty(finish: false),
@@ -475,7 +512,10 @@ void main() {
       await _pumpHistoryPage(tester, api: api);
       await _pumpAnimations(tester);
 
-      expect(find.textContaining('Infos de la partie'), findsAtLeastNWidgets(1));
+      expect(
+        find.textContaining('Infos de la partie'),
+        findsAtLeastNWidgets(1),
+      );
 
       await _finishTest(tester);
     });
@@ -496,22 +536,23 @@ void main() {
     });
 
     testWidgets(
-        'bouton Continuer absent pour une partie groupe terminée (non solo)',
-        (tester) async {
-      final api = FakeHistoryApi()
-        ..groupResponse = ApiResponse.ok(
-          _makeFinishedGroupParty(finish: true),
-          statusCode: 200,
-        );
+      'bouton Continuer absent pour une partie groupe terminée (non solo)',
+      (tester) async {
+        final api = FakeHistoryApi()
+          ..groupResponse = ApiResponse.ok(
+            _makeFinishedGroupParty(finish: true),
+            statusCode: 200,
+          );
 
-      await _pumpHistoryPage(tester, api: api);
-      await _pumpAnimations(tester);
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
 
-      // Le bouton "Continuer" ne doit pas être présent pour le mode groupe
-      expect(find.text('Continuer'), findsNothing);
+        // Le bouton "Continuer" ne doit pas être présent pour le mode groupe
+        expect(find.text('Continuer'), findsNothing);
 
-      await _finishTest(tester);
-    });
+        await _finishTest(tester);
+      },
+    );
   });
 
   // ─────────────────────────── Partie solo ────────────────────────────────
@@ -531,8 +572,9 @@ void main() {
       await _finishTest(tester);
     });
 
-    testWidgets(
-        'affiche bouton Continuer pour partie solo non terminée', (tester) async {
+    testWidgets('affiche bouton Continuer pour partie solo non terminée', (
+      tester,
+    ) async {
       final api = FakeHistoryApi()
         ..soloResponse = ApiResponse.ok(
           _makeFinishedSoloParty(finish: false),
@@ -548,8 +590,9 @@ void main() {
       await _finishTest(tester);
     });
 
-    testWidgets(
-        'n\'affiche pas bouton Continuer pour partie solo terminée', (tester) async {
+    testWidgets('n\'affiche pas bouton Continuer pour partie solo terminée', (
+      tester,
+    ) async {
       final api = FakeHistoryApi()
         ..soloResponse = ApiResponse.ok(
           _makeFinishedSoloParty(finish: true),
@@ -613,27 +656,27 @@ void main() {
       await _finishTest(tester);
     });
 
-    testWidgets('"Bonne réponse +X pts" apparaît pour les questions correctes',
-        (tester) async {
-      final api = FakeHistoryApi()
-        ..groupResponse = ApiResponse.ok(
-          _makeFinishedGroupParty(),
-          statusCode: 200,
-        );
+    testWidgets(
+      '"Bonne réponse +X pts" apparaît pour les questions correctes',
+      (tester) async {
+        final api = FakeHistoryApi()
+          ..groupResponse = ApiResponse.ok(
+            _makeFinishedGroupParty(),
+            statusCode: 200,
+          );
 
-      await _pumpHistoryPage(tester, api: api);
-      await _pumpAnimations(tester);
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
 
-      expect(
-        find.textContaining('Bonne réponse +'),
-        findsAtLeastNWidgets(1),
-      );
+        expect(find.textContaining('Bonne réponse +'), findsAtLeastNWidgets(1));
 
-      await _finishTest(tester);
-    });
+        await _finishTest(tester);
+      },
+    );
 
-    testWidgets('"Mauvaise réponse" apparaît pour les questions incorrectes',
-        (tester) async {
+    testWidgets('"Mauvaise réponse" apparaît pour les questions incorrectes', (
+      tester,
+    ) async {
       final api = FakeHistoryApi()
         ..groupResponse = ApiResponse.ok(
           _makeFinishedGroupParty(),

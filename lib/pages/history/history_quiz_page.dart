@@ -8,11 +8,14 @@ import '../../api/other/history_api_service.dart';
 import '../../api/other/history_models.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
+import '../../widgets/common_widgets.dart';
 import '../../widgets/navigation_header.dart';
+import '../../widgets/avatar_widget.dart';
 
 class HistoryQuizPage extends StatefulWidget {
   final String partyId;
   final bool isSolo;
+  final Object? historyMatchRaw;
 
   /// Injection point for tests — leave null to use ApiModule.instance.historyApi.
   final HistoryApi? historyApiOverride;
@@ -21,6 +24,7 @@ class HistoryQuizPage extends StatefulWidget {
     super.key,
     required this.partyId,
     this.isSolo = false,
+    this.historyMatchRaw,
     this.historyApiOverride,
   });
 
@@ -30,6 +34,7 @@ class HistoryQuizPage extends StatefulWidget {
 
 class _HistoryQuizPageState extends State<HistoryQuizPage> {
   final ScrollController _questionsScrollCtrl = ScrollController();
+
   bool _loading = true;
   String? _errorMessage;
   PartyDetailDto? _partyDetail;
@@ -49,6 +54,105 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     super.dispose();
   }
 
+  bool _isRankedMatch(HistoryMatchDto match) {
+    return match.idPartyType == 2 ||
+        (match.partyType?.label ?? '').toLowerCase() == 'ranked';
+  }
+
+  bool get _isRankedParty {
+    if (_partyDetail == null) return false;
+    return _partyDetail!.idPartyType == 2 ||
+        (_partyDetail!.partyType?.label ?? '').toLowerCase() == 'ranked';
+  }
+
+  bool get _isGroupParty {
+    if (_partyDetail == null) return false;
+    return _partyDetail!.idPartyType == 1 ||
+        (_partyDetail!.partyType?.label ?? '').toLowerCase() == 'group';
+  }
+
+  List<_HistoryLeaderboardEntry> get _groupLeaderboardEntries {
+    final detail = _partyDetail;
+    if (detail == null || !_isGroupParty) return const [];
+
+    final usersById = <String, HistoryUserDto>{};
+
+    for (final partyUser in detail.partyUsers) {
+      final key = partyUser.idUser ?? partyUser.user?.userId;
+      if (key != null && key.isNotEmpty && partyUser.user != null) {
+        usersById[key] = partyUser.user!;
+      }
+    }
+
+    final seen = <String>{};
+    final entries = <_HistoryLeaderboardEntry>[];
+
+    for (final userScore in detail.userScores) {
+      final userId = userScore.userId ?? '';
+      final user = usersById[userId] ?? userScore.user;
+
+      if (userId.isEmpty && user == null) {
+        continue;
+      }
+
+      entries.add(
+        _HistoryLeaderboardEntry(
+          userId: userId,
+          name: user?.displayName ?? 'Joueur',
+          avatarBase64: user?.avatar,
+          score: userScore.score,
+        ),
+      );
+
+      if (userId.isNotEmpty) {
+        seen.add(userId);
+      }
+    }
+
+    for (final partyUser in detail.partyUsers) {
+      final userId = partyUser.idUser ?? partyUser.user?.userId ?? '';
+      if (userId.isEmpty || seen.contains(userId)) continue;
+
+      entries.add(
+        _HistoryLeaderboardEntry(
+          userId: userId,
+          name: partyUser.user?.displayName ?? 'Joueur',
+          avatarBase64: partyUser.user?.avatar,
+          score: 0,
+        ),
+      );
+    }
+
+    entries.sort((a, b) => b.score.compareTo(a.score));
+    return entries;
+  }
+
+  Color _getRankColor(int rank) {
+    switch (rank) {
+      case 1:
+        return Colors.amber;
+      case 2:
+        return Colors.grey;
+      case 3:
+        return Colors.brown;
+      default:
+        return TuuurTheme.brandPurple;
+    }
+  }
+
+  String _getRankEmoji(int rank) {
+    switch (rank) {
+      case 1:
+        return '🥇';
+      case 2:
+        return '🥈';
+      case 3:
+        return '🥉';
+      default:
+        return '';
+    }
+  }
+
   Future<void> _loadPartyDetail() async {
     setState(() {
       _loading = true;
@@ -56,6 +160,39 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     });
 
     try {
+      // Ranked: on réutilise directement les données de l'historique.
+      if (widget.historyMatchRaw is HistoryMatchDto) {
+        final match = widget.historyMatchRaw as HistoryMatchDto;
+
+        if (_isRankedMatch(match)) {
+          setState(() {
+            _partyDetail = PartyDetailDto(
+              id: match.id,
+              dt: match.dt,
+              idPartyType: match.idPartyType ?? match.partyType?.id,
+              idUserHost: null,
+              active: false,
+              finish: match.finish,
+              inProgress: false,
+              nbQuestions: match.nbQuestions,
+              percent: match.percent,
+              score: match.score,
+              time: match.time,
+              partyType: match.partyType,
+              user: null,
+              partyDifficulty: match.partyDifficulty,
+              partyTheme: match.partyTheme,
+              partyQuestions: const [],
+              partyUsers: const [],
+              userScores: const [],
+            );
+            _loading = false;
+          });
+          return;
+        }
+      }
+
+      // Solo / Group : on charge le détail via l'API.
       final response = widget.isSolo
           ? await _historyApi.getSoloPartyDetail(widget.partyId)
           : await _historyApi.getPartyDetail(widget.partyId);
@@ -69,7 +206,14 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
         });
       } else {
         setState(() {
-          _errorMessage = response.message ?? 'Impossible de charger la partie';
+          if (response.statusCode == 404) {
+            _errorMessage =
+                "${response.message ?? 'Impossible de charger la partie'}\n"
+                "S'il s'agit d'une partie Ranked, elle doit être ouverte depuis l'historique avec les données déjà chargées.";
+          } else {
+            _errorMessage =
+                response.message ?? 'Impossible de charger la partie';
+          }
           _loading = false;
         });
       }
@@ -84,6 +228,8 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
 
   bool get _canContinueParty {
     if (_partyDetail == null) return false;
+    if (_isRankedParty) return false;
+
     final isNotFinished = !_partyDetail!.finish;
     final isSolo =
         (_partyDetail!.partyType?.label ?? '').toLowerCase() == 'solo';
@@ -104,6 +250,22 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     );
   }
 
+  String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+    return '$day/$month/$year';
+  }
+
+  String _formatDuration(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (remainingSeconds == 0) return '${minutes}min';
+    return '${minutes}min ${remainingSeconds}s';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,9 +277,7 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: TuuurTheme.brandPurple),
-      );
+      return const Center(child: GamingLoadingIndicator());
     }
 
     if (_errorMessage != null) {
@@ -162,7 +322,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
       );
     }
 
-    // Bottom bar sticky (comme le web)
     const bottomBarHeight = 120.0;
 
     return Stack(
@@ -173,15 +332,98 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildTopSummaryCard(),
-              const SizedBox(height: 24),
-              _buildPartyInfoCard(),
-              const SizedBox(height: 24),
-              _buildQuestionsRecapCard(),
+              if (_isRankedParty) ...[
+                _buildRankedSummaryCard(),
+              ] else ...[
+                GamingResultSummaryCard(
+                  title: _partyDetail!.finish
+                      ? 'Partie terminée'
+                      : 'Partie en cours',
+                  partyType: _partyDetail!.partyType?.label ?? 'Partie',
+                  score: _partyDetail!.score ?? 0,
+                  totalQuestions: _partyDetail!.partyQuestions.length,
+                  correctAnswers: _partyDetail!.partyQuestions
+                      .where((pq) => pq.userPartyQuestion?.correct == true)
+                      .length,
+                  incorrectAnswers:
+                      _partyDetail!.partyQuestions.length -
+                      _partyDetail!.partyQuestions
+                          .where((pq) => pq.userPartyQuestion?.correct == true)
+                          .length,
+                  successRate: _partyDetail!.partyQuestions.isNotEmpty
+                      ? (((_partyDetail!.partyQuestions
+                                        .where(
+                                          (pq) =>
+                                              pq.userPartyQuestion?.correct ==
+                                              true,
+                                        )
+                                        .length) /
+                                    _partyDetail!.partyQuestions.length) *
+                                100)
+                            .round()
+                      : 0,
+                  isFinished: _partyDetail!.finish,
+                ),
+                const SizedBox(height: 24),
+                _buildPartyInfoCard(),
+                if (_isGroupParty && _groupLeaderboardEntries.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildGroupPodium(),
+                  if (_groupLeaderboardEntries.length > 3) ...[
+                    const SizedBox(height: 24),
+                    _buildGroupFullRanking(),
+                  ],
+                  const SizedBox(height: 24),
+                ],
+                const SizedBox(height: 24),
+                Builder(
+                  builder: (context) {
+                    final sortedQuestions = List<HistoryPartyQuestionDto>.from(
+                      _partyDetail!.partyQuestions,
+                    )..sort((a, b) => a.order.compareTo(b.order));
+
+                    final reviewQuestions = sortedQuestions.asMap().entries.map(
+                      (entry) {
+                        final i = entry.key;
+                        final HistoryPartyQuestionDto q = entry.value;
+
+                        final answers = (q.question?.answer ?? const [])
+                            .map<QuizAnswerReviewItem>(
+                              (a) => QuizAnswerReviewItem(
+                                label: a.value,
+                                isCorrect: a.valid == true,
+                                isUserChoice:
+                                    q.userPartyQuestion?.idAnswer == a.id,
+                                userAnswered:
+                                    q.userPartyQuestion?.idAnswer != null,
+                              ),
+                            )
+                            .toList();
+
+                        return QuizQuestionReviewItem(
+                          number: i + 1,
+                          questionLabel:
+                              q.question?.label ?? 'Question non disponible',
+                          wasCorrect: q.userPartyQuestion?.correct ?? false,
+                          scoreGained: q.userPartyQuestion?.score ?? 0,
+                          userAnswered: q.userPartyQuestion?.idAnswer != null,
+                          answers: answers,
+                        );
+                      },
+                    ).toList();
+
+                    return GamingQuestionsRecapCard(
+                      maxHeight: MediaQuery.of(context).size.height * 0.60,
+                      scrollable: true,
+                      scrollController: _questionsScrollCtrl,
+                      questions: reviewQuestions,
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),
-
         Positioned(
           left: 0,
           right: 0,
@@ -208,6 +450,10 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
       onPressed: () => context.pop(),
       width: double.infinity,
     );
+
+    if (_isRankedParty) {
+      return backBtn;
+    }
 
     final continueBtn = GamingButtonPrimary(
       text: 'Continuer',
@@ -241,145 +487,143 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     );
   }
 
-  // ====== 1) HEADER “FINISHED CARD” LIKE WEB ======
-
-  Widget _buildTopSummaryCard() {
-    final isFinished = _partyDetail!.finish;
-    final partyType = _partyDetail!.partyType?.label ?? 'Partie';
-
+  Widget _buildRankedSummaryCard() {
     final score = _partyDetail!.score ?? 0;
-    final totalQuestions = _partyDetail!.partyQuestions.length;
-
-    final correctAnswers = _partyDetail!.partyQuestions
-        .where((pq) => pq.userPartyQuestion?.correct == true)
-        .length;
-
-    final incorrectAnswers = totalQuestions - correctAnswers;
-
-    final successRate = totalQuestions > 0
-        ? ((correctAnswers / totalQuestions) * 100).round()
-        : 0;
-
-    final icon = isFinished
-        ? FontAwesomeIcons.trophy
-        : FontAwesomeIcons.hourglassHalf;
-
-    final ringColor = isFinished
-        ? TuuurTheme.brandYellow
+    final isVictory = score > 0;
+    final accentColor = isVictory
+        ? TuuurTheme.brandGreen
         : TuuurTheme.brandOrange;
+    final title = isVictory ? 'Victoire' : 'Défaite';
 
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.2)),
-        boxShadow: TuuurTheme.cardShadow,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            TuuurTheme.brandPurple.withOpacity(0.20),
-            TuuurTheme.brandOrange.withOpacity(0.18),
-          ],
+      decoration: TuuurStyles.gamingCard.copyWith(
+        border: Border.all(
+          color: TuuurTheme.brandPurple.withOpacity(0.30),
+          width: 1,
         ),
+        boxShadow: TuuurTheme.neonShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Icon ring (trophy / hourglass)
-            Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: ringColor.withOpacity(0.20),
-                    border: Border.all(color: ringColor, width: 2),
-                  ),
-                  child: Center(
-                    child: FaIcon(icon, size: 30, color: ringColor),
-                  ),
-                )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scale(
-                  duration: 1400.ms,
-                  begin: const Offset(1.0, 1.0),
-                  end: const Offset(1.06, 1.06),
-                  curve: Curves.easeInOut,
-                ),
-
-            const SizedBox(height: 16),
-
-            Text(
-              isFinished ? 'Partie terminée' : 'Partie en cours',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.w800,
-                color: isFinished
-                    ? TuuurTheme.brandLightGray
-                    : TuuurTheme.brandLightGray,
-                shadows: [
-                  Shadow(
-                    color: TuuurTheme.brandPurple.withOpacity(0.45),
-                    blurRadius: 18,
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(delay: 120.ms).slideY(begin: -0.2),
-
-            const SizedBox(height: 6),
-
-            Text(
-              partyType,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: TuuurTheme.brandGray,
-              ),
-            ).animate().fadeIn(delay: 180.ms),
-
-            const SizedBox(height: 20),
-
-            // Stats row: Score / Questions / Success
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildTopStat(
-                  label: 'Score',
-                  value: '$score',
-                  valueColor: TuuurTheme.brandYellow,
-                ),
-                _buildDivider(),
-                _buildTopStat(
-                  label: 'Questions',
-                  value: '$totalQuestions',
-                  valueColor: TuuurTheme.brandLightGray,
-                ),
-                _buildDivider(),
-                _buildTopStat(
-                  label: 'Réussite',
-                  value: '$successRate%',
-                  valueColor: TuuurTheme.brandGreen, // comme web
+                Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: accentColor.withOpacity(0.16),
+                        border: Border.all(
+                          color: accentColor.withOpacity(0.45),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: FaIcon(
+                          isVictory
+                              ? FontAwesomeIcons.trophy
+                              : FontAwesomeIcons.skullCrossbones,
+                          size: 24,
+                          color: accentColor,
+                        ),
+                      ),
+                    )
+                    .animate(onPlay: (c) => c.repeat(reverse: true))
+                    .scale(
+                      duration: 1400.ms,
+                      begin: const Offset(1.0, 1.0),
+                      end: const Offset(1.04, 1.04),
+                    ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: accentColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Ranked',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: TuuurTheme.brandGray,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
 
+            const SizedBox(height: 24),
+
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: TuuurTheme.brandDark.withOpacity(0.35),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: TuuurTheme.brandPurple.withOpacity(0.22),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Score',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: TuuurTheme.brandGray.withOpacity(0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$score',
+                    style: const TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w800,
+                      color: TuuurTheme.brandLightGray,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 18),
 
-            // Quick badges: correct / incorrect (and optionally unanswered if in progress)
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
               children: [
-                BadgeSuccess(
-                  text: '$correctAnswers bonnes réponses',
-                  icon: FontAwesomeIcons.checkCircle,
-                ),
-                BadgeWarning(
-                  text: '$incorrectAnswers mauvaises réponses',
-                  icon: FontAwesomeIcons.timesCircle,
+                if (_partyDetail!.time != null)
+                  _buildRankedInfoTile(
+                    icon: FontAwesomeIcons.clock,
+                    label: 'Temps',
+                    value: _formatDuration(_partyDetail!.time!),
+                    color: TuuurTheme.brandPurple,
+                  ),
+                if (_partyDetail!.dt != null)
+                  _buildRankedInfoTile(
+                    icon: FontAwesomeIcons.calendar,
+                    label: 'Date',
+                    value: _formatDate(_partyDetail!.dt!),
+                    color: TuuurTheme.brandLightGray,
+                  ),
+                _buildRankedInfoTile(
+                  icon: FontAwesomeIcons.flagCheckered,
+                  label: 'Statut',
+                  value: _partyDetail!.finish ? 'Terminée' : 'En cours',
+                  color: accentColor,
                 ),
               ],
             ),
@@ -389,49 +633,319 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     ).animate().fadeIn(delay: 220.ms);
   }
 
-  Widget _buildDivider() {
+  Widget _buildRankedInfoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      width: 1,
-      height: 44,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      color: TuuurTheme.brandPurple.withOpacity(0.30),
+      width: 150,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: TuuurTheme.brandDark.withOpacity(0.28),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.20)),
+      ),
+      child: Column(
+        children: [
+          FaIcon(icon, size: 15, color: color),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandGray,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTopStat({
-    required String label,
-    required String value,
-    required Color valueColor,
+  Widget _buildGroupPodium() {
+    final scores = _groupLeaderboardEntries;
+    if (scores.isEmpty) return const SizedBox.shrink();
+
+    final first = scores.length > 0 ? scores[0] : null;
+    final second = scores.length > 1 ? scores[1] : null;
+    final third = scores.length > 2 ? scores[2] : null;
+
+    return GamingCard(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const FaIcon(
+                FontAwesomeIcons.trophy,
+                size: 22,
+                color: TuuurTheme.brandLightGray,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                _partyDetail!.finish ? 'Podium' : 'Classement provisoire',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandLightGray,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    if (first != null)
+                      _buildGroupPodiumPlace(first, 1, isNarrow: true),
+                    const SizedBox(height: 12),
+                    if (second != null)
+                      _buildGroupPodiumPlace(second, 2, isNarrow: true),
+                    const SizedBox(height: 12),
+                    if (third != null)
+                      _buildGroupPodiumPlace(third, 3, isNarrow: true),
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (second != null)
+                    Expanded(
+                      child: _buildGroupPodiumPlace(second, 2, height: 100),
+                    ),
+                  const SizedBox(width: 8),
+                  if (first != null)
+                    Expanded(
+                      child: _buildGroupPodiumPlace(first, 1, height: 140),
+                    ),
+                  const SizedBox(width: 8),
+                  if (third != null)
+                    Expanded(
+                      child: _buildGroupPodiumPlace(third, 3, height: 80),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2);
+  }
+
+  Widget _buildGroupPodiumPlace(
+    _HistoryLeaderboardEntry entry,
+    int rank, {
+    double height = 100,
+    bool isNarrow = false,
   }) {
-    return Column(
+    final color = _getRankColor(rank);
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: TuuurTheme.brandGray,
-            fontWeight: FontWeight.w600,
+        Container(
+          width: rank == 1 ? 80 : 64,
+          height: rank == 1 ? 80 : 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: rank == 1 ? 3 : 2),
+            boxShadow: rank == 1
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.4),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: AvatarWidget(
+            avatarBase64: entry.avatarBase64,
+            fallbackText: entry.name,
+            size: rank == 1 ? 74 : 60,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
-          value,
+          entry.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            color: valueColor,
+            fontWeight: FontWeight.w600,
+            color: TuuurTheme.brandLightGray,
+            fontSize: rank == 1 ? 16 : 14,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: color.withOpacity(0.2),
+          ),
+          child: Text(
+            '${entry.score} pts',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: rank == 1 ? 14 : 12,
+            ),
           ),
         ),
       ],
     );
+
+    if (isNarrow) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: color.withOpacity(0.05),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
+        ),
+        child: Row(
+          children: [
+            Text(_getRankEmoji(rank), style: const TextStyle(fontSize: 32)),
+            const SizedBox(width: 12),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color, width: 2),
+      ),
+      child: FittedBox(fit: BoxFit.scaleDown, child: content),
+    );
   }
 
-  // ====== 2) PARTY INFO CARD (Themes / Difficulties / Nb Questions) ======
+  Widget _buildGroupFullRanking() {
+    final scores = _groupLeaderboardEntries;
+    if (scores.length <= 3) return const SizedBox.shrink();
+
+    final remainingScores = scores.skip(3).toList();
+
+    return GamingCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Classement complet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: TuuurTheme.brandLightGray,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...remainingScores.asMap().entries.map((entry) {
+            final index = entry.key + 3;
+            final player = entry.value;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: TuuurTheme.brandPurple.withOpacity(0.2),
+                ),
+                color: TuuurTheme.brandDarkGray.withOpacity(0.3),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: TuuurTheme.brandPurple.withOpacity(0.2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          color: TuuurTheme.brandPurple,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  AvatarWidget(
+                    avatarBase64: player.avatarBase64,
+                    fallbackText: player.name,
+                    size: 40,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      player.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: TuuurTheme.brandLightGray,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: TuuurTheme.brandGreen.withOpacity(0.2),
+                    ),
+                    child: Text(
+                      '${player.score} pts',
+                      style: const TextStyle(
+                        color: TuuurTheme.brandGreen,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate(delay: (80 * index).ms).fadeIn().slideX(begin: 0.15);
+          }),
+        ],
+      ),
+    ).animate().fadeIn(delay: 650.ms);
+  }
 
   Widget _buildPartyInfoCard() {
     final totalQuestions = _partyDetail!.partyQuestions.length;
 
-    // Difficulties sorted by id like you already did (and web shows them grouped)
     final sortedDifficulties = List.from(
       _partyDetail!.partyDifficulty,
     )..sort((a, b) => (a.difficulty?.id ?? 0).compareTo(b.difficulty?.id ?? 0));
@@ -452,7 +966,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
               Container(
@@ -483,7 +996,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
           ),
           const SizedBox(height: 16),
 
-          // Themes
           if (themes.isNotEmpty) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,7 +1024,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
             const SizedBox(height: 18),
           ],
 
-          // Difficulties
           if (difficultyIds.isNotEmpty) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,7 +1053,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
             const SizedBox(height: 18),
           ],
 
-          // Number of questions
           Row(
             children: [
               const FaIcon(
@@ -642,311 +1152,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     );
   }
 
-  // ====== 3) QUESTIONS RECAP CARD (scrollable like web) ======
-
-  Widget _buildQuestionsRecapCard() {
-    final sortedQuestions = List<HistoryPartyQuestionDto>.from(
-      _partyDetail!.partyQuestions,
-    )..sort((a, b) => a.order.compareTo(b.order));
-
-    final maxHeight = MediaQuery.of(context).size.height * 0.60;
-
-    return GamingCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: TuuurTheme.brandPurple.withOpacity(0.20),
-                ),
-                child: const FaIcon(
-                  FontAwesomeIcons.listCheck,
-                  color: TuuurTheme.brandPurple,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Récapitulatif des questions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          SizedBox(
-            height: maxHeight,
-            child: Scrollbar(
-              controller: _questionsScrollCtrl,
-              thumbVisibility: true,
-              child: ListView.separated(
-                controller: _questionsScrollCtrl,
-                padding: const EdgeInsets.only(right: 6),
-                itemCount: sortedQuestions.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final partyQuestion = sortedQuestions[index];
-                  return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: TuuurTheme.brandPurple.withOpacity(0.20),
-                          ),
-                          color: TuuurTheme.brandDarkGray.withOpacity(0.50),
-                        ),
-                        child: _buildQuestionCard(index + 1, partyQuestion),
-                      )
-                      .animate(delay: (40 * index).ms)
-                      .fadeIn()
-                      .slideX(begin: 0.08);
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 420.ms);
-  }
-
-  Widget _buildQuestionCard(
-    int questionNumber,
-    HistoryPartyQuestionDto partyQuestion,
-  ) {
-    final question = partyQuestion.question;
-    final userAnswer = partyQuestion.userPartyQuestion;
-
-    if (question == null) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'Question non disponible',
-          style: TextStyle(color: TuuurTheme.brandGray),
-        ),
-      );
-    }
-
-    final wasCorrect = userAnswer?.correct ?? false;
-    final scoreGained = userAnswer?.score ?? 0;
-    final userAnswerId = userAnswer?.idAnswer;
-    final userAnswered = userAnswerId != null;
-
-    final badgeBg = wasCorrect
-        ? TuuurTheme.brandGreen.withOpacity(0.20)
-        : (userAnswered
-              ? TuuurTheme.brandOrange.withOpacity(0.20)
-              : TuuurTheme.brandGray.withOpacity(0.20));
-
-    final badgeBorder = wasCorrect
-        ? TuuurTheme.brandGreen.withOpacity(0.40)
-        : (userAnswered
-              ? TuuurTheme.brandOrange.withOpacity(0.40)
-              : TuuurTheme.brandGray.withOpacity(0.40));
-
-    final badgeText = wasCorrect
-        ? TuuurTheme.brandGreen
-        : (userAnswered ? TuuurTheme.brandOrange : TuuurTheme.brandGray);
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header question
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: badgeBg,
-                  border: Border.all(color: badgeBorder),
-                ),
-                child: Center(
-                  child: Text(
-                    '$questionNumber',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: badgeText,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      question.label,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: TuuurTheme.brandLightGray,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Mini badge result : pas de réponse = faux
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: wasCorrect
-                            ? TuuurTheme.brandGreen.withOpacity(0.20)
-                            : TuuurTheme.brandOrange.withOpacity(0.20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FaIcon(
-                            wasCorrect
-                                ? FontAwesomeIcons.check
-                                : FontAwesomeIcons.times,
-                            color: wasCorrect
-                                ? TuuurTheme.brandGreen
-                                : TuuurTheme.brandOrange,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            wasCorrect
-                                ? 'Bonne réponse +$scoreGained pts'
-                                : 'Mauvaise réponse',
-                            style: TextStyle(
-                              color: wasCorrect
-                                  ? TuuurTheme.brandGreen
-                                  : TuuurTheme.brandOrange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Answers -> grid-like (1 col phone / 2 col tablet) like web `sm:grid-cols-2`
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final twoCols = constraints.maxWidth >= 520;
-              final spacing = 10.0;
-              final itemWidth = twoCols
-                  ? (constraints.maxWidth - spacing) / 2
-                  : constraints.maxWidth;
-
-              return Wrap(
-                spacing: spacing,
-                runSpacing: 8,
-                children: question.answer.map((answer) {
-                  final isCorrect = answer.valid;
-                  final isUserChoice = userAnswerId == answer.id;
-
-                  return SizedBox(
-                    width: itemWidth,
-                    child: _buildAnswerTile(
-                      label: answer.value,
-                      isCorrect: isCorrect,
-                      isUserChoice: isUserChoice,
-                      userAnswered: userAnswered,
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnswerTile({
-    required String label,
-    required bool isCorrect,
-    required bool isUserChoice,
-    required bool userAnswered,
-  }) {
-    Color backgroundColor;
-    Color borderColor;
-    Color textColor;
-    IconData icon;
-
-    if (isCorrect && isUserChoice) {
-      backgroundColor = TuuurTheme.brandGreen.withOpacity(0.22);
-      borderColor = TuuurTheme.brandGreen;
-      textColor = TuuurTheme.brandGreen;
-      icon = FontAwesomeIcons.check;
-    } else if (isCorrect) {
-      backgroundColor = TuuurTheme.brandGreen.withOpacity(0.12);
-      borderColor = TuuurTheme.brandGreen.withOpacity(0.45);
-      textColor = TuuurTheme.brandGreen;
-      icon = FontAwesomeIcons.check;
-    } else if (isUserChoice) {
-      backgroundColor = TuuurTheme.brandOrange.withOpacity(0.22);
-      borderColor = TuuurTheme.brandOrange;
-      textColor = TuuurTheme.brandOrange;
-      icon = FontAwesomeIcons.times;
-    } else {
-      backgroundColor = TuuurTheme.brandDarkGray.withOpacity(0.25);
-      borderColor = TuuurTheme.brandGray.withOpacity(0.20);
-      textColor = TuuurTheme.brandGray;
-      icon = userAnswered ? FontAwesomeIcons.times : FontAwesomeIcons.circle;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: backgroundColor,
-        border: Border.all(
-          color: borderColor,
-          width: (isUserChoice || isCorrect) ? 2 : 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          FaIcon(
-            icon,
-            size: icon == FontAwesomeIcons.circle ? 8 : 14,
-            color: textColor,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 13,
-                fontWeight: (isUserChoice || isCorrect)
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _twoPerLineWrap<T>({
     required List<T> items,
     required Widget Function(T item, bool expand) itemBuilder,
@@ -956,8 +1161,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-
-        // largeur d'une "case" (1/2 si possible, sinon full)
         final tileWidth = (constraints.maxWidth - spacing) / 2;
 
         final wrapAlignment = (centerSingle && items.length == 1)
@@ -969,13 +1172,24 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
           runSpacing: spacing,
           alignment: wrapAlignment,
           children: items.map((it) {
-            return SizedBox(
-              width: (items.length == 1) ? tileWidth : tileWidth,
-              child: itemBuilder(it, true), // expand = true
-            );
+            return SizedBox(width: tileWidth, child: itemBuilder(it, true));
           }).toList(),
         );
       },
     );
   }
+}
+
+class _HistoryLeaderboardEntry {
+  final String userId;
+  final String name;
+  final String? avatarBase64;
+  final int score;
+
+  const _HistoryLeaderboardEntry({
+    required this.userId,
+    required this.name,
+    required this.avatarBase64,
+    required this.score,
+  });
 }

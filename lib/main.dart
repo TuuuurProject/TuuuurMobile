@@ -26,12 +26,7 @@ Future<void> main() async {
   // Initialise le module API avec l'AuthStore
   ApiModule.instance.initialize(authStore: AuthStore.instance);
 
-  runApp(
-    MyAuthStore(
-      notifier: AuthStore.instance,
-      child: const TuuurApp(),
-    ),
-  );
+  runApp(MyAuthStore(notifier: AuthStore.instance, child: const TuuurApp()));
 }
 
 class TuuurApp extends StatelessWidget {

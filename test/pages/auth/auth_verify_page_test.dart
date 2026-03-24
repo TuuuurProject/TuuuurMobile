@@ -15,8 +15,9 @@ import 'package:tuuuur_flutter/navigation/app_messengers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const MethodChannel secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const MethodChannel secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
   final Map<String, String> secureStore = <String, String>{};
 
   setUpAll(() async {
@@ -65,8 +66,9 @@ void main() {
     await AuthStore.instance.signOut();
   });
   group('AuthVerifyPage', () {
-    testWidgets('affiche tous les éléments de la page de vérification',
-        (WidgetTester tester) async {
+    testWidgets('affiche tous les éléments de la page de vérification', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -89,8 +91,9 @@ void main() {
       expect(find.text('Valider le code'), findsOneWidget);
     });
 
-    testWidgets('pré-remplit le login avec initialLogin',
-        (WidgetTester tester) async {
+    testWidgets('pré-remplit le login avec initialLogin', (
+      WidgetTester tester,
+    ) async {
       const initialLogin = 'testuser';
 
       await tester.pumpWidget(
@@ -113,7 +116,9 @@ void main() {
       expect(loginField.controller!.text, equals(initialLogin));
     });
 
-    testWidgets('affiche le hint email quand fourni', (WidgetTester tester) async {
+    testWidgets('affiche le hint email quand fourni', (
+      WidgetTester tester,
+    ) async {
       const emailHint = 't***@gmail.com';
 
       await tester.pumpWidget(
@@ -152,8 +157,9 @@ void main() {
       expect(codeField.keyboardType, equals(TextInputType.number));
     });
 
-    testWidgets('affiche un SnackBar si login manquant (validation locale)',
-        (WidgetTester tester) async {
+    testWidgets('affiche un SnackBar si login manquant (validation locale)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -174,8 +180,9 @@ void main() {
       expect(find.text('Le pseudo (login) est requis.'), findsOneWidget);
     });
 
-    testWidgets('affiche un SnackBar si code invalide (validation locale)',
-        (WidgetTester tester) async {
+    testWidgets('affiche un SnackBar si code invalide (validation locale)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -200,8 +207,9 @@ void main() {
       );
     });
 
-    testWidgets('les TextFields acceptent les entrées',
-        (WidgetTester tester) async {
+    testWidgets('les TextFields acceptent les entrées', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -224,8 +232,9 @@ void main() {
       expect(find.text('123456'), findsOneWidget);
     });
 
-    testWidgets('dispose correctement les controllers',
-        (WidgetTester tester) async {
+    testWidgets('dispose correctement les controllers', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -243,8 +252,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('affiche un Scaffold avec SafeArea (via AppBar)',
-        (WidgetTester tester) async {
+    testWidgets('affiche un Scaffold avec SafeArea (via AppBar)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -267,8 +277,9 @@ void main() {
       expect(state, isNotNull);
     });
 
-    testWidgets('initialLogin pré-remplit le TextField login',
-        (WidgetTester tester) async {
+    testWidgets('initialLogin pré-remplit le TextField login', (
+      WidgetTester tester,
+    ) async {
       const initialLogin = 'prefilleduser';
 
       await tester.pumpWidget(
@@ -276,9 +287,7 @@ void main() {
           scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
-            child: const AuthVerifyPage(
-              initialLogin: initialLogin,
-            ),
+            child: const AuthVerifyPage(initialLogin: initialLogin),
           ),
         ),
       );
@@ -290,16 +299,13 @@ void main() {
       expect(loginField.controller!.text, equals(initialLogin));
     });
 
-    testWidgets('returnTo est passé au widget',
-        (WidgetTester tester) async {
+    testWidgets('returnTo est passé au widget', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: MyAuthStore(
             notifier: AuthStore.instance,
-            child: const AuthVerifyPage(
-              returnTo: '/solo',
-            ),
+            child: const AuthVerifyPage(returnTo: '/solo'),
           ),
         ),
       );
@@ -312,25 +318,28 @@ void main() {
       expect(verifyPage.returnTo, '/solo');
     });
 
-    testWidgets('bouton "Valider le code" est présent et désactivé initialement',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          scaffoldMessengerKey: rootScaffoldMessengerKey,
-          home: MyAuthStore(
-            notifier: AuthStore.instance,
-            child: const AuthVerifyPage(),
+    testWidgets(
+      'bouton "Valider le code" est présent et désactivé initialement',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            scaffoldMessengerKey: rootScaffoldMessengerKey,
+            home: MyAuthStore(
+              notifier: AuthStore.instance,
+              child: const AuthVerifyPage(),
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      expect(find.text('Valider le code'), findsOneWidget);
-    });
+        expect(find.text('Valider le code'), findsOneWidget);
+      },
+    );
 
-    testWidgets('navigation arrière fonctionne avec GoRouter',
-        (WidgetTester tester) async {
+    testWidgets('navigation arrière fonctionne avec GoRouter', (
+      WidgetTester tester,
+    ) async {
       bool poppedCorrectly = false;
 
       final router = GoRouter(
@@ -381,9 +390,7 @@ void main() {
   });
 
   group('handleVerify - tests de navigation', () {
-
-    testWidgets('validation locale: login requis',
-        (WidgetTester tester) async {
+    testWidgets('validation locale: login requis', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -404,8 +411,9 @@ void main() {
       expect(find.text('Le pseudo (login) est requis.'), findsOneWidget);
     });
 
-    testWidgets('validation locale: code à 6 chiffres requis',
-        (WidgetTester tester) async {
+    testWidgets('validation locale: code à 6 chiffres requis', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
@@ -439,8 +447,15 @@ void main() {
     });
 
     testWidgets('appelle verify2fa avec les valeurs trim', (tester) async {
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.err(message: 'nope', statusCode: 401));
+      when(
+        () => mockAuthApi.verify2fa(
+          login: any(named: 'login'),
+          code: any(named: 'code'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            ApiResponse<AuthSessionDto>.err(message: 'nope', statusCode: 401),
+      );
 
       final router = _routerForVerify(authApi: mockAuthApi);
       await _pumpVerifyRouter(tester, router);
@@ -449,36 +464,59 @@ void main() {
       await tester.tap(find.text('Valider le code'));
       await tester.pumpAndSettle();
 
-      verify(() => mockAuthApi.verify2fa(login: 'user', code: '123456')).called(1);
+      verify(
+        () => mockAuthApi.verify2fa(login: 'user', code: '123456'),
+      ).called(1);
     });
 
-    testWidgets('loading: affiche "Vérification..." pendant l\'attente puis revient', (tester) async {
-      final completer = Completer<ApiResponse<AuthSessionDto>>();
+    testWidgets(
+      'loading: affiche "Vérification..." pendant l\'attente puis revient',
+      (tester) async {
+        final completer = Completer<ApiResponse<AuthSessionDto>>();
 
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) => completer.future);
+        when(
+          () => mockAuthApi.verify2fa(
+            login: any(named: 'login'),
+            code: any(named: 'code'),
+          ),
+        ).thenAnswer((_) => completer.future);
 
-      final router = _routerForVerify(authApi: mockAuthApi);
-      await _pumpVerifyRouter(tester, router);
+        final router = _routerForVerify(authApi: mockAuthApi);
+        await _pumpVerifyRouter(tester, router);
 
-      await _fillForm(tester);
+        await _fillForm(tester);
 
-      await tester.tap(find.text('Valider le code'));
-      await tester.pump();
+        await tester.tap(find.text('Valider le code'));
+        await tester.pump();
 
-      expect(find.text('Vérification...'), findsOneWidget);
+        expect(find.text('Vérification...'), findsOneWidget);
 
-      completer.complete(ApiResponse<AuthSessionDto>.err(message: 'bad', statusCode: 401));
-      await tester.pumpAndSettle();
+        completer.complete(
+          ApiResponse<AuthSessionDto>.err(message: 'bad', statusCode: 401),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Valider le code'), findsOneWidget);
-    });
+        expect(find.text('Valider le code'), findsOneWidget);
+      },
+    );
 
-    testWidgets('succès + returnTo => snack vert + go(returnTo)', (tester) async {
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
+    testWidgets('succès + returnTo => snack vert + go(returnTo)', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.verify2fa(
+          login: any(named: 'login'),
+          code: any(named: 'code'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200),
+      );
 
-      final router = _routerForVerify(authApi: mockAuthApi, returnTo: '/profile');
+      final router = _routerForVerify(
+        authApi: mockAuthApi,
+        returnTo: '/profile',
+      );
       await _pumpVerifyRouter(tester, router);
 
       await _fillForm(tester);
@@ -493,10 +531,21 @@ void main() {
     });
 
     testWidgets('succès + canPop => router.pop()', (tester) async {
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
+      when(
+        () => mockAuthApi.verify2fa(
+          login: any(named: 'login'),
+          code: any(named: 'code'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200),
+      );
 
-      final router = _routerForVerify(authApi: mockAuthApi, initialLocation: '/', withPushFromHome: true);
+      final router = _routerForVerify(
+        authApi: mockAuthApi,
+        initialLocation: '/',
+        withPushFromHome: true,
+      );
       await _pumpVerifyRouter(tester, router);
 
       await tester.tap(find.byKey(const Key('go_verify')));
@@ -510,10 +559,20 @@ void main() {
     });
 
     testWidgets('succès + !canPop => router.go("/")', (tester) async {
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
+      when(
+        () => mockAuthApi.verify2fa(
+          login: any(named: 'login'),
+          code: any(named: 'code'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200),
+      );
 
-      final router = _routerForVerify(authApi: mockAuthApi, initialLocation: '/verify');
+      final router = _routerForVerify(
+        authApi: mockAuthApi,
+        initialLocation: '/verify',
+      );
       await _pumpVerifyRouter(tester, router);
 
       await _fillForm(tester);
@@ -524,8 +583,17 @@ void main() {
     });
 
     testWidgets('échec API avec message => snack message', (tester) async {
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.err(message: 'Code expiré', statusCode: 400));
+      when(
+        () => mockAuthApi.verify2fa(
+          login: any(named: 'login'),
+          code: any(named: 'code'),
+        ),
+      ).thenAnswer(
+        (_) async => ApiResponse<AuthSessionDto>.err(
+          message: 'Code expiré',
+          statusCode: 400,
+        ),
+      );
 
       final router = _routerForVerify(authApi: mockAuthApi);
       await _pumpVerifyRouter(tester, router);
@@ -538,40 +606,59 @@ void main() {
       expect(find.byType(AuthVerifyPage), findsOneWidget);
     });
 
-    testWidgets('échec API sans message => fallback "Vérification impossible."', (tester) async {
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) async => ApiResponse<AuthSessionDto>.err(message: null, statusCode: 500));
+    testWidgets(
+      'échec API sans message => fallback "Vérification impossible."',
+      (tester) async {
+        when(
+          () => mockAuthApi.verify2fa(
+            login: any(named: 'login'),
+            code: any(named: 'code'),
+          ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse<AuthSessionDto>.err(message: null, statusCode: 500),
+        );
 
-      final router = _routerForVerify(authApi: mockAuthApi);
-      await _pumpVerifyRouter(tester, router);
+        final router = _routerForVerify(authApi: mockAuthApi);
+        await _pumpVerifyRouter(tester, router);
 
-      await _fillForm(tester);
-      await tester.tap(find.text('Valider le code'));
-      await tester.pumpAndSettle();
+        await _fillForm(tester);
+        await tester.tap(find.text('Valider le code'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Vérification impossible.'), findsOneWidget);
-    });
+        expect(find.text('Vérification impossible.'), findsOneWidget);
+      },
+    );
 
-    testWidgets('mounted check: dispose avant la réponse API => pas d\'exception', (tester) async {
-      final completer = Completer<ApiResponse<AuthSessionDto>>();
-      when(() => mockAuthApi.verify2fa(login: any(named: 'login'), code: any(named: 'code')))
-          .thenAnswer((_) => completer.future);
+    testWidgets(
+      'mounted check: dispose avant la réponse API => pas d\'exception',
+      (tester) async {
+        final completer = Completer<ApiResponse<AuthSessionDto>>();
+        when(
+          () => mockAuthApi.verify2fa(
+            login: any(named: 'login'),
+            code: any(named: 'code'),
+          ),
+        ).thenAnswer((_) => completer.future);
 
-      final router = _routerForVerify(authApi: mockAuthApi);
-      await _pumpVerifyRouter(tester, router);
+        final router = _routerForVerify(authApi: mockAuthApi);
+        await _pumpVerifyRouter(tester, router);
 
-      await _fillForm(tester);
-      await tester.tap(find.text('Valider le code'));
-      await tester.pump();
+        await _fillForm(tester);
+        await tester.tap(find.text('Valider le code'));
+        await tester.pump();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
 
-      completer.complete(ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200));
-      await tester.pump(const Duration(milliseconds: 50));
+        completer.complete(
+          ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
 
@@ -636,13 +723,19 @@ GoRouter _routerForVerify({
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) => withPushFromHome ? const _HomeWithVerifyLink() : const _DummyPage('home'),
+        builder: (_, __) => withPushFromHome
+            ? const _HomeWithVerifyLink()
+            : const _DummyPage('home'),
       ),
       GoRoute(
         path: '/verify',
-        builder: (_, __) => AuthVerifyPage(authApi: authApi, returnTo: returnTo),
+        builder: (_, __) =>
+            AuthVerifyPage(authApi: authApi, returnTo: returnTo),
       ),
-      GoRoute(path: '/profile', builder: (_, __) => const _DummyPage('profile')),
+      GoRoute(
+        path: '/profile',
+        builder: (_, __) => const _DummyPage('profile'),
+      ),
     ],
   );
 }
@@ -661,7 +754,11 @@ Future<void> _pumpVerifyRouter(WidgetTester tester, GoRouter router) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _fillForm(WidgetTester tester, {String login = 'testuser', String code = '123456'}) async {
+Future<void> _fillForm(
+  WidgetTester tester, {
+  String login = 'testuser',
+  String code = '123456',
+}) async {
   final fields = find.byType(TextField);
   await tester.enterText(fields.first, login);
   await tester.enterText(fields.at(1), code);

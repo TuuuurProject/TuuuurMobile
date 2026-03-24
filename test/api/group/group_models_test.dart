@@ -40,18 +40,18 @@ void main() {
       expect(user.isNew, isFalse);
     });
 
-    test('fromJson utilise les valeurs par défaut pour les champs nullables', () {
-      final json = {
-        'id': 'u-2',
-        'nickName': 'Bob',
-      };
-      final user = GroupUser.fromJson(json);
-      expect(user.id, 'u-2');
-      expect(user.email, isNull);
-      expect(user.avatar, isNull);
-      expect(user.isAdmin, isFalse);
-      expect(user.isNew, isFalse);
-    });
+    test(
+      'fromJson utilise les valeurs par défaut pour les champs nullables',
+      () {
+        final json = {'id': 'u-2', 'nickName': 'Bob'};
+        final user = GroupUser.fromJson(json);
+        expect(user.id, 'u-2');
+        expect(user.email, isNull);
+        expect(user.avatar, isNull);
+        expect(user.isAdmin, isFalse);
+        expect(user.isNew, isFalse);
+      },
+    );
 
     test('toJson produit le bon Map', () {
       const user = GroupUser(
@@ -279,9 +279,7 @@ void main() {
         label: 'Test ?',
         idDifficulty: 1,
         difficulty: const Difficulty(id: 1, label: 'Facile'),
-        answer: [
-          const Answer(id: 1, idQuestion: 1, value: 'A', valid: true),
-        ],
+        answer: [const Answer(id: 1, idQuestion: 1, value: 'A', valid: true)],
       );
       final json = q.toJson();
       expect(json['id'], 1);
@@ -357,8 +355,10 @@ void main() {
     });
 
     test('toString contient le nom et le score', () {
-      final us =
-          UserScore(score: 42, user: const GroupUser(id: 'u-7', nickName: 'Tester'));
+      final us = UserScore(
+        score: 42,
+        user: const GroupUser(id: 'u-7', nickName: 'Tester'),
+      );
       expect(us.toString(), contains('Tester'));
       expect(us.toString(), contains('42'));
     });
@@ -366,20 +366,16 @@ void main() {
 
   // ─────────────────────────────────── QuestionHistory ─────────────────────
   group('QuestionHistory', () {
-    Question _makeQuestion({
-      int correctId = 11,
-      int wrongId = 12,
-    }) =>
-        Question(
-          id: 1,
-          label: 'Capitale de France ?',
-          idDifficulty: 2,
-          difficulty: const Difficulty(id: 2, label: 'Moyen'),
-          answer: [
-            Answer(id: correctId, idQuestion: 1, value: 'Paris', valid: true),
-            Answer(id: wrongId, idQuestion: 1, value: 'Lyon', valid: false),
-          ],
-        );
+    Question _makeQuestion({int correctId = 11, int wrongId = 12}) => Question(
+      id: 1,
+      label: 'Capitale de France ?',
+      idDifficulty: 2,
+      difficulty: const Difficulty(id: 2, label: 'Moyen'),
+      answer: [
+        Answer(id: correctId, idQuestion: 1, value: 'Paris', valid: true),
+        Answer(id: wrongId, idQuestion: 1, value: 'Lyon', valid: false),
+      ],
+    );
 
     GroupQuestion _makeGroupQuestion({int correctId = 11, int wrongId = 12}) =>
         GroupQuestion(
@@ -388,15 +384,18 @@ void main() {
           question: _makeQuestion(correctId: correctId, wrongId: wrongId),
         );
 
-    test('userAnswer retourne la bonne réponse quand userAnswerId est fourni', () {
-      final qh = QuestionHistory(
-        groupQuestion: _makeGroupQuestion(),
-        userAnswerId: 11,
-        wasCorrect: true,
-        scoreGained: 10,
-      );
-      expect(qh.userAnswer?.value, 'Paris');
-    });
+    test(
+      'userAnswer retourne la bonne réponse quand userAnswerId est fourni',
+      () {
+        final qh = QuestionHistory(
+          groupQuestion: _makeGroupQuestion(),
+          userAnswerId: 11,
+          wasCorrect: true,
+          scoreGained: 10,
+        );
+        expect(qh.userAnswer?.value, 'Paris');
+      },
+    );
 
     test('userAnswer retourne null quand userAnswerId est null', () {
       final qh = QuestionHistory(
@@ -537,46 +536,45 @@ void main() {
       bool inProgress = false,
       bool finish = false,
       bool active = true,
-    }) =>
+    }) => {
+      'id': id,
+      'code': code,
+      'nbQuestions': 10,
+      'inProgress': inProgress,
+      'scoreEachRound': false,
+      'idPartyType': 2,
+      'idUserHost': 'host-1',
+      'active': active,
+      'finish': finish,
+      'dt': '2024-06-01T10:00:00Z',
+      'partyUsers': [
         {
-          'id': id,
-          'code': code,
-          'nbQuestions': 10,
-          'inProgress': inProgress,
-          'scoreEachRound': false,
-          'idPartyType': 2,
-          'idUserHost': 'host-1',
-          'active': active,
-          'finish': finish,
-          'dt': '2024-06-01T10:00:00Z',
-          'partyUsers': [
-            {
-              'idUser': 'host-1',
-              'idParty': id,
-              'user': {
-                'id': 'host-1',
-                'nickName': 'Host',
-                'isAdmin': true,
-                'isNew': false,
-              },
-            }
-          ],
-          'partyTheme': [
-            {
-              'idTheme': 1,
-              'theme': {'id': 1, 'label': 'Général'},
-            }
-          ],
-          'partyDifficulty': [
-            {
-              'idDifficulty': 2,
-              'difficulty': {'id': 2, 'label': 'Moyen'},
-            }
-          ],
-          'percent': 75.0,
-          'score': 120,
-          'time': 300,
-        };
+          'idUser': 'host-1',
+          'idParty': id,
+          'user': {
+            'id': 'host-1',
+            'nickName': 'Host',
+            'isAdmin': true,
+            'isNew': false,
+          },
+        },
+      ],
+      'partyTheme': [
+        {
+          'idTheme': 1,
+          'theme': {'id': 1, 'label': 'Général'},
+        },
+      ],
+      'partyDifficulty': [
+        {
+          'idDifficulty': 2,
+          'difficulty': {'id': 2, 'label': 'Moyen'},
+        },
+      ],
+      'percent': 75.0,
+      'score': 120,
+      'time': 300,
+    };
 
     test('fromJson construit l\'objet complet', () {
       final party = GroupParty.fromJson(_makePartyJson());

@@ -275,12 +275,16 @@ class GroupParty {
 
   @override
   String toString() {
-    final users = partyUsers.map((pu) => '${pu.user?.nickName ?? "null"}(${pu.idUser})').join(', ');
+    final users = partyUsers
+        .map((pu) => '${pu.user?.nickName ?? "null"}(${pu.idUser})')
+        .join(', ');
     final themes = partyTheme.map((pt) => pt.theme.label).join(', ');
-    final difficulties = partyDifficulty.map((pd) => pd.difficulty.label).join(', ');
+    final difficulties = partyDifficulty
+        .map((pd) => pd.difficulty.label)
+        .join(', ');
     return 'GroupParty(id: $id, code: $code, inProgress: $inProgress, nbQuestions: $nbQuestions, '
-           'scoreEachRound: $scoreEachRound, idUserHost: $idUserHost, '
-           'partyUsers: [$users], themes: [$themes], difficulties: [$difficulties])';
+        'scoreEachRound: $scoreEachRound, idUserHost: $idUserHost, '
+        'partyUsers: [$users], themes: [$themes], difficulties: [$difficulties])';
   }
 }
 
@@ -477,10 +481,7 @@ class UserAnswered {
   final bool correct;
   final GroupUser user;
 
-  const UserAnswered({
-    required this.correct,
-    required this.user,
-  });
+  const UserAnswered({required this.correct, required this.user});
 
   factory UserAnswered.fromJson(Map<String, dynamic> json) {
     return UserAnswered(
@@ -490,12 +491,10 @@ class UserAnswered {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'correct': correct,
-      'user': user.toJson(),
-    };
+    return {'correct': correct, 'user': user.toJson()};
   }
 
   @override
-  String toString() => 'UserAnswered(user: ${user.nickName}, correct: $correct)';
+  String toString() =>
+      'UserAnswered(user: ${user.nickName}, correct: $correct)';
 }

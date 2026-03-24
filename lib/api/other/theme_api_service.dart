@@ -8,13 +8,18 @@ class ThemeApi {
   Future<ApiResponse<List<ThemeDto>>> getThemes() async {
     final res = await _api.getJson('/api/v1/theme', auth: true);
     if (!res.ok) {
-      return ApiResponse.err(message: res.message, statusCode: res.statusCode, raw: res.raw);
+      return ApiResponse.err(
+        message: res.message,
+        statusCode: res.statusCode,
+        raw: res.raw,
+      );
     }
 
     final root = res.data ?? <String, dynamic>{};
 
     // ApiClient wraps array responses in data['data']
-    dynamic list = root['data'] ?? root['items'] ?? root['value'] ?? root['themes'];
+    dynamic list =
+        root['data'] ?? root['items'] ?? root['value'] ?? root['themes'];
     if (list is! List) {
       list = const <dynamic>[];
     }

@@ -9,7 +9,7 @@ import '../../widgets/gaming_widgets.dart';
 
 class AuthRegisterPage extends StatefulWidget {
   final String? returnTo;
-  
+
   const AuthRegisterPage({super.key, this.returnTo});
 
   @override
@@ -45,9 +45,9 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
 
   void _showToast(String msg, {Color color = TuuurTheme.brandOrange}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   bool _validateForm() {
@@ -188,8 +188,9 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                           style: const TextStyle(
                             color: TuuurTheme.brandLightGray,
                           ),
-                          decoration:
-                              _buildInputDecoration('Choisissez un pseudo'),
+                          decoration: _buildInputDecoration(
+                            'Choisissez un pseudo',
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -203,8 +204,7 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                           style: const TextStyle(
                             color: TuuurTheme.brandLightGray,
                           ),
-                          decoration:
-                              _buildInputDecoration('vous@exemple.com'),
+                          decoration: _buildInputDecoration('vous@exemple.com'),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -218,22 +218,23 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                           style: const TextStyle(
                             color: TuuurTheme.brandLightGray,
                           ),
-                          decoration:
-                              _buildInputDecoration('••••••••').copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordObscured
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: TuuurTheme.brandGray,
+                          decoration: _buildInputDecoration('••••••••')
+                              .copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isPasswordObscured
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: TuuurTheme.brandGray,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPasswordObscured =
+                                          !_isPasswordObscured;
+                                    });
+                                  },
+                                ),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _isPasswordObscured = !_isPasswordObscured;
-                                });
-                              },
-                            ),
-                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -247,23 +248,23 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                           style: const TextStyle(
                             color: TuuurTheme.brandLightGray,
                           ),
-                          decoration:
-                              _buildInputDecoration('••••••••').copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isConfirmPasswordObscured
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: TuuurTheme.brandGray,
+                          decoration: _buildInputDecoration('••••••••')
+                              .copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isConfirmPasswordObscured
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: TuuurTheme.brandGray,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isConfirmPasswordObscured =
+                                          !_isConfirmPasswordObscured;
+                                    });
+                                  },
+                                ),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _isConfirmPasswordObscured =
-                                      !_isConfirmPasswordObscured;
-                                });
-                              },
-                            ),
-                          ),
                         ),
                       ),
 
@@ -280,7 +281,9 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                             onPressed: () => context.goBack(),
                           ),
                           GamingButtonPrimary(
-                            text: _isLoading ? 'Création...' : 'Créer le compte',
+                            text: _isLoading
+                                ? 'Création...'
+                                : 'Créer le compte',
                             onPressed: _isLoading ? null : handleRegister,
                           ),
                         ],
@@ -310,8 +313,9 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
-                                  color: TuuurTheme.brandPurple
-                                      .withOpacity(0.3),
+                                  color: TuuurTheme.brandPurple.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                             ),
@@ -338,46 +342,31 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
 
   // Style d’input factorisé
   InputDecoration _buildInputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-          color: TuuurTheme.brandGray.withOpacity(0.7),
-        ),
-        filled: true,
-        fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: TuuurTheme.brandPurple.withOpacity(0.3),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: TuuurTheme.brandPurple,
-            width: 2,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: TuuurTheme.brandPurple.withOpacity(0.3),
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-      );
+    hintText: hint,
+    hintStyle: TextStyle(color: TuuurTheme.brandGray.withOpacity(0.7)),
+    filled: true,
+    fillColor: TuuurTheme.brandDarkGray.withOpacity(0.5),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: TuuurTheme.brandPurple.withOpacity(0.3)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: TuuurTheme.brandPurple, width: 2),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: TuuurTheme.brandPurple.withOpacity(0.3)),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  );
 }
 
 class _LabeledField extends StatelessWidget {
   final String label;
   final Widget child;
 
-  const _LabeledField({
-    required this.label,
-    required this.child,
-  });
+  const _LabeledField({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {

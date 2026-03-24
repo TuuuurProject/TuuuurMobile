@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:confetti/confetti.dart';
@@ -10,8 +10,8 @@ import '../../stores/group_coordinator.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/avatar_widget.dart';
 import '../../widgets/gaming_widgets.dart';
+import '../../widgets/common_widgets.dart';
 import '../../widgets/navigation_header.dart';
-import '../../navigation/navigation_utils.dart';
 
 class GroupResultsPage extends StatefulWidget {
   final List<UserScore> finalScores;
@@ -86,19 +86,6 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
     }
   }
 
-  IconData _getRankIcon(int rank) {
-    switch (rank) {
-      case 1:
-        return FontAwesomeIcons.trophy;
-      case 2:
-        return FontAwesomeIcons.medal;
-      case 3:
-        return FontAwesomeIcons.award;
-      default:
-        return FontAwesomeIcons.rankingStar;
-    }
-  }
-
   String _getRankEmoji(int rank) {
     switch (rank) {
       case 1:
@@ -126,9 +113,7 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
         onHomePressed: _handleLeaveGroup,
       ),
       body: _isLeaving
-          ? const Center(
-              child: CircularProgressIndicator(color: TuuurTheme.brandPurple),
-            )
+          ? const Center(child: GamingLoadingIndicator())
           : Stack(
               children: [
                 // Contenu scrollable
@@ -142,16 +127,76 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildHeader(),
-                      const SizedBox(height: 32),
-                      if (_currentUserScore != null) _buildUserSummary(),
-                      const SizedBox(height: 32),
+                      GamingResultSummaryCard(
+                        title: 'Partie terminée',
+                        partyType: 'Groupe',
+                        score: _currentUserScore?.score ?? 0,
+                        totalQuestions: widget.questionsHistory.length,
+                        correctAnswers: widget.questionsHistory
+                            .where((q) => q.wasCorrect)
+                            .length,
+                        incorrectAnswers:
+                            widget.questionsHistory.length -
+                            widget.questionsHistory
+                                .where((q) => q.wasCorrect)
+                                .length,
+                        successRate: widget.questionsHistory.isNotEmpty
+                            ? ((widget.questionsHistory
+                                              .where((q) => q.wasCorrect)
+                                              .length /
+                                          widget.questionsHistory.length) *
+                                      100)
+                                  .round()
+                            : 0,
+                        isFinished: true,
+                      ),
+                      const SizedBox(height: 24),
                       _buildPodium(),
                       const SizedBox(height: 32),
                       _buildFullRanking(),
                       const SizedBox(height: 32),
                       if (widget.questionsHistory.isNotEmpty)
-                        _buildQuestionsRecap(),
+                        Builder(
+                          builder: (context) {
+                            final reviewQuestions = widget.questionsHistory
+                                .asMap()
+                                .entries
+                                .map((entry) {
+                                  final int i = entry.key;
+                                  final QuestionHistory q = entry.value;
+
+                                  final answers = q
+                                      .groupQuestion
+                                      .question
+                                      .answer
+                                      .map<QuizAnswerReviewItem>(
+                                        (a) => QuizAnswerReviewItem(
+                                          label: a.value,
+                                          isCorrect: a.valid == true,
+                                          isUserChoice:
+                                              q.userAnswer?.id == a.id,
+                                          userAnswered: q.userAnswer != null,
+                                        ),
+                                      )
+                                      .toList();
+
+                                  return QuizQuestionReviewItem(
+                                    number: i + 1,
+                                    questionLabel:
+                                        q.groupQuestion.question.label,
+                                    wasCorrect: q.wasCorrect,
+                                    scoreGained: q.scoreGained ?? 0,
+                                    userAnswered: q.userAnswer != null,
+                                    answers: answers,
+                                  );
+                                })
+                                .toList();
+
+                            return GamingQuestionsRecapCard(
+                              questions: reviewQuestions,
+                            );
+                          },
+                        ),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -194,135 +239,8 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        const FaIcon(
-          FontAwesomeIcons.trophy,
-          color: TuuurTheme.brandPurple,
-          size: 48,
-        ).animate().scale(
-          begin: const Offset(0.5, 0.5),
-          duration: 800.ms,
-          curve: Curves.elasticOut,
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Partie terminée !',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-            color: TuuurTheme.brandLightGray,
-          ),
-        ).animate().fadeIn(delay: 200.ms).slideY(begin: -0.3),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  Widget _buildUserSummary() {
-    if (_currentUserScore == null) return const SizedBox.shrink();
-
-    final rank = _currentUserRank;
-    final score = _currentUserScore!.score;
-    final isTopThree = rank > 0 && rank <= 3;
-
-    // Calculer les statistiques sur les questions
-    final totalQuestions = widget.questionsHistory.length;
-    final correctAnswers = widget.questionsHistory
-        .where((q) => q.wasCorrect)
-        .length;
-    final successRate = totalQuestions > 0
-        ? ((correctAnswers / totalQuestions) * 100).round()
-        : 0;
-
-    return GamingCard(
-      child: Column(
-        children: [
-          Text(
-            isTopThree ? 'Félicitations !' : 'Votre résultat',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: isTopThree
-                  ? TuuurTheme.brandGreen
-                  : TuuurTheme.brandLightGray,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatCard(
-                label: 'Classement',
-                value: rank > 0 ? '$rank${_getRankEmoji(rank)}' : 'N/A',
-                color: _getRankColor(rank),
-              ),
-              _buildStatCard(
-                label: 'Score',
-                value: '$score pts',
-                color: TuuurTheme.brandGreen,
-              ),
-            ],
-          ),
-          if (totalQuestions > 0) ...[
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStatCard(
-                  label: 'Questions',
-                  value: '$totalQuestions',
-                  color: TuuurTheme.brandPurple,
-                ),
-                _buildStatCard(
-                  label: 'Réussite',
-                  value: '$successRate%',
-                  color: TuuurTheme.brandGreen,
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    ).animate().fadeIn(delay: 400.ms).scale(begin: const Offset(0.9, 0.9));
-  }
-
-  Widget _buildStatCard({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: color.withOpacity(0.1),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: TuuurTheme.brandGray),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPodium() {
-    // Afficher le podium dès qu'il y a au moins 1 joueur
+    // Afficher le podium dàƒÆ’à‚Â¨s qu'il y a au moins 1 joueur
     if (widget.finalScores.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -489,10 +407,7 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
         color: color.withOpacity(0.1),
         border: Border.all(color: color, width: 2),
       ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: content,
-      ),
+      child: FittedBox(fit: BoxFit.scaleDown, child: content),
     );
   }
 
@@ -602,237 +517,6 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
     ).animate().fadeIn(delay: 800.ms);
   }
 
-  Widget _buildQuestionsRecap() {
-    return GamingCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: TuuurTheme.brandPurple.withOpacity(0.2),
-                ),
-                child: const FaIcon(
-                  FontAwesomeIcons.listCheck,
-                  color: TuuurTheme.brandPurple,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Récapitulatif des questions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...widget.questionsHistory.asMap().entries.map((entry) {
-            final index = entry.key;
-            final questionHistory = entry.value;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: TuuurTheme.brandPurple.withOpacity(0.2),
-                ),
-                color: TuuurTheme.brandDarkGray.withOpacity(0.5),
-              ),
-              child: _buildQuestionCard(index + 1, questionHistory),
-            ).animate(delay: (50 * index).ms).fadeIn().slideX(begin: 0.1);
-          }),
-        ],
-      ),
-    ).animate().fadeIn(delay: 1000.ms);
-  }
-
-  Widget _buildQuestionCard(int questionNumber, QuestionHistory history) {
-    final question = history.groupQuestion.question;
-    final wasCorrect = history.wasCorrect;
-    final userAnswer = history.userAnswer;
-    final correctAnswer = history.correctAnswer;
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // En-tête avec numéro et badge
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: wasCorrect
-                      ? TuuurTheme.brandGreen.withOpacity(0.2)
-                      : TuuurTheme.brandOrange.withOpacity(0.2),
-                  border: Border.all(
-                    color: wasCorrect
-                        ? TuuurTheme.brandGreen.withOpacity(0.4)
-                        : TuuurTheme.brandOrange.withOpacity(0.4),
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    '$questionNumber',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: wasCorrect
-                          ? TuuurTheme.brandGreen
-                          : TuuurTheme.brandOrange,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      question.label,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: TuuurTheme.brandLightGray,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: wasCorrect
-                            ? TuuurTheme.brandGreen.withOpacity(0.2)
-                            : TuuurTheme.brandOrange.withOpacity(0.2),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FaIcon(
-                            wasCorrect
-                                ? FontAwesomeIcons.check
-                                : FontAwesomeIcons.xmark,
-                            color: wasCorrect
-                                ? TuuurTheme.brandGreen
-                                : TuuurTheme.brandOrange,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            wasCorrect
-                                ? 'Bonne réponse +${history.scoreGained} pts'
-                                : 'Mauvaise réponse',
-                            style: TextStyle(
-                              color: wasCorrect
-                                  ? TuuurTheme.brandGreen
-                                  : TuuurTheme.brandOrange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Liste des réponses
-          ...question.answer.map((answer) {
-            final isCorrect = answer.valid == true;
-            final isUserChoice = userAnswer?.id == answer.id;
-
-            Color backgroundColor;
-            Color borderColor;
-            Color textColor;
-            IconData? icon;
-
-            if (isCorrect && isUserChoice) {
-              // Bonne réponse sélectionnée
-              backgroundColor = TuuurTheme.brandGreen.withOpacity(0.2);
-              borderColor = TuuurTheme.brandGreen;
-              textColor = TuuurTheme.brandGreen;
-              icon = FontAwesomeIcons.check;
-            } else if (isCorrect) {
-              // Bonne réponse non sélectionnée
-              backgroundColor = TuuurTheme.brandGreen.withOpacity(0.1);
-              borderColor = TuuurTheme.brandGreen.withOpacity(0.4);
-              textColor = TuuurTheme.brandGreen;
-              icon = FontAwesomeIcons.check;
-            } else if (isUserChoice) {
-              // Mauvaise réponse sélectionnée
-              backgroundColor = TuuurTheme.brandOrange.withOpacity(0.2);
-              borderColor = TuuurTheme.brandOrange;
-              textColor = TuuurTheme.brandOrange;
-              icon = FontAwesomeIcons.xmark;
-            } else {
-              // Autre réponse
-              backgroundColor = TuuurTheme.brandDarkGray.withOpacity(0.3);
-              borderColor = TuuurTheme.brandGray.withOpacity(0.2);
-              textColor = TuuurTheme.brandGray;
-              icon = FontAwesomeIcons.circle;
-            }
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: backgroundColor,
-                border: Border.all(
-                  color: borderColor,
-                  width: isUserChoice || isCorrect ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  FaIcon(
-                    icon,
-                    size: icon == FontAwesomeIcons.circle ? 8 : 14,
-                    color: textColor,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      answer.value,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 13,
-                        fontWeight: isUserChoice || isCorrect
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
   Future<void> _handleLeaveGroup() async {
     if (_isLeaving) return;
 
@@ -857,7 +541,7 @@ class _GroupResultsPageState extends State<GroupResultsPage> {
     try {
       // Reset store state to lobby before popping
       _coordinator.store.returnToLobby();
-      
+
       if (!mounted) return;
       // Pop both GroupResultsPage and GroupQuizPage to return to GroupLobbyPage
       Navigator.of(context).pop();

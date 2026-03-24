@@ -40,8 +40,11 @@ void main() {
           'time': 0,
         };
 
-        when(mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 201));
+        when(
+          mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 201),
+        );
 
         final result = await service.createGroup();
 
@@ -53,11 +56,12 @@ void main() {
       });
 
       test('retourne erreur si la requête échoue', () async {
-        when(mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Erreur serveur',
-                  statusCode: 500,
-                ));
+        when(
+          mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Erreur serveur', statusCode: 500),
+        );
 
         final result = await service.createGroup();
 
@@ -67,18 +71,23 @@ void main() {
       });
 
       test('utilise message par défaut si pas de message d\'erreur', () async {
-        when(mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true))
-            .thenAnswer((_) async => ApiResponse.err(statusCode: 400));
+        when(
+          mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true),
+        ).thenAnswer((_) async => ApiResponse.err(statusCode: 400));
 
         final result = await service.createGroup();
 
         expect(result.ok, isFalse);
-        expect(result.message, equals('Erreur lors de la création de la partie'));
+        expect(
+          result.message,
+          equals('Erreur lors de la création de la partie'),
+        );
       });
 
       test('gère exception pendant la requête', () async {
-        when(mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true))
-            .thenThrow(Exception('Network error'));
+        when(
+          mockApiClient.postJson('/api/v1/group/create', body: {}, auth: true),
+        ).thenThrow(Exception('Network error'));
 
         final result = await service.createGroup();
 
@@ -119,11 +128,15 @@ void main() {
           'time': 60,
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          body: {'code': 'XYZ789'},
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            body: {'code': 'XYZ789'},
+            auth: true,
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await service.joinGroup(code: 'XYZ789');
 
@@ -147,14 +160,16 @@ void main() {
       });
 
       test('retourne erreur si code invalide', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          body: {'code': 'INVALID'},
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.err(
-              message: 'Code invalide',
-              statusCode: 404,
-            ));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            body: {'code': 'INVALID'},
+            auth: true,
+          ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Code invalide', statusCode: 404),
+        );
 
         final result = await service.joinGroup(code: 'INVALID');
 
@@ -163,24 +178,31 @@ void main() {
       });
 
       test('utilise message par défaut en cas d\'erreur', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          body: {'code': 'TEST'},
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.err(statusCode: 500));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            body: {'code': 'TEST'},
+            auth: true,
+          ),
+        ).thenAnswer((_) async => ApiResponse.err(statusCode: 500));
 
         final result = await service.joinGroup(code: 'TEST');
 
         expect(result.ok, isFalse);
-        expect(result.message, equals('Erreur lors de la connexion à la partie'));
+        expect(
+          result.message,
+          equals('Erreur lors de la connexion à la partie'),
+        );
       });
 
       test('gère exception pendant la requête', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          body: {'code': 'ERROR'},
-          auth: true,
-        )).thenThrow(Exception('Connection timeout'));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            body: {'code': 'ERROR'},
+            auth: true,
+          ),
+        ).thenThrow(Exception('Connection timeout'));
 
         final result = await service.joinGroup(code: 'ERROR');
 
@@ -191,8 +213,9 @@ void main() {
 
     group('leaveGroup', () {
       test('quitte la partie avec succès', () async {
-        when(mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true))
-            .thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
+        when(
+          mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await service.leaveGroup();
 
@@ -200,11 +223,14 @@ void main() {
       });
 
       test('retourne erreur si échec', () async {
-        when(mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Impossible de quitter',
-                  statusCode: 400,
-                ));
+        when(
+          mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Impossible de quitter',
+            statusCode: 400,
+          ),
+        );
 
         final result = await service.leaveGroup();
 
@@ -213,8 +239,9 @@ void main() {
       });
 
       test('utilise message par défaut en cas d\'erreur', () async {
-        when(mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true))
-            .thenAnswer((_) async => ApiResponse.err(statusCode: 500));
+        when(
+          mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true),
+        ).thenAnswer((_) async => ApiResponse.err(statusCode: 500));
 
         final result = await service.leaveGroup();
 
@@ -223,8 +250,9 @@ void main() {
       });
 
       test('gère exception pendant la requête', () async {
-        when(mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true))
-            .thenThrow(Exception('Network error'));
+        when(
+          mockApiClient.postJson('/api/v1/group/leave', body: {}, auth: true),
+        ).thenThrow(Exception('Network error'));
 
         final result = await service.leaveGroup();
 
@@ -235,16 +263,18 @@ void main() {
 
     group('updateSettings', () {
       test('met à jour les paramètres avec succès', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/settings',
-          body: {
-            'themes': [1, 2, 3],
-            'difficulties': [1, 2],
-            'nbQuestions': 10,
-            'scoreEachRound': true,
-          },
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/settings',
+            body: {
+              'themes': [1, 2, 3],
+              'difficulties': [1, 2],
+              'nbQuestions': 10,
+              'scoreEachRound': true,
+            },
+            auth: true,
+          ),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await service.updateSettings(
           themes: [1, 2, 3],
@@ -281,11 +311,9 @@ void main() {
       });
 
       test('accepte nbQuestions = 5', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: true),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await service.updateSettings(
           themes: [1],
@@ -298,11 +326,9 @@ void main() {
       });
 
       test('accepte nbQuestions = 20', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: true),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await service.updateSettings(
           themes: [1],
@@ -327,14 +353,12 @@ void main() {
       });
 
       test('retourne erreur si échec serveur', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.err(
-              message: 'Non autorisé',
-              statusCode: 403,
-            ));
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: true),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Non autorisé', statusCode: 403),
+        );
 
         final result = await service.updateSettings(
           themes: [1],
@@ -348,11 +372,9 @@ void main() {
       });
 
       test('utilise message par défaut en cas d\'erreur', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: true,
-        )).thenAnswer((_) async => ApiResponse.err(statusCode: 500));
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: true),
+        ).thenAnswer((_) async => ApiResponse.err(statusCode: 500));
 
         final result = await service.updateSettings(
           themes: [1],
@@ -362,15 +384,16 @@ void main() {
         );
 
         expect(result.ok, isFalse);
-        expect(result.message, equals('Erreur lors de la mise à jour des paramètres'));
+        expect(
+          result.message,
+          equals('Erreur lors de la mise à jour des paramètres'),
+        );
       });
 
       test('gère exception pendant la requête', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-          auth: true,
-        )).thenThrow(Exception('Timeout'));
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: true),
+        ).thenThrow(Exception('Timeout'));
 
         final result = await service.updateSettings(
           themes: [1],

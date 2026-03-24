@@ -27,8 +27,7 @@ class _JoinCapture {
 }
 
 Future<({FakeGroupCoordinator coord, GroupStore store, _JoinCapture capture})>
-    pumpJoinPage(WidgetTester tester,
-        {Size size = const Size(600, 700)}) async {
+pumpJoinPage(WidgetTester tester, {Size size = const Size(600, 700)}) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -63,12 +62,13 @@ Future<({FakeGroupCoordinator coord, GroupStore store, _JoinCapture capture})>
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-
 class FakeAuthApi implements AuthApi {
   bool failNextGuestLogin = false;
 
   @override
-  Future<ApiResponse<AuthSessionDto>> loginAsGuest({required String nickName}) async {
+  Future<ApiResponse<AuthSessionDto>> loginAsGuest({
+    required String nickName,
+  }) async {
     if (failNextGuestLogin) {
       return ApiResponse.err(message: 'Guest login failed', statusCode: 500);
     }
@@ -92,12 +92,23 @@ class FakeAuthApi implements AuthApi {
       statusCode: 200,
     );
   }
-  
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Future<({FakeGroupCoordinator coord, GroupStore store, _JoinCapture capture, FakeAuthApi authApi})> pumpJoinPageUnauth(WidgetTester tester, {Size size = const Size(600, 700)}) async {
+Future<
+  ({
+    FakeGroupCoordinator coord,
+    GroupStore store,
+    _JoinCapture capture,
+    FakeAuthApi authApi,
+  })
+>
+pumpJoinPageUnauth(
+  WidgetTester tester, {
+  Size size = const Size(600, 700),
+}) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -146,7 +157,9 @@ void main() {
   });
 
   group('GroupJoinPage', () {
-    testWidgets('affiche le titre et le champ de saisie du code', (tester) async {
+    testWidgets('affiche le titre et le champ de saisie du code', (
+      tester,
+    ) async {
       await pumpJoinPage(tester);
 
       expect(find.text('Rejoindre une partie'), findsOneWidget);
@@ -175,8 +188,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('code valide → join succès → callback onJoined appelé',
-        (tester) async {
+    testWidgets('code valide → join succès → callback onJoined appelé', (
+      tester,
+    ) async {
       final (:coord, :store, :capture) = await pumpJoinPage(tester);
 
       await tester.enterText(find.byType(TextField), '654321');
@@ -214,8 +228,7 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets(
-        'bouton Rejoindre est désactivé pendant le chargement et '
+    testWidgets('bouton Rejoindre est désactivé pendant le chargement et '
         'icône check apparaît avec 6 chiffres', (tester) async {
       await pumpJoinPage(tester);
 
@@ -243,7 +256,7 @@ void main() {
       expect(find.text('Choisissez un pseudo'), findsOneWidget);
       expect(find.text('Entrez le code à 6 chiffres'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2)); // Pseudo + Code
-      
+
       await finishGroupTest(tester);
     });
 
@@ -255,7 +268,7 @@ void main() {
       final textFields = find.byType(TextField);
       await tester.enterText(textFields.first, '123456');
       await tester.pump();
-      
+
       final btn = find.text('Rejoindre');
       await tester.ensureVisible(btn);
       await tester.tap(btn);
@@ -267,7 +280,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('pseudo et code valides -> loginGuest et join succès', (tester) async {
+    testWidgets('pseudo et code valides -> loginGuest et join succès', (
+      tester,
+    ) async {
       final res = await pumpJoinPageUnauth(tester);
 
       final textFields = find.byType(TextField);
@@ -279,14 +294,15 @@ void main() {
       await tester.ensureVisible(btn);
       await tester.tap(btn);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300)); // Laisse le loginAsGuest finir
+      await tester.pump(
+        const Duration(milliseconds: 300),
+      ); // Laisse le loginAsGuest finir
       await tester.pumpAndSettle();
 
       expect(res.capture.code, '654321');
       expect(res.capture.partyId, isNotNull);
-      
+
       await finishGroupTest(tester);
     });
   });
-
 }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
 import '../theme/tuuuur_theme.dart';
 import '../widgets/gaming_widgets.dart';
 import '../navigation/app_router.dart';
 import '../stores/auth_store.dart';
+import '../stores/ranked_store.dart';
+import '../api/api_module.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -310,7 +313,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           GamingButtonGhost(
             text: 'Mode compétitif',
             icon: FontAwesomeIcons.fire,
-            onPressed: () => context.goOnline(),
+            onPressed: () async {
+              await ApiModule.instance.restartRanked();
+              if (!context.mounted) return;
+              context.goOnline();
+            },
           ).animate(delay: 800.ms).fadeIn(duration: 600.ms).slideX(begin: -0.1),
         ],
       ),

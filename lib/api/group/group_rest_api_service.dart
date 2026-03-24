@@ -12,11 +12,16 @@ class GroupRestApiService {
   /// POST /api/v1/group/create - Creates a new group party
   Future<ApiResponse<GroupParty>> createGroup() async {
     try {
-      final response = await _apiClient.postJson('/api/v1/group/create', body: {}, auth: true);
+      final response = await _apiClient.postJson(
+        '/api/v1/group/create',
+        body: {},
+        auth: true,
+      );
 
       if (!response.ok) {
         return ApiResponse.err(
-          message: response.message ?? 'Erreur lors de la création de la partie',
+          message:
+              response.message ?? 'Erreur lors de la création de la partie',
           statusCode: response.statusCode,
           raw: response.raw,
         );
@@ -33,7 +38,9 @@ class GroupRestApiService {
   Future<ApiResponse<GroupParty>> joinGroup({required String code}) async {
     try {
       if (code.trim().isEmpty) {
-        return ApiResponse.err(message: 'Le code de la partie ne peut pas être vide');
+        return ApiResponse.err(
+          message: 'Le code de la partie ne peut pas être vide',
+        );
       }
 
       final request = JoinGroupRequest(code: code);
@@ -45,13 +52,17 @@ class GroupRestApiService {
 
       if (!response.ok) {
         return ApiResponse.err(
-          message: response.message ?? 'Erreur lors de la connexion à la partie',
+          message:
+              response.message ?? 'Erreur lors de la connexion à la partie',
           statusCode: response.statusCode,
           raw: response.raw,
         );
       }
 
-      dev.log('Réponse joinGroup: ${response.data}', name: 'GroupRestApiService');
+      dev.log(
+        'Réponse joinGroup: ${response.data}',
+        name: 'GroupRestApiService',
+      );
       final party = GroupParty.fromJson(response.data as Map<String, dynamic>);
       return ApiResponse.ok(party, statusCode: response.statusCode);
     } catch (e) {
@@ -62,7 +73,11 @@ class GroupRestApiService {
   /// POST /api/v1/group/leave - Leaves the current party
   Future<ApiResponse<void>> leaveGroup() async {
     try {
-      final response = await _apiClient.postJson('/api/v1/group/leave', body: {}, auth: true);
+      final response = await _apiClient.postJson(
+        '/api/v1/group/leave',
+        body: {},
+        auth: true,
+      );
 
       if (!response.ok) {
         return ApiResponse.err(
@@ -91,10 +106,14 @@ class GroupRestApiService {
   }) async {
     try {
       if (themes.isEmpty) {
-        return ApiResponse.err(message: 'La liste des thèmes ne peut pas être vide');
+        return ApiResponse.err(
+          message: 'La liste des thèmes ne peut pas être vide',
+        );
       }
       if (difficulties.isEmpty) {
-        return ApiResponse.err(message: 'La liste des difficultés ne peut pas être vide');
+        return ApiResponse.err(
+          message: 'La liste des difficultés ne peut pas être vide',
+        );
       }
       if (![5, 10, 15, 20].contains(nbQuestions)) {
         return ApiResponse.err(
@@ -117,7 +136,9 @@ class GroupRestApiService {
 
       if (!response.ok) {
         return ApiResponse.err(
-          message: response.message ?? 'Erreur lors de la mise à jour des paramètres',
+          message:
+              response.message ??
+              'Erreur lors de la mise à jour des paramètres',
           statusCode: response.statusCode,
           raw: response.raw,
         );

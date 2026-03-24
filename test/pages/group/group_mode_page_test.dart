@@ -30,8 +30,10 @@ Future<void> finishGroupTest(WidgetTester tester) async {
 }
 
 /// Pumps the [GroupModePage] inside a [MaterialApp] with a fake coordinator.
-Future<({FakeGroupCoordinator coord, GroupStore store, FakeGroupWebSocketService ws})>
-    pumpModePage(WidgetTester tester, {Size size = const Size(800, 700)}) async {
+Future<
+  ({FakeGroupCoordinator coord, GroupStore store, FakeGroupWebSocketService ws})
+>
+pumpModePage(WidgetTester tester, {Size size = const Size(800, 700)}) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -43,10 +45,8 @@ Future<({FakeGroupCoordinator coord, GroupStore store, FakeGroupWebSocketService
   await tester.pumpWidget(
     MaterialApp(
       // Use builder so ALL routes (including pushed ones) inherit MyAuthStore
-      builder: (ctx, child) => MyAuthStore(
-        notifier: AuthStore.instance,
-        child: child!,
-      ),
+      builder: (ctx, child) =>
+          MyAuthStore(notifier: AuthStore.instance, child: child!),
       home: GroupModePage(
         groupApiOverride: fakeApi,
         groupCoordinatorOverride: coord,
@@ -98,8 +98,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('tapper "Rejoindre une partie" affiche le formulaire join',
-        (tester) async {
+    testWidgets('tapper "Rejoindre une partie" affiche le formulaire join', (
+      tester,
+    ) async {
       await pumpModePage(tester);
       await pumpAnimations(tester);
 
@@ -110,53 +111,49 @@ void main() {
       // GroupJoinPage is shown inline (step = join), title appears
       expect(find.text('Rejoindre une partie'), findsWidgets);
       // The code input field should be visible
-      expect(
-        find.byWidgetPredicate((w) => w is TextField),
-        findsOneWidget,
-      );
+      expect(find.byWidgetPredicate((w) => w is TextField), findsOneWidget);
 
       await finishGroupTest(tester);
     });
 
     testWidgets(
-        'tapper "Créer une partie" → succès → navigue vers GroupLobbyPage',
-        (tester) async {
-      final (:coord, :store, :ws) = await pumpModePage(tester);
-      await pumpAnimations(tester);
+      'tapper "Créer une partie" → succès → navigue vers GroupLobbyPage',
+      (tester) async {
+        final (:coord, :store, :ws) = await pumpModePage(tester);
+        await pumpAnimations(tester);
 
-      await tester.tap(find.text('Créer une partie'));
-      await tester.pump(); // start async
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump(const Duration(milliseconds: 200));
+        await tester.tap(find.text('Créer une partie'));
+        await tester.pump(); // start async
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump(const Duration(milliseconds: 200));
 
-      // After a successful create, the lobby is navigated to.
-      // The store should have a party.
-      expect(store.currentParty, isNotNull);
-      // The code should match what the fake coordinator returns.
-      expect(store.currentParty!.code, '123456');
+        // After a successful create, the lobby is navigated to.
+        // The store should have a party.
+        expect(store.currentParty, isNotNull);
+        // The code should match what the fake coordinator returns.
+        expect(store.currentParty!.code, '123456');
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
     testWidgets(
-        'tapper "Créer une partie" → échec → affiche snack-bar d\'erreur',
-        (tester) async {
-      final (:coord, :store, :ws) = await pumpModePage(tester);
-      await pumpAnimations(tester);
+      'tapper "Créer une partie" → échec → affiche snack-bar d\'erreur',
+      (tester) async {
+        final (:coord, :store, :ws) = await pumpModePage(tester);
+        await pumpAnimations(tester);
 
-      coord.createSuccess = false;
+        coord.createSuccess = false;
 
-      await tester.tap(find.text('Créer une partie'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.text('Créer une partie'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(
-        find.text('Impossible de créer la partie.'),
-        findsOneWidget,
-      );
+        expect(find.text('Impossible de créer la partie.'), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
   });
 
   group('GroupModePage Unauthenticated / Guest', () {
@@ -165,7 +162,9 @@ void main() {
       await AuthStore.instance.signOut();
     });
 
-    testWidgets('Créer une partie est désactivé si non connecté', (tester) async {
+    testWidgets('Créer une partie est désactivé si non connecté', (
+      tester,
+    ) async {
       final res = await pumpModePage(tester);
       await pumpAnimations(tester);
 
@@ -185,20 +184,22 @@ void main() {
 
     testWidgets('Guest est déconnecté lors du dispose', (tester) async {
       // Connecter en tant que guest manuellement dans le AuthStore
-      await AuthStore.instance.signInWithSession(AuthSessionDto(
-        user: UserDto(
-          id: 'guest-1',
-          nickName: 'Guest',
-          email: '',
-          avatar: null,
-          isAdmin: false,
-          isNew: false,
+      await AuthStore.instance.signInWithSession(
+        AuthSessionDto(
+          user: UserDto(
+            id: 'guest-1',
+            nickName: 'Guest',
+            email: '',
+            avatar: null,
+            isAdmin: false,
+            isNew: false,
+          ),
+          token: AuthTokenDto(token: 'token'),
+          isGoogleUser: false,
+          raw: {},
         ),
-        token: AuthTokenDto(token: 'token'),
-        isGoogleUser: false,
-        raw: {},
-      ));
-      
+      );
+
       expect(AuthStore.instance.isGuest, isTrue);
 
       await pumpModePage(tester);
@@ -214,5 +215,4 @@ void main() {
       await finishGroupTest(tester);
     });
   });
-
 }

@@ -24,8 +24,9 @@ import 'package:tuuuur_flutter/api/api_client.dart' show ApiClient;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const MethodChannel secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const MethodChannel secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
   final Map<String, String> secureStore = <String, String>{};
 
   setUpAll(() async {
@@ -245,7 +246,6 @@ void main() {
     await tester.pump();
   }
 
-
   Finder numericQuestionsText() {
     final re = RegExp(r'^\d+\squestions$');
     return find.byWidgetPredicate((w) {
@@ -261,7 +261,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
         {'id': 2, 'key': 'sport', 'name': 'Sport', 'icon': 'medal'},
         {'id': 3, 'key': 'music', 'name': 'Musique', 'icon': 'music'},
@@ -296,7 +296,7 @@ void main() {
       await tester.pump();
 
       await tapStart(tester);
-      
+
       // Attendre l'animation du modal avec pump() au lieu de pumpAndSettle()
       for (int i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
@@ -335,7 +335,7 @@ void main() {
             'id': 1,
             'key': 'general',
             'name': 'Général',
-            'icon': 'wand-magic-sparkles'
+            'icon': 'wand-magic-sparkles',
           },
         ], statusCode: 200),
       );
@@ -369,7 +369,7 @@ void main() {
             'id': 1,
             'key': 'general',
             'name': 'Général',
-            'icon': 'wand-magic-sparkles'
+            'icon': 'wand-magic-sparkles',
           },
         ], statusCode: 200);
       }
@@ -395,32 +395,28 @@ void main() {
     },
   );
 
-  testWidgets(
-    'themes: 401 -> affiche bouton "Se connecter" (sans le taper)',
-    (tester) async {
-      final diffsOk = api.ApiResponse.ok(<dynamic>[
-        {'id': 1, 'label': 'Facile'},
-        {'id': 2, 'label': 'Moyen'},
-      ], statusCode: 200);
+  testWidgets('themes: 401 -> affiche bouton "Se connecter" (sans le taper)', (
+    tester,
+  ) async {
+    final diffsOk = api.ApiResponse.ok(<dynamic>[
+      {'id': 1, 'label': 'Facile'},
+      {'id': 2, 'label': 'Moyen'},
+    ], statusCode: 200);
 
-      await pumpSolo(
-        tester,
-        surfaceSize: const Size(1000, 900),
-        fetchThemes: ({headers}) async => api.ApiResponse.err(
-          message: null,
-          statusCode: 401,
-          raw: null,
-        ),
-        fetchDifficulties: ({headers}) async => diffsOk,
-      );
+    await pumpSolo(
+      tester,
+      surfaceSize: const Size(1000, 900),
+      fetchThemes: ({headers}) async =>
+          api.ApiResponse.err(message: null, statusCode: 401, raw: null),
+      fetchDifficulties: ({headers}) async => diffsOk,
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      expect(find.text('Thèmes'), findsOneWidget);
-      expect(find.text('Session expirée ou non authentifié.'), findsOneWidget);
-      expect(find.text('Se connecter'), findsOneWidget);
-    },
-  );
+    expect(find.text('Thèmes'), findsOneWidget);
+    expect(find.text('Session expirée ou non authentifié.'), findsOneWidget);
+    expect(find.text('Se connecter'), findsOneWidget);
+  });
 
   testWidgets(
     'difficultés: affiche état loading tant que le fetch n\'a pas répondu',
@@ -432,7 +428,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -467,7 +463,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -522,7 +518,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -530,11 +526,8 @@ void main() {
         tester,
         surfaceSize: const Size(1000, 900),
         fetchThemes: ({headers}) async => themesOk,
-        fetchDifficulties: ({headers}) async => api.ApiResponse.err(
-          message: null,
-          statusCode: 401,
-          raw: null,
-        ),
+        fetchDifficulties: ({headers}) async =>
+            api.ApiResponse.err(message: null, statusCode: 401, raw: null),
       );
 
       await tester.pumpAndSettle();
@@ -551,37 +544,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'difficultés: aucune sélection par défaut',
-    (tester) async {
-      final themesOk = api.ApiResponse.ok(<dynamic>[
-        {
-          'id': 1,
-          'key': 'general',
-          'name': 'Général',
-          'icon': 'wand-magic-sparkles'
-        },
-      ], statusCode: 200);
+  testWidgets('difficultés: aucune sélection par défaut', (tester) async {
+    final themesOk = api.ApiResponse.ok(<dynamic>[
+      {
+        'id': 1,
+        'key': 'general',
+        'name': 'Général',
+        'icon': 'wand-magic-sparkles',
+      },
+    ], statusCode: 200);
 
-      final diffsOk = api.ApiResponse.ok(<dynamic>[
-        {'id': 1, 'label': 'Facile'},
-        {'id': 2, 'label': 'Moyen'},
-        {'id': 3, 'label': 'Difficile'},
-      ], statusCode: 200);
+    final diffsOk = api.ApiResponse.ok(<dynamic>[
+      {'id': 1, 'label': 'Facile'},
+      {'id': 2, 'label': 'Moyen'},
+      {'id': 3, 'label': 'Difficile'},
+    ], statusCode: 200);
 
-      await pumpSolo(
-        tester,
-        surfaceSize: const Size(1000, 900),
-        fetchThemes: ({headers}) async => themesOk,
-        fetchDifficulties: ({headers}) async => diffsOk,
-      );
+    await pumpSolo(
+      tester,
+      surfaceSize: const Size(1000, 900),
+      fetchThemes: ({headers}) async => themesOk,
+      fetchDifficulties: ({headers}) async => diffsOk,
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      final moyenText = tester.widget<Text>(find.text('Moyen'));
-      expect(moyenText.style?.color, isNot(Colors.white));
-    },
-  );
+    final moyenText = tester.widget<Text>(find.text('Moyen'));
+    expect(moyenText.style?.color, isNot(Colors.white));
+  });
 
   testWidgets(
     'difficultés: sélection multiple permet de sélectionner plusieurs difficultés',
@@ -591,7 +581,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -625,7 +615,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -667,7 +657,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -711,7 +701,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -732,7 +722,10 @@ void main() {
       await tapStart(tester);
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('Veuillez choisir au moins une difficulté'), findsOneWidget);
+      expect(
+        find.text('Veuillez choisir au moins une difficulté'),
+        findsOneWidget,
+      );
       expect(find.text('Démarrer le quiz'), findsNothing);
 
       await tester.pump(const Duration(seconds: 3));
@@ -742,78 +735,76 @@ void main() {
     },
   );
 
-  testWidgets(
-    'mapping: supporte items non-Map (fields) + tri alphabétique',
-    (tester) async {
-      final themesOk = api.ApiResponse.ok(<dynamic>[
-        _ThemeObj(id: 2, key: 'sport', name: 'Sport', icon: 'medal'),
-        _ThemeObj(
-          id: 1,
-          key: 'general',
-          name: 'Général',
-          icon: 'wand-magic-sparkles',
-        ),
-        _ThemeObj(id: 3, key: 'gaming', name: 'Gaming', icon: 'gamepad'),
-      ], statusCode: 200);
+  testWidgets('mapping: supporte items non-Map (fields) + tri alphabétique', (
+    tester,
+  ) async {
+    final themesOk = api.ApiResponse.ok(<dynamic>[
+      _ThemeObj(id: 2, key: 'sport', name: 'Sport', icon: 'medal'),
+      _ThemeObj(
+        id: 1,
+        key: 'general',
+        name: 'Général',
+        icon: 'wand-magic-sparkles',
+      ),
+      _ThemeObj(id: 3, key: 'gaming', name: 'Gaming', icon: 'gamepad'),
+    ], statusCode: 200);
 
-      final diffsOk = api.ApiResponse.ok(<dynamic>[
-        _DiffObj(id: 1, label: 'Facile'),
-        _DiffObj(id: 2, label: 'Moyen'),
-      ], statusCode: 200);
+    final diffsOk = api.ApiResponse.ok(<dynamic>[
+      _DiffObj(id: 1, label: 'Facile'),
+      _DiffObj(id: 2, label: 'Moyen'),
+    ], statusCode: 200);
 
-      await pumpSolo(
-        tester,
-        surfaceSize: const Size(1000, 900),
-        fetchThemes: ({headers}) async => themesOk,
-        fetchDifficulties: ({headers}) async => diffsOk,
-      );
+    await pumpSolo(
+      tester,
+      surfaceSize: const Size(1000, 900),
+      fetchThemes: ({headers}) async => themesOk,
+      fetchDifficulties: ({headers}) async => diffsOk,
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      expect(find.text('Général'), findsOneWidget);
-      expect(find.text('Sport'), findsOneWidget);
-      expect(find.text('Gaming'), findsOneWidget);
+    expect(find.text('Général'), findsOneWidget);
+    expect(find.text('Sport'), findsOneWidget);
+    expect(find.text('Gaming'), findsOneWidget);
 
-      final categoriesCard = categoriesCardFinder();
-      expect(categoriesCard, findsOneWidget);
+    final categoriesCard = categoriesCardFinder();
+    expect(categoriesCard, findsOneWidget);
 
-      final buttonsInCategories = tester
-          .widgetList<CategoryButton>(
-            find.descendant(
-              of: categoriesCard,
-              matching: find.byType(CategoryButton),
-            ),
-          )
-          .toList();
+    final buttonsInCategories = tester
+        .widgetList<CategoryButton>(
+          find.descendant(
+            of: categoriesCard,
+            matching: find.byType(CategoryButton),
+          ),
+        )
+        .toList();
 
-      expect(buttonsInCategories.isNotEmpty, isTrue);
-      expect(buttonsInCategories.first.text, equals('Gaming'));
-    },
-  );
+    expect(buttonsInCategories.isNotEmpty, isTrue);
+    expect(buttonsInCategories.first.text, equals('Gaming'));
+  });
 
-  testWidgets(
-    'themes: exception -> affiche "Erreur réseau:" (cover catch)',
-    (tester) async {
-      final diffsOk = api.ApiResponse.ok(<dynamic>[
-        {'id': 2, 'label': 'Moyen'},
-      ], statusCode: 200);
+  testWidgets('themes: exception -> affiche "Erreur réseau:" (cover catch)', (
+    tester,
+  ) async {
+    final diffsOk = api.ApiResponse.ok(<dynamic>[
+      {'id': 2, 'label': 'Moyen'},
+    ], statusCode: 200);
 
-      await pumpSolo(
-        tester,
-        surfaceSize: const Size(1000, 800),
-        fetchThemes: ({headers}) async {
-          throw Exception('No internet');
-        },
-        fetchDifficulties: ({headers}) async => diffsOk,
-      );
+    await pumpSolo(
+      tester,
+      surfaceSize: const Size(1000, 800),
+      fetchThemes: ({headers}) async {
+        throw Exception('No internet');
+      },
+      fetchDifficulties: ({headers}) async => diffsOk,
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      expect(find.text('Thèmes'), findsOneWidget);
-      expect(find.textContaining('Erreur réseau:'), findsOneWidget);
-      expect(find.textContaining('Exception: No internet'), findsOneWidget);
-    },
-  );
+    expect(find.text('Thèmes'), findsOneWidget);
+    expect(find.textContaining('Erreur réseau:'), findsOneWidget);
+    expect(find.textContaining('Exception: No internet'), findsOneWidget);
+  });
 
   testWidgets(
     'icon fallback: mapping par nom (incl. jeu/gaming/vidéo) + _mInt num/string',
@@ -884,11 +875,8 @@ void main() {
       await pumpSoloWithRouter(
         tester,
         surfaceSize: const Size(1000, 900),
-        fetchThemes: ({headers}) async => api.ApiResponse.err(
-          message: null,
-          statusCode: 401,
-          raw: null,
-        ),
+        fetchThemes: ({headers}) async =>
+            api.ApiResponse.err(message: null, statusCode: 401, raw: null),
         fetchDifficulties: ({headers}) async => diffsOk,
       );
 
@@ -906,7 +894,12 @@ void main() {
     'navigation: modal confirm -> appelle goSoloQuiz + pushNamed solo-quiz (cover onConfirm/goSoloQuiz)',
     (tester) async {
       final themesOk = api.ApiResponse.ok(<dynamic>[
-        {'id': 1, 'key': 'general', 'name': 'Général', 'icon': 'wand-magic-sparkles'},
+        {
+          'id': 1,
+          'key': 'general',
+          'name': 'Général',
+          'icon': 'wand-magic-sparkles',
+        },
         {'id': 2, 'key': 'sport', 'name': 'Sport', 'icon': 'medal'},
       ], statusCode: 200);
 
@@ -958,25 +951,24 @@ void main() {
       final fakeThemeApi = FakeThemeApi(({headers}) async {
         themesCalled = true;
         expect(headers, isNull);
-        return api.ApiResponse.ok(
-          <ThemeDto>[
-            ThemeDto(id: 1, key: 'general', name: 'Général', icon: 'wand-magic-sparkles'),
-            ThemeDto(id: 2, key: 'sport', name: 'Sport', icon: 'medal'),
-          ],
-          statusCode: 200,
-        );
+        return api.ApiResponse.ok(<ThemeDto>[
+          ThemeDto(
+            id: 1,
+            key: 'general',
+            name: 'Général',
+            icon: 'wand-magic-sparkles',
+          ),
+          ThemeDto(id: 2, key: 'sport', name: 'Sport', icon: 'medal'),
+        ], statusCode: 200);
       });
 
       final fakeDiffApi = FakeDifficultyApi(({headers}) async {
         diffsCalled = true;
         expect(headers, isNull);
-        return api.ApiResponse.ok(
-          <DifficultyDto>[
-            DifficultyDto(id: 1, label: 'Facile'),
-            DifficultyDto(id: 2, label: 'Moyen'),
-          ],
-          statusCode: 200,
-        );
+        return api.ApiResponse.ok(<DifficultyDto>[
+          DifficultyDto(id: 1, label: 'Facile'),
+          DifficultyDto(id: 2, label: 'Moyen'),
+        ], statusCode: 200);
       });
 
       await pumpSoloWithDefaultFetchers(
@@ -1010,10 +1002,9 @@ void main() {
       });
 
       final fakeDiffApi = FakeDifficultyApi(({headers}) async {
-        return api.ApiResponse.ok(
-          <DifficultyDto>[DifficultyDto(id: 2, label: 'Moyen')],
-          statusCode: 200,
-        );
+        return api.ApiResponse.ok(<DifficultyDto>[
+          DifficultyDto(id: 2, label: 'Moyen'),
+        ], statusCode: 200);
       });
 
       await pumpSoloWithDefaultFetchers(
@@ -1035,12 +1026,14 @@ void main() {
     'default difficultiesFetcher: si DifficultyApi renvoie err => wrapper ApiResponse.err et UI erreur',
     (tester) async {
       final fakeThemeApi = FakeThemeApi(({headers}) async {
-        return api.ApiResponse.ok(
-          <ThemeDto>[
-            ThemeDto(id: 1, key: 'general', name: 'Général', icon: 'wand-magic-sparkles'),
-          ],
-          statusCode: 200,
-        );
+        return api.ApiResponse.ok(<ThemeDto>[
+          ThemeDto(
+            id: 1,
+            key: 'general',
+            name: 'Général',
+            icon: 'wand-magic-sparkles',
+          ),
+        ], statusCode: 200);
       });
 
       final fakeDiffApi = FakeDifficultyApi(({headers}) async {
@@ -1065,20 +1058,24 @@ void main() {
       expect(find.text('Boom diffs fallback'), findsOneWidget);
 
       final settingsCard = settingsCardFinder();
-      final retryBtn = find.descendant(of: settingsCard, matching: find.text('↻ Réessayer'));
+      final retryBtn = find.descendant(
+        of: settingsCard,
+        matching: find.text('↻ Réessayer'),
+      );
       expect(retryBtn, findsOneWidget);
     },
   );
 
   group('_buildAuthRequiredCard', () {
-    testWidgets('affiche la carte quand non authentifié',
-        (WidgetTester tester) async {
+    testWidgets('affiche la carte quand non authentifié', (
+      WidgetTester tester,
+    ) async {
       final themesOk = api.ApiResponse.ok(<dynamic>[
         {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -1108,14 +1105,15 @@ void main() {
       expect(find.text('Général'), findsNothing);
     });
 
-    testWidgets('bouton Se connecter navigue vers /login avec returnTo',
-        (WidgetTester tester) async {
+    testWidgets('bouton Se connecter navigue vers /login avec returnTo', (
+      WidgetTester tester,
+    ) async {
       final themesOk = api.ApiResponse.ok(<dynamic>[
         {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -1164,7 +1162,10 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
-      final loginButton = find.widgetWithText(GamingButtonPrimary, 'Se connecter');
+      final loginButton = find.widgetWithText(
+        GamingButtonPrimary,
+        'Se connecter',
+      );
       expect(loginButton, findsOneWidget);
 
       await tester.tap(loginButton);
@@ -1176,8 +1177,9 @@ void main() {
       expect(find.text('LOGIN_PAGE'), findsOneWidget);
     });
 
-    testWidgets('ne charge pas les thèmes/difficultés quand non authentifié',
-        (WidgetTester tester) async {
+    testWidgets('ne charge pas les thèmes/difficultés quand non authentifié', (
+      WidgetTester tester,
+    ) async {
       int themesCalls = 0;
       int diffsCalls = 0;
 
@@ -1186,7 +1188,7 @@ void main() {
           'id': 1,
           'key': 'general',
           'name': 'Général',
-          'icon': 'wand-magic-sparkles'
+          'icon': 'wand-magic-sparkles',
         },
       ], statusCode: 200);
 
@@ -1216,7 +1218,6 @@ void main() {
       expect(find.text('Connexion requise'), findsOneWidget);
     });
   });
-
 }
 
 class _ThemeObj {
@@ -1239,33 +1240,35 @@ class _DiffObj {
 }
 
 class FakeThemeApi extends ThemeApi {
-  final Future<api.ApiResponse<List<ThemeDto>>> Function({Map<String, String>? headers})
-      onGetThemes;
+  final Future<api.ApiResponse<List<ThemeDto>>> Function({
+    Map<String, String>? headers,
+  })
+  onGetThemes;
 
   FakeThemeApi(this.onGetThemes)
-      : super(ApiClient(
-          httpClient: http.Client(),
-          baseUrl: 'http://localhost',
-        ));
+    : super(ApiClient(httpClient: http.Client(), baseUrl: 'http://localhost'));
 
   @override
-  Future<api.ApiResponse<List<ThemeDto>>> getThemes({Map<String, String>? headers}) {
+  Future<api.ApiResponse<List<ThemeDto>>> getThemes({
+    Map<String, String>? headers,
+  }) {
     return onGetThemes(headers: headers);
   }
 }
 
 class FakeDifficultyApi extends DifficultyApi {
-  final Future<api.ApiResponse<List<DifficultyDto>>> Function({Map<String, String>? headers})
-      onGetDiffs;
+  final Future<api.ApiResponse<List<DifficultyDto>>> Function({
+    Map<String, String>? headers,
+  })
+  onGetDiffs;
 
   FakeDifficultyApi(this.onGetDiffs)
-      : super(ApiClient(
-          httpClient: http.Client(),
-          baseUrl: 'http://localhost',
-        ));
+    : super(ApiClient(httpClient: http.Client(), baseUrl: 'http://localhost'));
 
   @override
-  Future<api.ApiResponse<List<DifficultyDto>>> getDifficulties({Map<String, String>? headers}) {
+  Future<api.ApiResponse<List<DifficultyDto>>> getDifficulties({
+    Map<String, String>? headers,
+  }) {
     return onGetDiffs(headers: headers);
   }
 }

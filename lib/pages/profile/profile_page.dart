@@ -1048,7 +1048,7 @@ class _ProfilePageState extends State<ProfilePage> {
               : () {
                   final type = (match.partyType?.label ?? '').toLowerCase();
                   final isSolo = type == 'solo';
-                  context.goHistoryQuiz(match.id, isSolo: isSolo);
+                  context.goHistoryQuiz(match.id, isSolo: isSolo, extra: match);
                 },
           child: Container(
             padding: const EdgeInsets.all(12),

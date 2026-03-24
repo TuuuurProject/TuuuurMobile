@@ -62,7 +62,9 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
     }
 
     if (!AuthValidators.isSixDigitCode(code)) {
-      AuthSnackbars.show('Code invalide. Entrez les 6 chiffres reçus par email.');
+      AuthSnackbars.show(
+        'Code invalide. Entrez les 6 chiffres reçus par email.',
+      );
       return false;
     }
 
@@ -156,7 +158,10 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: TuuurTheme.brandPurple.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
@@ -189,7 +194,9 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
                       child: TextField(
                         controller: _loginController,
                         textInputAction: TextInputAction.next,
-                        style: const TextStyle(color: TuuurTheme.brandLightGray),
+                        style: const TextStyle(
+                          color: TuuurTheme.brandLightGray,
+                        ),
                         decoration: authInputDecoration('Votre pseudo'),
                       ),
                     ),
@@ -201,8 +208,12 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
                         controller: _codeController,
                         keyboardType: TextInputType.number,
                         maxLength: 6,
-                        style: const TextStyle(color: TuuurTheme.brandLightGray),
-                        decoration: authInputDecoration('••••••').copyWith(counterText: ''),
+                        style: const TextStyle(
+                          color: TuuurTheme.brandLightGray,
+                        ),
+                        decoration: authInputDecoration(
+                          '••••••',
+                        ).copyWith(counterText: ''),
                       ),
                     ),
 
@@ -218,7 +229,9 @@ class _AuthVerifyPageState extends State<AuthVerifyPage> {
                           onPressed: () => context.goBack(),
                         ),
                         GamingButtonPrimary(
-                          text: _isLoading ? 'Vérification...' : 'Valider le code',
+                          text: _isLoading
+                              ? 'Vérification...'
+                              : 'Valider le code',
                           onPressed: _isLoading ? null : handleVerify,
                         ),
                       ],

@@ -1,4 +1,4 @@
-import '../api_client.dart'; 
+import '../api_client.dart';
 import 'difficulty_models.dart';
 
 /// API client for /api/v1/difficulty
@@ -9,10 +9,7 @@ class DifficultyApi {
 
   /// GET /api/v1/difficulty - Requires authentication
   Future<ApiResponse<List<DifficultyDto>>> getDifficulties() async {
-    final res = await _api.getJson(
-      '/api/v1/difficulty',
-      auth: true,
-    );
+    final res = await _api.getJson('/api/v1/difficulty', auth: true);
 
     if (!res.ok) {
       return ApiResponse.err(
@@ -46,9 +43,6 @@ class DifficultyApi {
       return ai.compareTo(bi);
     });
 
-    return ApiResponse.ok(
-      difficulties,
-      statusCode: res.statusCode,
-    );
+    return ApiResponse.ok(difficulties, statusCode: res.statusCode);
   }
 }

@@ -56,10 +56,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         'Code envoyé par email. Consultez votre boîte 📬',
         color: TuuurTheme.brandGreen,
       );
-      context.push('/reset-password', extra: {
-        'login': login,
-        'returnTo': widget.returnTo,
-      });
+      context.push(
+        '/reset-password',
+        extra: {'login': login, 'returnTo': widget.returnTo},
+      );
     } else {
       AuthSnackbars.show(res.message ?? 'Impossible de démarrer la procédure.');
     }
@@ -96,10 +96,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           const SizedBox(height: 20),
           const Text(
             'Indiquez votre login. Nous vous enverrons un code pour réinitialiser votre mot de passe.',
-            style: TextStyle(
-              color: TuuurTheme.brandGray,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: TuuurTheme.brandGray, fontSize: 14),
           ),
           const SizedBox(height: 20),
           AuthLabeledField(

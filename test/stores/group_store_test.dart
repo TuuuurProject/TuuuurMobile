@@ -7,10 +7,10 @@ import 'package:tuuuur_flutter/api/auth/token_provider.dart';
 /// Mock WebSocket Service for testing
 class MockGroupWebSocketService extends GroupWebSocketService {
   MockGroupWebSocketService()
-      : super(
-          hubUrl: 'http://localhost/test',
-          tokenProvider: MockTokenProvider(),
-        );
+    : super(
+        hubUrl: 'http://localhost/test',
+        tokenProvider: MockTokenProvider(),
+      );
 
   bool _connected = false;
 
@@ -157,9 +157,7 @@ void main() {
           active: true,
           finish: false,
           dt: '2024-01-01T00:00:00Z',
-          partyUsers: [
-            PartyUser(idUser: '1', idParty: 'party1', user: user1),
-          ],
+          partyUsers: [PartyUser(idUser: '1', idParty: 'party1', user: user1)],
           partyTheme: [],
           partyDifficulty: [],
           percent: 0,
@@ -271,9 +269,7 @@ void main() {
           active: true,
           finish: false,
           dt: '2024-01-01T00:00:00Z',
-          partyUsers: [
-            PartyUser(idUser: '1', idParty: 'party1', user: user1),
-          ],
+          partyUsers: [PartyUser(idUser: '1', idParty: 'party1', user: user1)],
           partyTheme: [],
           partyDifficulty: [],
           percent: 0,
@@ -448,9 +444,7 @@ void main() {
           active: true,
           finish: false,
           dt: '2024-01-01T00:00:00Z',
-          partyUsers: [
-            PartyUser(idUser: '1', idParty: 'party1', user: user1),
-          ],
+          partyUsers: [PartyUser(idUser: '1', idParty: 'party1', user: user1)],
           partyTheme: [],
           partyDifficulty: [],
           percent: 0,
@@ -480,9 +474,7 @@ void main() {
           active: true,
           finish: false,
           dt: '2024-01-01T00:00:00Z',
-          partyUsers: [
-            PartyUser(idUser: '1', idParty: 'party1', user: user1),
-          ],
+          partyUsers: [PartyUser(idUser: '1', idParty: 'party1', user: user1)],
           partyTheme: [],
           partyDifficulty: [],
           percent: 0,
@@ -551,9 +543,7 @@ void main() {
           active: true,
           finish: false,
           dt: '2024-01-01T00:00:00Z',
-          partyUsers: [
-            PartyUser(idUser: '1', idParty: 'party1', user: user1),
-          ],
+          partyUsers: [PartyUser(idUser: '1', idParty: 'party1', user: user1)],
           partyTheme: [],
           partyDifficulty: [],
           percent: 0,
@@ -738,7 +728,7 @@ void main() {
 
       test('onReconnected clears connection error', () {
         store.onError('Connection lost');
-        
+
         store.onReconnected();
 
         expect(store.errorMessage, isNull);

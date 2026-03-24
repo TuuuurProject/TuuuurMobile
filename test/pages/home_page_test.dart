@@ -19,9 +19,7 @@ void main() {
 
   group('HomePage', () {
     testWidgets('HomePage peut être instanciée et affichée', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: const HomePage(),
-      ));
+      await tester.pumpWidget(MaterialApp(home: const HomePage()));
       await tester.pump();
 
       expect(find.byType(HomePage), findsOneWidget);
@@ -30,30 +28,31 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-
     });
 
-    testWidgets('Si connecté en Guest, HomePage force la déconnexion', (tester) async {
+    testWidgets('Si connecté en Guest, HomePage force la déconnexion', (
+      tester,
+    ) async {
       // Connecter en guest
-      await AuthStore.instance.signInWithSession(AuthSessionDto(
-        user: UserDto(
-          id: 'guest-1',
-          nickName: 'GuestUser',
-          email: '',
-          avatar: null,
-          isAdmin: false,
-          isNew: false,
+      await AuthStore.instance.signInWithSession(
+        AuthSessionDto(
+          user: UserDto(
+            id: 'guest-1',
+            nickName: 'GuestUser',
+            email: '',
+            avatar: null,
+            isAdmin: false,
+            isNew: false,
+          ),
+          token: AuthTokenDto(token: 'fake-guest-token'),
+          isGoogleUser: false,
+          raw: {},
         ),
-        token: AuthTokenDto(token: 'fake-guest-token'),
-        isGoogleUser: false,
-        raw: {},
-      ));
-      
+      );
+
       expect(AuthStore.instance.isGuest, isTrue);
 
-      await tester.pumpWidget(MaterialApp(
-        home: const HomePage(),
-      ));
+      await tester.pumpWidget(MaterialApp(home: const HomePage()));
 
       // Laisse le frame se terminer pour appeler addPostFrameCallback
       await tester.pump();
@@ -66,7 +65,6 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-
     });
   });
 }

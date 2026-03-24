@@ -24,7 +24,12 @@ class ApiResponse<T> {
       ApiResponse._(ok: true, data: data, statusCode: statusCode);
 
   factory ApiResponse.err({String? message, int? statusCode, Object? raw}) =>
-      ApiResponse._(ok: false, message: message, statusCode: statusCode, raw: raw);
+      ApiResponse._(
+        ok: false,
+        message: message,
+        statusCode: statusCode,
+        raw: raw,
+      );
 }
 
 /// HTTP JSON client with readable error extraction.
@@ -37,9 +42,9 @@ class ApiClient {
     http.Client? httpClient,
     String? baseUrl,
     TokenProvider? tokenProvider,
-  })  : _http = httpClient ?? http.Client(),
-        _base = (baseUrl ?? ApiConfig.baseUrl).replaceAll(RegExp(r'/+$'), ''),
-        _tokenProvider = tokenProvider;
+  }) : _http = httpClient ?? http.Client(),
+       _base = (baseUrl ?? ApiConfig.baseUrl).replaceAll(RegExp(r'/+$'), ''),
+       _tokenProvider = tokenProvider;
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final normalized = path.startsWith('/') ? path : '/$path';
@@ -90,34 +95,46 @@ class ApiClient {
       final http.Response res;
       switch (method.toUpperCase()) {
         case 'GET':
-          res = await _http.get(_uri(path), headers: requestHeaders).timeout(timeout);
+          res = await _http
+              .get(_uri(path), headers: requestHeaders)
+              .timeout(timeout);
           break;
         case 'POST':
-          res = await _http.post(_uri(path), headers: requestHeaders, body: bodyStr).timeout(timeout);
+          res = await _http
+              .post(_uri(path), headers: requestHeaders, body: bodyStr)
+              .timeout(timeout);
           break;
         case 'PUT':
-          res = await _http.put(_uri(path), headers: requestHeaders, body: bodyStr).timeout(timeout);
+          res = await _http
+              .put(_uri(path), headers: requestHeaders, body: bodyStr)
+              .timeout(timeout);
           break;
         case 'DELETE':
-          res = await _http.delete(_uri(path), headers: requestHeaders).timeout(timeout);
+          res = await _http
+              .delete(_uri(path), headers: requestHeaders)
+              .timeout(timeout);
           break;
         default:
           throw ArgumentError('Méthode HTTP non supportée: $method');
       }
 
       bodyStr = utf8.decode(res.bodyBytes);
-      
+
       final decoded = _parseBody(bodyStr);
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return ApiResponse.ok(decoded, statusCode: res.statusCode);
       }
       return ApiResponse.err(
         statusCode: res.statusCode,
-        message: _humanizeError(decoded, res.statusCode) ?? 'Erreur ${res.statusCode}.',
+        message:
+            _humanizeError(decoded, res.statusCode) ??
+            'Erreur ${res.statusCode}.',
         raw: _rawForErr(decoded),
       );
     } catch (e) {
-      return ApiResponse.err(message: 'Impossible de contacter le serveur : $e');
+      return ApiResponse.err(
+        message: 'Impossible de contacter le serveur : $e',
+      );
     }
   }
 
@@ -127,7 +144,13 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    return _executeRequest('GET', path, headers: headers, auth: auth, timeout: timeout);
+    return _executeRequest(
+      'GET',
+      path,
+      headers: headers,
+      auth: auth,
+      timeout: timeout,
+    );
   }
 
   Future<ApiResponse<Map<String, dynamic>>> postJson(
@@ -137,7 +160,14 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    return _executeRequest('POST', path, body: body, headers: headers, auth: auth, timeout: timeout);
+    return _executeRequest(
+      'POST',
+      path,
+      body: body,
+      headers: headers,
+      auth: auth,
+      timeout: timeout,
+    );
   }
 
   Future<ApiResponse<Map<String, dynamic>>> putJson(
@@ -147,7 +177,14 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    return _executeRequest('PUT', path, body: body, headers: headers, auth: auth, timeout: timeout);
+    return _executeRequest(
+      'PUT',
+      path,
+      body: body,
+      headers: headers,
+      auth: auth,
+      timeout: timeout,
+    );
   }
 
   Future<ApiResponse<Map<String, dynamic>>> delete(
@@ -156,7 +193,13 @@ class ApiClient {
     bool auth = false,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    return _executeRequest('DELETE', path, headers: headers, auth: auth, timeout: timeout);
+    return _executeRequest(
+      'DELETE',
+      path,
+      headers: headers,
+      auth: auth,
+      timeout: timeout,
+    );
   }
 
   void dispose() {
@@ -198,10 +241,9 @@ class ApiClient {
       if (c is List && c.isNotEmpty) {
         final first = c.first;
         if (first is Map) {
-          final desc = (first['description'] ??
-                  first['detail'] ??
-                  first['message'])
-              ?.toString();
+          final desc =
+              (first['description'] ?? first['detail'] ?? first['message'])
+                  ?.toString();
           if (desc != null && desc.isNotEmpty) return desc;
 
           final code = (first['code'] ?? first['title'] ?? first['type'])

@@ -61,7 +61,11 @@ class _FakeAuthApi extends AuthApi {
   }
 }
 
-GoRouter _createRouter({String initialLocation = '/' , String? initialLogin, AuthApi? authApi}) {
+GoRouter _createRouter({
+  String initialLocation = '/',
+  String? initialLogin,
+  AuthApi? authApi,
+}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [
@@ -71,11 +75,15 @@ GoRouter _createRouter({String initialLocation = '/' , String? initialLogin, Aut
       ),
       GoRoute(
         path: '/login',
-        builder: (_, __) => const _DummyPage('login', pageKey: Key('page_login')),
+        builder: (_, __) =>
+            const _DummyPage('login', pageKey: Key('page_login')),
       ),
       GoRoute(
         path: '/reset-password',
-        builder: (_, __) => ResetPasswordPage(initialLogin: initialLogin, authApiOverride: authApi),
+        builder: (_, __) => ResetPasswordPage(
+          initialLogin: initialLogin,
+          authApiOverride: authApi,
+        ),
       ),
     ],
   );
@@ -98,7 +106,13 @@ Future<void> _pumpReset(
   await tester.binding.setSurfaceSize(const Size(1200, 2000));
   addTearDown(() async => tester.binding.setSurfaceSize(null));
 
-  final r = router ?? _createRouter(initialLocation: initialLocation, initialLogin: initialLogin, authApi: authApi);
+  final r =
+      router ??
+      _createRouter(
+        initialLocation: initialLocation,
+        initialLogin: initialLogin,
+        authApi: authApi,
+      );
   await tester.pumpWidget(_wrapWithApp(r));
   await tester.pumpAndSettle();
 }
@@ -131,13 +145,15 @@ Future<void> _tapFinder(WidgetTester tester, Finder finder) async {
 Future<void> _tapPrimaryButton(WidgetTester tester, String label) async {
   final btn = find.ancestor(
     of: find.text(label),
-    matching: find.byWidgetPredicate((w) =>
-        w.runtimeType.toString() == 'GamingButtonPrimary' ||
-        w is ElevatedButton ||
-        w is TextButton ||
-        w is OutlinedButton ||
-        w is InkWell ||
-        w is GestureDetector),
+    matching: find.byWidgetPredicate(
+      (w) =>
+          w.runtimeType.toString() == 'GamingButtonPrimary' ||
+          w is ElevatedButton ||
+          w is TextButton ||
+          w is OutlinedButton ||
+          w is InkWell ||
+          w is GestureDetector,
+    ),
   );
 
   final target = btn.evaluate().isNotEmpty ? btn.first : find.text(label);
@@ -165,7 +181,10 @@ void main() {
 
   group('ResetPasswordPage - rendu', () {
     testWidgets('affiche les éléments essentiels', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       expect(find.byType(ResetPasswordPage), findsOneWidget);
@@ -187,8 +206,13 @@ void main() {
       expect(find.text('Annuler'), findsOneWidget);
     });
 
-    testWidgets('préremplit le login si initialLogin est fourni', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', initialLogin: 'prefillUser');
+    testWidgets('préremplit le login si initialLogin est fourni', (
+      tester,
+    ) async {
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        initialLogin: 'prefillUser',
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       final loginField = tester.widget<TextField>(_tf(0));
@@ -198,7 +222,10 @@ void main() {
 
   group('ResetPasswordPage - validations', () {
     testWidgets('login requis', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await _tapPrimaryButton(tester, 'Valider');
@@ -208,7 +235,10 @@ void main() {
     });
 
     testWidgets('code requis', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await _fillForm(
@@ -226,7 +256,10 @@ void main() {
     });
 
     testWidgets('nouveau mot de passe requis', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await _fillForm(
@@ -244,7 +277,10 @@ void main() {
     });
 
     testWidgets('mot de passe invalide', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await _fillForm(
@@ -265,7 +301,10 @@ void main() {
     });
 
     testWidgets('mots de passe différents', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await _fillForm(
@@ -278,14 +317,20 @@ void main() {
 
       await _tapPrimaryButton(tester, 'Valider');
 
-      expect(find.text('Les mots de passe ne correspondent pas.'), findsOneWidget);
+      expect(
+        find.text('Les mots de passe ne correspondent pas.'),
+        findsOneWidget,
+      );
       expect(fake.resetCount, 0);
     });
   });
 
   group('ResetPasswordPage - interactions', () {
     testWidgets('bascule la visibilité (icône oeil)', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await tester.ensureVisible(find.byIcon(Icons.visibility).first);
@@ -297,8 +342,13 @@ void main() {
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
     });
 
-    testWidgets('submit clavier (done) sur confirm déclenche reset', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+    testWidgets('submit clavier (done) sur confirm déclenche reset', (
+      tester,
+    ) async {
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       fake.immediateResponse = ApiResponse.err(message: 'KO', statusCode: 400);
@@ -322,7 +372,10 @@ void main() {
     });
 
     testWidgets('loading: "Validation..." pendant la requête', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       fake.makePending();
@@ -345,7 +398,10 @@ void main() {
 
   group('ResetPasswordPage - API & navigation', () {
     testWidgets('erreur API => affiche message et reste', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       fake.immediateResponse = ApiResponse.err(
@@ -369,7 +425,10 @@ void main() {
     });
 
     testWidgets('succès API => SnackBar vert + go(/login)', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       fake.immediateResponse = ApiResponse.ok(true, statusCode: 200);
@@ -408,7 +467,9 @@ void main() {
   });
 
   group('ResetPasswordPage - navigation (GoRouter)', () {
-    testWidgets('Annuler => goBack (pop) vers home (avec historique)', (tester) async {
+    testWidgets('Annuler => goBack (pop) vers home (avec historique)', (
+      tester,
+    ) async {
       final router = _createRouter(initialLocation: '/');
       await _pumpReset(tester, authApi: fake, router: router);
 
@@ -421,7 +482,9 @@ void main() {
       expect(find.byKey(const Key('page_home')), findsOneWidget);
     });
 
-    testWidgets('AppBar back => goBack (pop) vers home (avec historique)', (tester) async {
+    testWidgets('AppBar back => goBack (pop) vers home (avec historique)', (
+      tester,
+    ) async {
       final router = _createRouter(initialLocation: '/');
       await _pumpReset(tester, authApi: fake, router: router);
 
@@ -437,7 +500,10 @@ void main() {
 
   group('ResetPasswordPage - cycle de vie', () {
     testWidgets('dispose correctement', (tester) async {
-      final router = _createRouter(initialLocation: '/reset-password', authApi: fake);
+      final router = _createRouter(
+        initialLocation: '/reset-password',
+        authApi: fake,
+      );
       await _pumpReset(tester, authApi: fake, router: router);
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -453,4 +519,3 @@ void main() {
     });
   });
 }
-

@@ -152,31 +152,31 @@ void main() {
   // ─────────────────────────────────────────────────────────────────────────
   group('HistoryMatchDto', () {
     Map<String, dynamic> _fullJson() => {
-          'id': 'match-abc',
-          'dt': '2024-01-15T10:00:00',
-          'finish': true,
-          'nbQuestions': 10,
-          'score': 8,
-          'time': 120,
-          'percent': 80,
-          'partyType': {'id': 1, 'label': 'Solo'},
-          'partyDifficulty': [
-            {
-              'id': 1,
-              'difficulty': {'id': 1, 'label': 'Facile'},
-            },
-            {
-              'id': 2,
-              'difficulty': {'id': 2, 'label': 'Moyen'},
-            },
-          ],
-          'partyTheme': [
-            {
-              'id': 1,
-              'theme': {'id': 3, 'label': 'Sport', 'icon': 'medal'},
-            },
-          ],
-        };
+      'id': 'match-abc',
+      'dt': '2024-01-15T10:00:00',
+      'finish': true,
+      'nbQuestions': 10,
+      'score': 8,
+      'time': 120,
+      'percent': 80,
+      'partyType': {'id': 1, 'label': 'Solo'},
+      'partyDifficulty': [
+        {
+          'id': 1,
+          'difficulty': {'id': 1, 'label': 'Facile'},
+        },
+        {
+          'id': 2,
+          'difficulty': {'id': 2, 'label': 'Moyen'},
+        },
+      ],
+      'partyTheme': [
+        {
+          'id': 1,
+          'theme': {'id': 3, 'label': 'Sport', 'icon': 'medal'},
+        },
+      ],
+    };
 
     test('fromJson parse tous les champs complets', () {
       final dto = HistoryMatchDto.fromJson(_fullJson());
@@ -283,12 +283,7 @@ void main() {
     test('fromJson avec champ "history"', () {
       final dto = HistoryPageDto.fromJson({
         'history': [
-          {
-            'id': 'm1',
-            'finish': true,
-            'partyDifficulty': [],
-            'partyTheme': [],
-          },
+          {'id': 'm1', 'finish': true, 'partyDifficulty': [], 'partyTheme': []},
         ],
         'page': 1,
         'totalPages': 2,
@@ -304,7 +299,12 @@ void main() {
     test('fromJson avec champ "items" (fallback)', () {
       final dto = HistoryPageDto.fromJson({
         'items': [
-          {'id': 'm2', 'finish': false, 'partyDifficulty': [], 'partyTheme': []},
+          {
+            'id': 'm2',
+            'finish': false,
+            'partyDifficulty': [],
+            'partyTheme': [],
+          },
         ],
         'currentPage': 2,
         'totalPages': 5,
@@ -488,11 +488,7 @@ void main() {
         'idQuestion': 5,
         'idParty': 'party-abc',
         'order': 3,
-        'question': {
-          'id': 5,
-          'label': 'Capitale?',
-          'answer': [],
-        },
+        'question': {'id': 5, 'label': 'Capitale?', 'answer': []},
         'userPartyQuestion': {'correct': true, 'score': 20},
       });
       expect(dto.order, 3);
@@ -552,41 +548,42 @@ void main() {
   // ─────────────────────────────────────────────────────────────────────────
   group('PartyDetailDto', () {
     Map<String, dynamic> _fullDetailJson() => {
-          'id': 'party-detail-1',
-          'dt': '2024-03-10T15:00:00',
-          'idPartyType': 1,
-          'idUserHost': 99,
-          'active': true,
-          'finish': false,
-          'inProgress': true,
-          'nbQuestions': 15,
-          'percent': 60,
-          'score': 9,
-          'time': 200,
-          'partyType': {'id': 1, 'label': 'Solo'},
-          'user': {
-            'id': 99,
-            'nickName': 'Host',
-            'isAdmin': false,
-            'isNew': false,
-          },
-          'partyDifficulty': [
-            {'id': 1, 'difficulty': {'id': 1, 'label': 'Facile'}},
-          ],
-          'partyTheme': [
-            {'id': 1, 'theme': {'id': 2, 'label': 'Sport', 'icon': 'medal'}},
-          ],
-          'partyQuestions': [
-            {
-              'id': 1,
-              'idQuestion': 10,
-              'idParty': 'party-detail-1',
-              'order': 1,
-              'question': {'id': 10, 'label': 'Q1?', 'answer': []},
-              'userPartyQuestion': {'correct': true, 'score': 10},
-            },
-          ],
-        };
+      'id': 'party-detail-1',
+      'dt': '2024-03-10T15:00:00',
+      'idPartyType': 1,
+      'idUserHost': 99,
+      'active': true,
+      'finish': false,
+      'inProgress': true,
+      'nbQuestions': 15,
+      'percent': 60,
+      'score': 9,
+      'time': 200,
+      'partyType': {'id': 1, 'label': 'Solo'},
+      'user': {'id': 99, 'nickName': 'Host', 'isAdmin': false, 'isNew': false},
+      'partyDifficulty': [
+        {
+          'id': 1,
+          'difficulty': {'id': 1, 'label': 'Facile'},
+        },
+      ],
+      'partyTheme': [
+        {
+          'id': 1,
+          'theme': {'id': 2, 'label': 'Sport', 'icon': 'medal'},
+        },
+      ],
+      'partyQuestions': [
+        {
+          'id': 1,
+          'idQuestion': 10,
+          'idParty': 'party-detail-1',
+          'order': 1,
+          'question': {'id': 10, 'label': 'Q1?', 'answer': []},
+          'userPartyQuestion': {'correct': true, 'score': 10},
+        },
+      ],
+    };
 
     test('fromJson parse tous les champs', () {
       final dto = PartyDetailDto.fromJson(_fullDetailJson());
@@ -653,8 +650,7 @@ void main() {
     });
 
     test('fromJson partyQuestions avec entrées non-map ignorées', () {
-      final j = _fullDetailJson()
-        ..['partyQuestions'] = ['bad', null, 123];
+      final j = _fullDetailJson()..['partyQuestions'] = ['bad', null, 123];
       final dto = PartyDetailDto.fromJson(j);
       expect(dto.partyQuestions, isEmpty);
     });

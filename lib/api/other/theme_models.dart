@@ -8,18 +8,18 @@ class ThemeItemDto {
   ThemeItemDto({this.id, required this.icon, required this.label});
 
   factory ThemeItemDto.fromJson(Map<String, dynamic> j) => ThemeItemDto(
-        id: (j['id'] is int) ? j['id'] as int : int.tryParse('${j['id']}'),
-        icon: (j['icon'] ?? '').toString(),
-        label: (j['label'] ?? '').toString(),
-      );
+    id: (j['id'] is int) ? j['id'] as int : int.tryParse('${j['id']}'),
+    icon: (j['icon'] ?? '').toString(),
+    label: (j['label'] ?? '').toString(),
+  );
 }
 
 class ThemeDto {
   final int? id;
-  final String key;  
-  final String name; 
+  final String key;
+  final String name;
   final String? description;
-  final String? icon; 
+  final String? icon;
 
   ThemeDto({
     required this.id,
@@ -33,7 +33,8 @@ class ThemeDto {
     // Handle multiple possible keys from API
     final dynamicId = j['id'] ?? j['themeId'];
     final id = asInt(dynamicId);
-    final code = asString(j['code'] ?? j['key'] ?? j['slug']) ?? (id?.toString() ?? '');
+    final code =
+        asString(j['code'] ?? j['key'] ?? j['slug']) ?? (id?.toString() ?? '');
     final name = asString(j['name'] ?? j['label'] ?? j['title']) ?? code;
     final desc = asString(j['description'] ?? j['details']);
     final icon = asString(j['icon'] ?? j['faIcon'] ?? j['iconName']);

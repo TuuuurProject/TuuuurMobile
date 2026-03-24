@@ -207,19 +207,21 @@ class _GroupModePageState extends State<GroupModePage> {
     );
 
     // Navigation vers GroupLobbyPage
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => GroupLobbyPage(
-          lobby: lobbyData,
-          onBack: () {
-            Navigator.of(context).pop();
-          },
-          groupCoordinatorOverride: widget.groupCoordinatorOverride,
-        ),
-      ),
-    ).then((_) {
-      if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
-    });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => GroupLobbyPage(
+              lobby: lobbyData,
+              onBack: () {
+                Navigator.of(context).pop();
+              },
+              groupCoordinatorOverride: widget.groupCoordinatorOverride,
+            ),
+          ),
+        )
+        .then((_) {
+          if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
+        });
   }
 
   void goLobbyFromJoin({required String partyId, required String code}) {
@@ -231,19 +233,21 @@ class _GroupModePageState extends State<GroupModePage> {
     );
 
     // Navigation vers GroupLobbyPage
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => GroupLobbyPage(
-          lobby: lobbyData,
-          onBack: () {
-            Navigator.of(context).pop();
-          },
-          groupCoordinatorOverride: widget.groupCoordinatorOverride,
-        ),
-      ),
-    ).then((_) {
-      if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
-    });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => GroupLobbyPage(
+              lobby: lobbyData,
+              onBack: () {
+                Navigator.of(context).pop();
+              },
+              groupCoordinatorOverride: widget.groupCoordinatorOverride,
+            ),
+          ),
+        )
+        .then((_) {
+          if (AuthStore.instance.isGuest) AuthStore.instance.signOut();
+        });
   }
 
   Future<void> resetToMode() async {

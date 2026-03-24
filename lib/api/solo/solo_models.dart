@@ -36,10 +36,7 @@ class SoloQuestionThemeDto {
   final int? id;
   final SoloThemeDto? theme;
 
-  const SoloQuestionThemeDto({
-    this.id,
-    this.theme,
-  });
+  const SoloQuestionThemeDto({this.id, this.theme});
 
   factory SoloQuestionThemeDto.fromJson(Map<String, dynamic> j) {
     final themeJson = get(j, 'theme');
@@ -182,8 +179,9 @@ class SoloPartyQuestionDto {
       questionId: asInt(get(j, 'idQuestion')),
       partyId: asString(get(j, 'idParty')),
       order: asInt(get(j, 'order')),
-      question:
-          qJson is Map<String, dynamic> ? SoloQuestionDto.fromJson(qJson) : null,
+      question: qJson is Map<String, dynamic>
+          ? SoloQuestionDto.fromJson(qJson)
+          : null,
       userAnswer: upqJson is Map<String, dynamic>
           ? SoloUserPartyQuestionDto.fromJson(upqJson)
           : null,
@@ -197,11 +195,7 @@ class SoloThemeDto {
   final String label;
   final String? icon;
 
-  const SoloThemeDto({
-    this.id,
-    required this.label,
-    this.icon,
-  });
+  const SoloThemeDto({this.id, required this.label, this.icon});
 
   factory SoloThemeDto.fromJson(Map<String, dynamic> j) {
     return SoloThemeDto(
@@ -217,10 +211,7 @@ class SoloPartyThemeDto {
   final int? id;
   final SoloThemeDto? theme;
 
-  const SoloPartyThemeDto({
-    this.id,
-    this.theme,
-  });
+  const SoloPartyThemeDto({this.id, this.theme});
 
   factory SoloPartyThemeDto.fromJson(Map<String, dynamic> j) {
     final themeJson = get(j, 'theme');
@@ -275,8 +266,7 @@ class SoloPartyDto {
 
   SoloQuestionDto? get currentQuestion => currentEntry?.question;
 
-  int get answeredCount =>
-      partyQuestions.where((q) => q.isAnswered).length;
+  int get answeredCount => partyQuestions.where((q) => q.isAnswered).length;
 
   factory SoloPartyDto.fromJson(Map<String, dynamic> j) {
     final pqJson = get(j, 'partyQuestions');

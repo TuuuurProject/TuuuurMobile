@@ -21,7 +21,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   final TextEditingController _oldPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool _isLoading = false;
 
@@ -38,7 +39,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     final newPassword = _newPasswordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+    if (currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmPassword.isEmpty) {
       AuthSnackbars.show('Tous les champs sont requis.');
       return false;
     }
@@ -72,10 +75,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     setState(() => _isLoading = false);
 
     if (res.ok) {
-      AuthSnackbars.show('Mot de passe mis à jour ✅', color: TuuurTheme.brandGreen);
+      AuthSnackbars.show(
+        'Mot de passe mis à jour ✅',
+        color: TuuurTheme.brandGreen,
+      );
       context.pop();
     } else {
-      AuthSnackbars.show(res.message ?? 'Échec de la mise à jour du mot de passe.');
+      AuthSnackbars.show(
+        res.message ?? 'Échec de la mise à jour du mot de passe.',
+      );
     }
   }
 
