@@ -93,19 +93,21 @@ void main() {
     });
 
     test('connect and disconnect updates internal state correctly', () async {
-      // Because we don't have a real SignalR server running locally, we expect 
-      // service.connect() to eventually time out or fail. But we can test 
-      // the immediate state transition or catch the connection error.
+      // Sans serveur SignalR réel, connect() finit par échouer (connexion
+      // refusée). On attache le gestionnaire d'erreur IMMÉDIATEMENT (via
+      // catchError) pour ne pas laisser le future échouer sans listener
+      // pendant le disconnect ci-dessous — sinon, en CI où le refus est
+      // instantané, Dart le signale comme "unhandled async error" et fait
+      // planter le test. On ne teste ici que les transitions d'état.
       expect(service.connectionState, RankedConnectionState.disconnected);
-      final connectFuture = service.connect(); // Starts connecting
+
+      final connectFuture = service.connect().catchError((_) {});
       expect(service.connectionState, RankedConnectionState.connecting);
 
       await service.disconnect();
       expect(service.connectionState, RankedConnectionState.disconnected);
-      
-      try {
-        await connectFuture;
-      } catch (_) {}
+
+      await connectFuture;
     });
 
     test('joinSearchOpponent throws if not connected', () async {
