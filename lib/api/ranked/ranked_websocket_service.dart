@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as dev;
+import 'package:meta/meta.dart';
 import 'package:signalr_core/signalr_core.dart';
 import '../../api/auth/token_provider.dart';
 import 'ranked_models.dart';
@@ -402,4 +403,51 @@ class RankedWebSocketService {
     final message = args.first.toString();
     _notifyHandlers((h) => h.onError(message));
   }
+
+  // ==================== Test seams (@visibleForTesting) ====================
+  // Ces points d'entrée permettent de tester la logique de parsing/dispatch des
+  // évènements serveur sans connexion SignalR réelle (même convention que
+  // GroupWebSocketService).
+
+  @visibleForTesting
+  void testSetConnectionState(RankedConnectionState state) =>
+      _connectionState = state;
+
+  @visibleForTesting
+  void testDispatchOpponentFound(List<dynamic>? args) =>
+      _handleOpponentFound(args);
+
+  @visibleForTesting
+  void testDispatchCountdown(List<dynamic>? args) => _handleCountdown(args);
+
+  @visibleForTesting
+  void testDispatchQuestionSend(List<dynamic>? args) =>
+      _handleQuestionSend(args);
+
+  @visibleForTesting
+  void testDispatchQuestionAnswerSend(List<dynamic>? args) =>
+      _handleQuestionAnswerSend(args);
+
+  @visibleForTesting
+  void testDispatchUserAnswer(List<dynamic>? args) => _handleUserAnswer(args);
+
+  @visibleForTesting
+  void testDispatchAllPlayerAnswered(List<dynamic>? args) =>
+      _handleAllPlayerAnswered(args);
+
+  @visibleForTesting
+  void testDispatchScoreUpdate(List<dynamic>? args) => _handleScoreUpdate(args);
+
+  @visibleForTesting
+  void testDispatchPartyFinished(List<dynamic>? args) =>
+      _handlePartyFinished(args);
+
+  @visibleForTesting
+  void testDispatchUserWin(List<dynamic>? args) => _handleUserWin(args);
+
+  @visibleForTesting
+  void testDispatchUserLoose(List<dynamic>? args) => _handleUserLoose(args);
+
+  @visibleForTesting
+  void testDispatchError(List<dynamic>? args) => _handleError(args);
 }
