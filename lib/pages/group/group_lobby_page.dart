@@ -94,7 +94,8 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
 
     // Navigate to quiz only if we haven't already
     if ((state == GroupPartyState.countdown ||
-        state == GroupPartyState.questionActive) && !_hasNavigatedToQuiz) {
+            state == GroupPartyState.questionActive) &&
+        !_hasNavigatedToQuiz) {
       _hasNavigatedToQuiz = true;
       _navigateToQuiz();
       return;
@@ -227,7 +228,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
 
   Future<void> _leaveWithConfirmation() async {
     if (_leaving) return;
-    
+
     await runWithConfirmIfNeeded(
       context,
       confirm: true,
@@ -755,10 +756,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
 
               InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => copyToClipboard(
-                  context,
-                  party.code,
-                ),
+                onTap: () => copyToClipboard(context, party.code),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -853,11 +851,7 @@ class _GroupLobbyPageState extends State<GroupLobbyPage> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(child: quitBtn),
-            ],
-          ),
+          Row(children: [Expanded(child: quitBtn)]),
           const SizedBox(height: 8),
           const Text(
             'En attente que l\'hôte démarre la partie...',

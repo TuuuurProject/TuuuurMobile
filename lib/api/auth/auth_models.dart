@@ -57,13 +57,13 @@ class UserDto {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'nickName': nickName,
-        'email': email,
-        'avatar': avatar,
-        'isAdmin': isAdmin,
-        'isNew': isNew,
-      };
+    'id': id,
+    'nickName': nickName,
+    'email': email,
+    'avatar': avatar,
+    'isAdmin': isAdmin,
+    'isNew': isNew,
+  };
 }
 
 class AuthTokenDto {
@@ -82,20 +82,20 @@ class AuthTokenDto {
   });
 
   factory AuthTokenDto.fromJson(Map<String, dynamic>? j) => AuthTokenDto(
-        token: asString(get(j, 'token')) ?? '',
-        validFrom: asDateTime(get(j, 'validFrom')),
-        validTo: asDateTime(get(j, 'validTo')),
-        refreshToken: asString(get(j, 'refreshToken')),
-        refreshTokenExpiresAt: asDateTime(get(j, 'refreshTokenExpiresAt')),
-      );
+    token: asString(get(j, 'token')) ?? '',
+    validFrom: asDateTime(get(j, 'validFrom')),
+    validTo: asDateTime(get(j, 'validTo')),
+    refreshToken: asString(get(j, 'refreshToken')),
+    refreshTokenExpiresAt: asDateTime(get(j, 'refreshTokenExpiresAt')),
+  );
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'validFrom': validFrom?.toUtc().toIso8601String(),
-        'validTo': validTo?.toUtc().toIso8601String(),
-        'refreshToken': refreshToken,
-        'refreshTokenExpiresAt': refreshTokenExpiresAt?.toUtc().toIso8601String(),
-      };
+    'token': token,
+    'validFrom': validFrom?.toUtc().toIso8601String(),
+    'validTo': validTo?.toUtc().toIso8601String(),
+    'refreshToken': refreshToken,
+    'refreshTokenExpiresAt': refreshTokenExpiresAt?.toUtc().toIso8601String(),
+  };
 }
 
 class AuthSessionDto {

@@ -68,8 +68,7 @@ GoRouter _createRouter({String initialLocation = '/', AuthApi? authApi}) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) =>
-            const _DummyPage('home', pageKey: Key('page_home')),
+        builder: (_, __) => const _DummyPage('home', pageKey: Key('page_home')),
       ),
       GoRoute(
         path: '/change-password',
@@ -97,7 +96,10 @@ Future<void> _pumpApp(WidgetTester tester, GoRouter router) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _openChangePasswordPage(WidgetTester tester, GoRouter router) async {
+Future<void> _openChangePasswordPage(
+  WidgetTester tester,
+  GoRouter router,
+) async {
   router.push('/change-password');
   await tester.pumpAndSettle();
   expect(find.byType(ChangePasswordPage), findsOneWidget);
@@ -197,7 +199,10 @@ void main() {
 
       await _tapFinder(tester, find.byType(GamingButtonPrimary));
 
-      expect(find.text('Les mots de passe ne correspondent pas.'), findsWidgets);
+      expect(
+        find.text('Les mots de passe ne correspondent pas.'),
+        findsWidgets,
+      );
       expect(fake.callCount, 0);
     });
 
@@ -216,7 +221,9 @@ void main() {
       await _tapFinder(tester, find.byType(GamingButtonPrimary));
 
       expect(
-        find.text('Nouveau mot de passe invalide (min 8, 1 maj, 1 min, 1 chiffre).'),
+        find.text(
+          'Nouveau mot de passe invalide (min 8, 1 maj, 1 min, 1 chiffre).',
+        ),
         findsWidgets,
       );
       expect(fake.callCount, 0);
@@ -236,7 +243,9 @@ void main() {
       expect(find.byIcon(Icons.visibility_off), findsAtLeastNWidgets(1));
     });
 
-    testWidgets('submit clavier (done) sur confirm déclenche changePassword', (tester) async {
+    testWidgets('submit clavier (done) sur confirm déclenche changePassword', (
+      tester,
+    ) async {
       final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
@@ -287,7 +296,9 @@ void main() {
   });
 
   group('ChangePasswordPage - API & navigation', () {
-    testWidgets('erreur API => affiche message et reste sur la page', (tester) async {
+    testWidgets('erreur API => affiche message et reste sur la page', (
+      tester,
+    ) async {
       final router = _createRouter(initialLocation: '/', authApi: fake);
       await _pumpApp(tester, router);
       await _openChangePasswordPage(tester, router);
@@ -384,4 +395,3 @@ void main() {
     });
   });
 }
-

@@ -12,10 +12,7 @@ import 'difficulty_api_service_test.mocks.dart';
 void main() {
   group('DifficultyDto', () {
     test('fromJson crée une instance avec id et label', () {
-      final json = {
-        'id': 1,
-        'label': 'Facile',
-      };
+      final json = {'id': 1, 'label': 'Facile'};
 
       final dto = DifficultyDto.fromJson(json);
 
@@ -24,10 +21,7 @@ void main() {
     });
 
     test('fromJson gère difficultyId comme clé alternative', () {
-      final json = {
-        'difficultyId': 2,
-        'label': 'Moyen',
-      };
+      final json = {'difficultyId': 2, 'label': 'Moyen'};
 
       final dto = DifficultyDto.fromJson(json);
 
@@ -83,8 +77,11 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/difficulty', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/difficulty', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await difficultyApi.getDifficulties();
 
@@ -103,8 +100,11 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/difficulty', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/difficulty', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await difficultyApi.getDifficulties();
 
@@ -119,8 +119,11 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/difficulty', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/difficulty', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await difficultyApi.getDifficulties();
 
@@ -131,8 +134,11 @@ void main() {
       test('retourne une liste vide si pas de données', () async {
         final responseData = <String, dynamic>{};
 
-        when(mockApiClient.getJson('/api/v1/difficulty', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/difficulty', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await difficultyApi.getDifficulties();
 
@@ -141,11 +147,12 @@ void main() {
       });
 
       test('retourne une erreur si la requête échoue', () async {
-        when(mockApiClient.getJson('/api/v1/difficulty', auth: true))
-            .thenAnswer((_) async => ApiResponse.err(
-                  message: 'Erreur réseau',
-                  statusCode: 500,
-                ));
+        when(
+          mockApiClient.getJson('/api/v1/difficulty', auth: true),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Erreur réseau', statusCode: 500),
+        );
 
         final result = await difficultyApi.getDifficulties();
 
@@ -164,8 +171,11 @@ void main() {
           ],
         };
 
-        when(mockApiClient.getJson('/api/v1/difficulty', auth: true))
-            .thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.getJson('/api/v1/difficulty', auth: true),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await difficultyApi.getDifficulties();
 

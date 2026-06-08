@@ -18,14 +18,14 @@ import 'package:tuuuur_flutter/stores/group_store.dart';
 // Secure-storage MethodChannel mock
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MethodChannel kSecureStorageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const MethodChannel kSecureStorageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 final Map<String, String> kSecureStore = {};
 
 void setupSecureStorageMock() {
   kSecureStorageChannel.setMockMethodCallHandler((MethodCall call) async {
-    final args =
-        (call.arguments as Map?)?.cast<String, dynamic>() ?? {};
+    final args = (call.arguments as Map?)?.cast<String, dynamic>() ?? {};
     switch (call.method) {
       case 'write':
         final key = args['key'] as String?;
@@ -97,10 +97,7 @@ class FakeTokenProvider implements TokenProvider {
 
 class FakeGroupWebSocketService extends GroupWebSocketService {
   FakeGroupWebSocketService()
-      : super(
-          hubUrl: 'http://localhost:1',
-          tokenProvider: FakeTokenProvider(),
-        );
+    : super(hubUrl: 'http://localhost:1', tokenProvider: FakeTokenProvider());
 
   @override
   bool get isConnected => false;
@@ -149,8 +146,11 @@ class FakeGroupCoordinator extends GroupCoordinator {
   @override
   Future<bool> joinParty(String code, {String? currentUserId}) async {
     if (!joinSuccess) return false;
-    final party =
-        makeGroupParty(code: code, hostUserId: 'other-host', id: 'party-join-1');
+    final party = makeGroupParty(
+      code: code,
+      hostUserId: 'other-host',
+      id: 'party-join-1',
+    );
     store.initializeParty(party, currentUserId: currentUserId ?? 'user-1');
     return true;
   }
@@ -164,8 +164,7 @@ class FakeGroupCoordinator extends GroupCoordinator {
     required List<int> difficulties,
     required int nbQuestions,
     required bool scoreEachRound,
-  }) async =>
-      true;
+  }) async => true;
 
   @override
   Future<void> startParty() async {}
@@ -175,10 +174,7 @@ class FakeGroupCoordinator extends GroupCoordinator {
 // Test-data factories
 // ─────────────────────────────────────────────────────────────────────────────
 
-GroupUser makeGroupUser({
-  String id = 'user-1',
-  String nickName = 'Player1',
-}) =>
+GroupUser makeGroupUser({String id = 'user-1', String nickName = 'Player1'}) =>
     GroupUser(id: id, nickName: nickName);
 
 /// Creates a minimal [GroupParty] for tests.
@@ -193,7 +189,8 @@ GroupParty makeGroupParty({
   List<PartyTheme>? themes,
   List<PartyDifficulty>? difficulties,
 }) {
-  final partyUsers = users ??
+  final partyUsers =
+      users ??
       [
         PartyUser(
           idUser: hostUserId,
@@ -214,14 +211,11 @@ GroupParty makeGroupParty({
     finish: false,
     dt: DateTime.now().toIso8601String(),
     partyUsers: partyUsers,
-    partyTheme: themes ??
-        [
-          PartyTheme(
-            idTheme: 1,
-            theme: Theme(id: 1, label: 'Général'),
-          ),
-        ],
-    partyDifficulty: difficulties ??
+    partyTheme:
+        themes ??
+        [PartyTheme(idTheme: 1, theme: Theme(id: 1, label: 'Général'))],
+    partyDifficulty:
+        difficulties ??
         [
           PartyDifficulty(
             idDifficulty: 2,
@@ -235,8 +229,10 @@ GroupParty makeGroupParty({
 }
 
 /// Creates a [PartyTheme] for tests (avoids Theme name conflict in test files).
-PartyTheme makePartyTheme({int id = 1, String label = 'Général'}) =>
-    PartyTheme(idTheme: id, theme: Theme(id: id, label: label));
+PartyTheme makePartyTheme({int id = 1, String label = 'Général'}) => PartyTheme(
+  idTheme: id,
+  theme: Theme(id: id, label: label),
+);
 
 /// Creates a [PartyDifficulty] for tests.
 PartyDifficulty makePartyDifficulty({int id = 2, String label = 'Moyen'}) =>
@@ -254,42 +250,40 @@ GroupQuestion makeGroupQuestion({
   int currentIndex = 0,
   int score = 10,
   bool withValidity = false,
-}) =>
-    GroupQuestion(
-      currentIndex: currentIndex,
-      score: score,
-      question: Question(
-        id: questionId,
-        label: label,
-        idDifficulty: 2,
-        difficulty: Difficulty(id: 2, label: 'Moyen'),
-        answer: [
-          Answer(
-            id: correctAnswerId,
-            idQuestion: questionId,
-            value: 'Paris',
-            valid: withValidity ? true : null,
-          ),
-          Answer(
-            id: wrongAnswerId,
-            idQuestion: questionId,
-            value: 'Lyon',
-            valid: withValidity ? false : null,
-          ),
-        ],
+}) => GroupQuestion(
+  currentIndex: currentIndex,
+  score: score,
+  question: Question(
+    id: questionId,
+    label: label,
+    idDifficulty: 2,
+    difficulty: Difficulty(id: 2, label: 'Moyen'),
+    answer: [
+      Answer(
+        id: correctAnswerId,
+        idQuestion: questionId,
+        value: 'Paris',
+        valid: withValidity ? true : null,
       ),
-    );
+      Answer(
+        id: wrongAnswerId,
+        idQuestion: questionId,
+        value: 'Lyon',
+        valid: withValidity ? false : null,
+      ),
+    ],
+  ),
+);
 
 /// Creates a minimal [UserScore] for tests.
 UserScore makeUserScore({
   String userId = 'user-1',
   String nickName = 'Player1',
   int score = 100,
-}) =>
-    UserScore(
-      score: score,
-      user: GroupUser(id: userId, nickName: nickName),
-    );
+}) => UserScore(
+  score: score,
+  user: GroupUser(id: userId, nickName: nickName),
+);
 
 /// Creates a minimal [QuestionHistory] for tests.
 QuestionHistory makeQuestionHistory({
@@ -299,15 +293,14 @@ QuestionHistory makeQuestionHistory({
   int correctAnswerId = 11,
   int wrongAnswerId = 12,
   String questionLabel = 'Quelle est la capitale de la France ?',
-}) =>
-    QuestionHistory(
-      groupQuestion: makeGroupQuestion(
-        withValidity: true,
-        correctAnswerId: correctAnswerId,
-        wrongAnswerId: wrongAnswerId,
-        label: questionLabel,
-      ),
-      userAnswerId: userAnswerId ?? correctAnswerId,
-      wasCorrect: wasCorrect,
-      scoreGained: scoreGained,
-    );
+}) => QuestionHistory(
+  groupQuestion: makeGroupQuestion(
+    withValidity: true,
+    correctAnswerId: correctAnswerId,
+    wrongAnswerId: wrongAnswerId,
+    label: questionLabel,
+  ),
+  userAnswerId: userAnswerId ?? correctAnswerId,
+  wasCorrect: wasCorrect,
+  scoreGained: scoreGained,
+);

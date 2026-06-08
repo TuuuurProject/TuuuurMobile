@@ -9,14 +9,10 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: GamingModal(
-              title: 'Test Modal',
-              child: Text('Content'),
-            ),
+            body: GamingModal(title: 'Test Modal', child: Text('Content')),
           ),
         ),
       );
-
 
       await tester.pump(const Duration(seconds: 1));
 
@@ -27,10 +23,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: GamingModal(
-              title: 'Modal',
-              child: Text('Modal Content'),
-            ),
+            body: GamingModal(title: 'Modal', child: Text('Modal Content')),
           ),
         ),
       );
@@ -40,14 +33,13 @@ void main() {
       expect(find.text('Modal Content'), findsOneWidget);
     });
 
-    testWidgets('affiche les boutons d\'action par défaut', (WidgetTester tester) async {
+    testWidgets('affiche les boutons d\'action par défaut', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: GamingModal(
-              title: 'Modal',
-              child: Text('Content'),
-            ),
+            body: GamingModal(title: 'Modal', child: Text('Content')),
           ),
         ),
       );
@@ -58,7 +50,9 @@ void main() {
       expect(find.text('Annuler'), findsOneWidget);
     });
 
-    testWidgets('utilise le texte personnalisé pour les boutons', (WidgetTester tester) async {
+    testWidgets('utilise le texte personnalisé pour les boutons', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -78,7 +72,9 @@ void main() {
       expect(find.text('Fermer'), findsOneWidget);
     });
 
-    testWidgets('appelle onConfirm quand le bouton confirmer est cliqué', (WidgetTester tester) async {
+    testWidgets('appelle onConfirm quand le bouton confirmer est cliqué', (
+      WidgetTester tester,
+    ) async {
       var confirmed = false;
 
       await tester.pumpWidget(
@@ -102,7 +98,9 @@ void main() {
       expect(confirmed, isTrue);
     });
 
-    testWidgets('appelle onCancel quand le bouton annuler est cliqué', (WidgetTester tester) async {
+    testWidgets('appelle onCancel quand le bouton annuler est cliqué', (
+      WidgetTester tester,
+    ) async {
       var cancelled = false;
 
       await tester.pumpWidget(
@@ -126,14 +124,13 @@ void main() {
       expect(cancelled, isTrue);
     });
 
-    testWidgets('affiche le bouton fermer dans le header', (WidgetTester tester) async {
+    testWidgets('affiche le bouton fermer dans le header', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: GamingModal(
-              title: 'Modal',
-              child: Text('Content'),
-            ),
+            body: GamingModal(title: 'Modal', child: Text('Content')),
           ),
         ),
       );
@@ -143,7 +140,9 @@ void main() {
       expect(find.byIcon(Icons.close), findsOneWidget);
     });
 
-    testWidgets('ferme la modal via le bouton close', (WidgetTester tester) async {
+    testWidgets('ferme la modal via le bouton close', (
+      WidgetTester tester,
+    ) async {
       var closed = false;
 
       await tester.pumpWidget(
@@ -167,7 +166,9 @@ void main() {
       expect(closed, isTrue);
     });
 
-    testWidgets('masque les actions quand showActions est false', (WidgetTester tester) async {
+    testWidgets('masque les actions quand showActions est false', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -186,7 +187,9 @@ void main() {
       expect(find.text('Annuler'), findsNothing);
     });
 
-    testWidgets('GamingModal.show affiche la modal', (WidgetTester tester) async {
+    testWidgets('GamingModal.show affiche la modal', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -214,7 +217,9 @@ void main() {
       expect(find.text('Dialog Content'), findsOneWidget);
     });
 
-    testWidgets('GamingModal.show peut être fermée', (WidgetTester tester) async {
+    testWidgets('GamingModal.show peut être fermée', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -240,7 +245,6 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Dialog'), findsOneWidget);
-
 
       await tester.tap(find.text('Annuler'));
       await tester.pump();

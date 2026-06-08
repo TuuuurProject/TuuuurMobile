@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/tuuuur_theme.dart';
 import '../widgets/gaming_widgets.dart';
 import '../navigation/app_router.dart';
 import '../stores/auth_store.dart';
+import '../api/api_module.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -310,7 +312,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           GamingButtonGhost(
             text: 'Mode compétitif',
             icon: FontAwesomeIcons.fire,
-            onPressed: () => context.goOnline(),
+            onPressed: () async {
+              // On capture le routeur avant le gap async pour ne pas réutiliser
+              // le BuildContext après l'await (use_build_context_synchronously).
+              final router = GoRouter.of(context);
+              await ApiModule.instance.restartRanked();
+              router.go('/online');
+            },
           ).animate(delay: 800.ms).fadeIn(duration: 600.ms).slideX(begin: -0.1),
         ],
       ),

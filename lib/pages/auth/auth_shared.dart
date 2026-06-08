@@ -6,21 +6,15 @@ import '../../navigation/app_messengers.dart';
 
 /// Snackbars homogènes dans tous les écrans auth.
 class AuthSnackbars {
-  static void show(
-    String message, {
-    Color color = TuuurTheme.brandOrange,
-  }) {
+  static void show(String message, {Color color = TuuurTheme.brandOrange}) {
     final messenger = rootScaffoldMessengerKey.currentState;
     if (messenger == null) return;
 
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: color),
-      );
+      ..showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 }
-
 
 /// Validations partagées (évite la duplication des regex).
 class AuthValidators {
@@ -40,36 +34,28 @@ class AuthValidators {
 
 /// Décoration unique pour tous les TextField auth.
 InputDecoration authInputDecoration(String hint) => InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(
-        color: TuuurTheme.brandGray.withValues(alpha: 0.7),
-      ),
-      filled: true,
-      fillColor: TuuurTheme.brandDarkGray.withValues(alpha: 0.5),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: TuuurTheme.brandPurple.withValues(alpha: 0.3),
-        ),
-      ),
-      focusedBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-        borderSide: BorderSide(
-          color: TuuurTheme.brandPurple,
-          width: 2,
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: TuuurTheme.brandPurple.withValues(alpha: 0.3),
-        ),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
-    );
+  hintText: hint,
+  hintStyle: TextStyle(color: TuuurTheme.brandGray.withValues(alpha: 0.7)),
+  filled: true,
+  fillColor: TuuurTheme.brandDarkGray.withValues(alpha: 0.5),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(16),
+    borderSide: BorderSide(
+      color: TuuurTheme.brandPurple.withValues(alpha: 0.3),
+    ),
+  ),
+  focusedBorder: const OutlineInputBorder(
+    borderRadius: BorderRadius.all(Radius.circular(16)),
+    borderSide: BorderSide(color: TuuurTheme.brandPurple, width: 2),
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(16),
+    borderSide: BorderSide(
+      color: TuuurTheme.brandPurple.withValues(alpha: 0.3),
+    ),
+  ),
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+);
 
 /// Carte centrée avec style "gamingCard".
 class AuthCard extends StatelessWidget {
@@ -186,11 +172,7 @@ class AuthPopScope extends StatelessWidget {
   final Widget child;
   final VoidCallback onBack;
 
-  const AuthPopScope({
-    super.key,
-    required this.child,
-    required this.onBack,
-  });
+  const AuthPopScope({super.key, required this.child, required this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -232,10 +214,7 @@ class AuthScaffold extends StatelessWidget {
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: AuthCard(
-            maxWidth: cardMaxWidth,
-            child: body,
-          ),
+          child: AuthCard(maxWidth: cardMaxWidth, child: body),
         ),
       ),
     );

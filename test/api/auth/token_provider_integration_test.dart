@@ -20,8 +20,7 @@ void main() {
 
       try {
         module.dispose();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       module.initialize(authStore: authStore);
     });
@@ -30,32 +29,34 @@ void main() {
       await authStore.signOut();
     });
 
-    test('refreshIfNeeded est appele lors d\'une requete authentifiee', () async {
-      final validToken = AuthTokenDto(
-        token: 'test_token',
-        validTo: DateTime.now().add(const Duration(hours: 1)),
-        refreshToken: 'refresh_token',
-        refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
-      );
+    test(
+      'refreshIfNeeded est appele lors d\'une requete authentifiee',
+      () async {
+        final validToken = AuthTokenDto(
+          token: 'test_token',
+          validTo: DateTime.now().add(const Duration(hours: 1)),
+          refreshToken: 'refresh_token',
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
+        );
 
-      final session = AuthSessionDto(
-        user: UserDto(id: '1', nickName: 'test'),
-        token: validToken,
-        isGoogleUser: false,
-        raw: {},
-      );
+        final session = AuthSessionDto(
+          user: UserDto(id: '1', nickName: 'test'),
+          token: validToken,
+          isGoogleUser: false,
+          raw: {},
+        );
 
-      await authStore.signInWithSession(session);
+        await authStore.signInWithSession(session);
 
-      try {
-        final module = ApiModule.instance;
-        final authApi = module.authApi;
-        await authApi.me();
-      } catch (e) {
-      }
+        try {
+          final module = ApiModule.instance;
+          final authApi = module.authApi;
+          await authApi.me();
+        } catch (e) {}
 
-      expect(authStore.token, isNotNull);
-    });
+        expect(authStore.token, isNotNull);
+      },
+    );
 
     test('_performRefresh est appele lors du refresh token', () async {
       final expiringToken = AuthTokenDto(
@@ -81,8 +82,7 @@ void main() {
           bearer: expiringToken.token,
           refreshToken: expiringToken.refreshToken!,
         );
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token, isNotNull);
     });
@@ -94,8 +94,7 @@ void main() {
         final module = ApiModule.instance;
         final authApi = module.authApi;
         await authApi.me();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token, isNull);
     });
@@ -123,8 +122,7 @@ void main() {
         final module = ApiModule.instance;
         final authApi = module.authApi;
         await authApi.me();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token?.token, equals(tokenBefore));
     });
@@ -152,8 +150,7 @@ void main() {
         final module = ApiModule.instance;
         final authApi = module.authApi;
         await authApi.me();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token?.token, equals(tokenBefore));
     });
@@ -181,8 +178,7 @@ void main() {
         final module = ApiModule.instance;
         final authApi = module.authApi;
         await authApi.me();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token?.token, equals(tokenBefore));
     });
@@ -192,7 +188,9 @@ void main() {
         token: 'expiring_token',
         validTo: DateTime.now().add(const Duration(minutes: 2)),
         refreshToken: 'refresh_token',
-        refreshTokenExpiresAt: DateTime.now().subtract(const Duration(hours: 1)),
+        refreshTokenExpiresAt: DateTime.now().subtract(
+          const Duration(hours: 1),
+        ),
       );
 
       final session = AuthSessionDto(
@@ -210,39 +208,40 @@ void main() {
         final module = ApiModule.instance;
         final authApi = module.authApi;
         await authApi.me();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token?.token, equals(tokenBefore));
     });
 
-    test('refreshIfNeeded lance le refresh pour un token expirant avec refreshToken valide', () async {
-      final expiringTokenWithValidRefresh = AuthTokenDto(
-        token: 'expiring_token',
-        validTo: DateTime.now().add(const Duration(minutes: 3)),
-        refreshToken: 'valid_refresh_token',
-        refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
-      );
+    test(
+      'refreshIfNeeded lance le refresh pour un token expirant avec refreshToken valide',
+      () async {
+        final expiringTokenWithValidRefresh = AuthTokenDto(
+          token: 'expiring_token',
+          validTo: DateTime.now().add(const Duration(minutes: 3)),
+          refreshToken: 'valid_refresh_token',
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
+        );
 
-      final session = AuthSessionDto(
-        user: UserDto(id: '1', nickName: 'test'),
-        token: expiringTokenWithValidRefresh,
-        isGoogleUser: false,
-        raw: {},
-      );
+        final session = AuthSessionDto(
+          user: UserDto(id: '1', nickName: 'test'),
+          token: expiringTokenWithValidRefresh,
+          isGoogleUser: false,
+          raw: {},
+        );
 
-      await authStore.signInWithSession(session);
+        await authStore.signInWithSession(session);
 
-      try {
-        final module = ApiModule.instance;
-        final authApi = module.authApi;
-        await authApi.me();
-      } catch (e) {
-      }
+        try {
+          final module = ApiModule.instance;
+          final authApi = module.authApi;
+          await authApi.me();
+        } catch (e) {}
 
-      expect(authStore.token, isNotNull);
-      expect(authStore.token?.refreshToken, equals('valid_refresh_token'));
-    });
+        expect(authStore.token, isNotNull);
+        expect(authStore.token?.refreshToken, equals('valid_refresh_token'));
+      },
+    );
 
     test('_performRefresh gere les erreurs reseau gracieusement', () async {
       final expiringToken = AuthTokenDto(
@@ -270,46 +269,47 @@ void main() {
           bearer: expiringToken.token,
           refreshToken: expiringToken.refreshToken!,
         );
-      } catch (e) {
-      }
+      } catch (e) {}
 
       expect(authStore.token?.token, equals(tokenBefore));
     });
 
-    test('refreshIfNeeded gere les appels concurrents avec _refreshInProgress', () async {
-      final expiringToken = AuthTokenDto(
-        token: 'expiring_token',
-        validTo: DateTime.now().add(const Duration(minutes: 2)),
-        refreshToken: 'refresh_token',
-        refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
-      );
-
-      final session = AuthSessionDto(
-        user: UserDto(id: '1', nickName: 'test'),
-        token: expiringToken,
-        isGoogleUser: false,
-        raw: {},
-      );
-
-      await authStore.signInWithSession(session);
-
-      final futures = <Future>[];
-      for (var i = 0; i < 5; i++) {
-        futures.add(
-          Future(() async {
-            try {
-              final module = ApiModule.instance;
-              final authApi = module.authApi;
-              await authApi.me();
-            } catch (e) {
-            }
-          })
+    test(
+      'refreshIfNeeded gere les appels concurrents avec _refreshInProgress',
+      () async {
+        final expiringToken = AuthTokenDto(
+          token: 'expiring_token',
+          validTo: DateTime.now().add(const Duration(minutes: 2)),
+          refreshToken: 'refresh_token',
+          refreshTokenExpiresAt: DateTime.now().add(const Duration(days: 7)),
         );
-      }
 
-      await Future.wait(futures);
+        final session = AuthSessionDto(
+          user: UserDto(id: '1', nickName: 'test'),
+          token: expiringToken,
+          isGoogleUser: false,
+          raw: {},
+        );
 
-      expect(authStore.token, isNotNull);
-    });
+        await authStore.signInWithSession(session);
+
+        final futures = <Future>[];
+        for (var i = 0; i < 5; i++) {
+          futures.add(
+            Future(() async {
+              try {
+                final module = ApiModule.instance;
+                final authApi = module.authApi;
+                await authApi.me();
+              } catch (e) {}
+            }),
+          );
+        }
+
+        await Future.wait(futures);
+
+        expect(authStore.token, isNotNull);
+      },
+    );
   });
 }

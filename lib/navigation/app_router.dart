@@ -6,7 +6,7 @@ import '../pages/home_page.dart';
 import '../pages/solo/solo_select_page.dart';
 import '../pages/solo/solo_quiz_page.dart';
 import '../pages/group/group_mode_page.dart';
-import '../pages/online/online_mode_page.dart';
+import '../pages/ranked/ranked_main_page.dart';
 import '../pages/profile/profile_page.dart';
 import '../pages/auth/auth_login_page.dart';
 import '../pages/auth/auth_register_page.dart';
@@ -105,7 +105,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/online',
       name: 'online',
-      builder: (context, state) => const OnlineModePage(),
+      builder: (context, state) => const RankedMainPage(),
     ),
 
     // Profil utilisateur
@@ -121,9 +121,13 @@ final GoRouter appRouter = GoRouter(
       name: 'history-quiz',
       builder: (context, state) {
         final partyId = state.pathParameters['partyId'] ?? '';
-        final mode = (state.uri.queryParameters['mode'] ?? 'group').toLowerCase();
-        final isSolo = mode == 'solo';
-        return HistoryQuizPage(partyId: partyId, isSolo: isSolo,);
+        final isSolo = state.uri.queryParameters['isSolo'] == 'true';
+        
+        return HistoryQuizPage(
+          partyId: partyId,
+          isSolo: isSolo,
+          historyMatchRaw: state.extra,
+        );
       },
     ),
 
@@ -232,9 +236,13 @@ extension AppNavigation on BuildContext {
   void goLeaderboard() => go('/leaderboard');
 
   // Navigation vers le détail d'une partie historique
-  void goHistoryQuiz(String partyId, {bool isSolo = false}) {
-    final mode = isSolo ? 'solo' : 'other';
-    push('/history/$partyId?mode=$mode');
+  void goHistoryQuiz(String partyId, {required bool isSolo, Object? extra}) {
+    pushNamed(
+      'history-quiz',
+      pathParameters: {'partyId': partyId},
+      queryParameters: {'isSolo': isSolo ? 'true' : 'false'},
+      extra: extra,
+    );
   }
 
   // Navigation avec paramètres pour le quiz solo

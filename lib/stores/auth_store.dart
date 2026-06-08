@@ -22,7 +22,8 @@ class AuthStore extends ChangeNotifier {
   UserDto? get user => _user;
   AuthTokenDto? get token => _token;
   bool get isAuthenticated => (_token?.token.isNotEmpty ?? false);
-  bool get isGuest => isAuthenticated && (_user?.email == null || _user!.email!.isEmpty);
+  bool get isGuest =>
+      isAuthenticated && (_user?.email == null || _user!.email!.isEmpty);
 
   /// À appeler au démarrage (hydrate depuis le secure storage).
   Future<void> load() async {

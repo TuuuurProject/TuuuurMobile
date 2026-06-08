@@ -15,8 +15,13 @@ class AuthLoginPage extends StatefulWidget {
   final String? returnTo;
   final AuthApi? authApi;
   final GoogleSignIn? googleSignIn;
-  
-  const AuthLoginPage({super.key, this.returnTo, this.authApi, this.googleSignIn});
+
+  const AuthLoginPage({
+    super.key,
+    this.returnTo,
+    this.authApi,
+    this.googleSignIn,
+  });
 
   @override
   State<AuthLoginPage> createState() => _AuthLoginPageState();
@@ -43,12 +48,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
   // Toast helper
   void _showToast(String msg, {Color color = TuuurTheme.brandOrange}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: color,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   // Validation
@@ -93,10 +95,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
         'Code envoyé par email. Vérifiez votre boîte 📬',
         color: TuuurTheme.brandCyan,
       );
-      context.push('/verify', extra: {
-        'login': login,
-        'returnTo': widget.returnTo,
-      });
+      context.push(
+        '/verify',
+        extra: {'login': login, 'returnTo': widget.returnTo},
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -108,11 +110,12 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
     setState(() => _isGoogleLoading = true);
 
     try {
-      final google = widget.googleSignIn ??
-      GoogleSignIn(
-        scopes: const ['email', 'profile'],
-        serverClientId: ApiConfig.googleWebClientId,
-      );
+      final google =
+          widget.googleSignIn ??
+          GoogleSignIn(
+            scopes: const ['email', 'profile'],
+            serverClientId: ApiConfig.googleWebClientId,
+          );
 
       if (await google.isSignedIn()) {
         await google.signOut();
@@ -150,10 +153,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       final session = res.data!;
       await MyAuthStore.of(context).signInWithSession(session);
 
-      _showToast(
-        'Connecté avec Google ✅',
-        color: TuuurTheme.brandGreen,
-      );
+      _showToast('Connecté avec Google ✅', color: TuuurTheme.brandGreen);
 
       if (!mounted) return;
       // Utiliser returnTo si spécifié, sinon retourner à la page précédente ou à l'accueil
@@ -259,18 +259,21 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                                 color: TuuurTheme.brandGray.withOpacity(0.7),
                               ),
                               filled: true,
-                              fillColor:
-                                  TuuurTheme.brandDarkGray.withOpacity(0.5),
+                              fillColor: TuuurTheme.brandDarkGray.withOpacity(
+                                0.5,
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color:
-                                      TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color: TuuurTheme.brandPurple.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                               focusedBorder: const OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(16)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(16),
+                                ),
                                 borderSide: BorderSide(
                                   color: TuuurTheme.brandPurple,
                                   width: 2,
@@ -279,8 +282,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color:
-                                      TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color: TuuurTheme.brandPurple.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
@@ -331,18 +335,21 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                                 },
                               ),
                               filled: true,
-                              fillColor:
-                                  TuuurTheme.brandDarkGray.withOpacity(0.5),
+                              fillColor: TuuurTheme.brandDarkGray.withOpacity(
+                                0.5,
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color:
-                                      TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color: TuuurTheme.brandPurple.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                               focusedBorder: const OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(16)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(16),
+                                ),
                                 borderSide: BorderSide(
                                   color: TuuurTheme.brandPurple,
                                   width: 2,
@@ -351,8 +358,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide(
-                                  color:
-                                      TuuurTheme.brandPurple.withOpacity(0.3),
+                                  color: TuuurTheme.brandPurple.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
@@ -378,8 +386,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   side: BorderSide(
-                                    color: TuuurTheme.brandPurple
-                                        .withOpacity(0.3),
+                                    color: TuuurTheme.brandPurple.withOpacity(
+                                      0.3,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -418,11 +427,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       // Séparateur
                       const Row(
                         children: [
-                          Expanded(
-                            child: Divider(
-                              color: TuuurTheme.brandGray,
-                            ),
-                          ),
+                          Expanded(child: Divider(color: TuuurTheme.brandGray)),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
@@ -433,11 +438,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                               ),
                             ),
                           ),
-                          Expanded(
-                            child: Divider(
-                              color: TuuurTheme.brandGray,
-                            ),
-                          ),
+                          Expanded(child: Divider(color: TuuurTheme.brandGray)),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -446,8 +447,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed:
-                              _isGoogleLoading ? null : handleGoogleLogin,
+                          onPressed: _isGoogleLoading
+                              ? null
+                              : handleGoogleLogin,
                           icon: const FaIcon(
                             FontAwesomeIcons.google,
                             size: 16,
@@ -497,8 +499,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
-                                  color: TuuurTheme.brandPurple
-                                      .withOpacity(0.3),
+                                  color: TuuurTheme.brandPurple.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                             ),

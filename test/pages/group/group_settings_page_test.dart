@@ -73,8 +73,8 @@ class FakeThemeApi extends ThemeApi {
     List<ThemeDto>? themes,
     this.errorMessage,
     this.shouldThrow = false,
-  })  : successData = themes ?? [],
-        super(ApiClient(baseUrl: 'http://localhost:1'));
+  }) : successData = themes ?? [],
+       super(ApiClient(baseUrl: 'http://localhost:1'));
 
   @override
   Future<ApiResponse<List<ThemeDto>>> getThemes() async {
@@ -93,8 +93,8 @@ class FakeDifficultyApi extends DifficultyApi {
     List<DifficultyDto>? difficulties,
     this.errorMessage,
     this.shouldThrow = false,
-  })  : successData = difficulties ?? [],
-        super(ApiClient(baseUrl: 'http://localhost:1'));
+  }) : successData = difficulties ?? [],
+       super(ApiClient(baseUrl: 'http://localhost:1'));
 
   @override
   Future<ApiResponse<List<DifficultyDto>>> getDifficulties() async {
@@ -113,7 +113,7 @@ class FakeGroupRestApi extends GroupRestApiService {
     bool success = true,
     String? errorMessage,
     bool shouldThrow = false,
-  })  : _success = success,
+  }) : _success = success,
        _errorMessage = errorMessage,
        _shouldThrow = shouldThrow,
        super(apiClient: ApiClient(baseUrl: 'http://localhost:1'));
@@ -126,7 +126,8 @@ class FakeGroupRestApi extends GroupRestApiService {
     required bool scoreEachRound,
   }) async {
     if (_shouldThrow) throw Exception('Network error save');
-    if (!_success) return ApiResponse.err(message: _errorMessage ?? 'Save error');
+    if (!_success)
+      return ApiResponse.err(message: _errorMessage ?? 'Save error');
     return ApiResponse.ok(null);
   }
 }
@@ -195,10 +196,7 @@ Future<({bool saved, bool backed, GroupSettingsPage page})> pumpWithApis(
 
   await tester.pumpWidget(
     MaterialApp(
-      home: MyAuthStore(
-        notifier: AuthStore.instance,
-        child: page,
-      ),
+      home: MyAuthStore(notifier: AuthStore.instance, child: page),
     ),
   );
 
@@ -246,23 +244,25 @@ void main() {
     });
 
     testWidgets(
-        'non-hôte → affiche avertissement "Seul l\'hôte peut modifier"',
-        (tester) async {
-      final party = makeGroupParty(hostUserId: 'other-user');
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      // Just pump once synchronously – warning is visible immediately
-      await tester.pump();
+      'non-hôte → affiche avertissement "Seul l\'hôte peut modifier"',
+      (tester) async {
+        final party = makeGroupParty(hostUserId: 'other-user');
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        // Just pump once synchronously – warning is visible immediately
+        await tester.pump();
 
-      expect(
-        find.text("Seul l'hôte peut modifier les paramètres"),
-        findsOneWidget,
-      );
+        expect(
+          find.text("Seul l'hôte peut modifier les paramètres"),
+          findsOneWidget,
+        );
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets(
-        'non-hôte → bouton "Sauvegarder" est désactivé', (tester) async {
+    testWidgets('non-hôte → bouton "Sauvegarder" est désactivé', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'other-user');
       await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
       await pumpAnimations(tester);
@@ -284,8 +284,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets(
-        'état initial → indicateur de chargement visible', (tester) async {
+    testWidgets('état initial → indicateur de chargement visible', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'user-1');
       await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
       // Right after pump() – loading state should show before async completes
@@ -296,8 +297,7 @@ void main() {
           .text('Chargement des paramètres…')
           .evaluate()
           .isNotEmpty;
-      final isError =
-          find.text('Erreur').evaluate().isNotEmpty;
+      final isError = find.text('Erreur').evaluate().isNotEmpty;
 
       expect(isLoading || isError, isTrue);
 
@@ -350,10 +350,11 @@ void main() {
 
       // The error card with retry button should be visible
       // (or loading if the async hasn't resolved yet)
-      final hasRetry =
-          find.text('↻ Réessayer').evaluate().isNotEmpty;
-      final isLoading =
-          find.text('Chargement des paramètres…').evaluate().isNotEmpty;
+      final hasRetry = find.text('↻ Réessayer').evaluate().isNotEmpty;
+      final isLoading = find
+          .text('Chargement des paramètres…')
+          .evaluate()
+          .isNotEmpty;
 
       expect(hasRetry || isLoading, isTrue);
 
@@ -370,8 +371,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('non-hôte → Slider est désactivé (voit la section settings)',
-        (tester) async {
+    testWidgets('non-hôte → Slider est désactivé (voit la section settings)', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'other-user');
       await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
       await tester.pump();
@@ -407,37 +409,41 @@ void main() {
     });
 
     testWidgets(
-        'affichage sur grand écran (mode wide) — boutons footer visibles',
-        (tester) async {
-      final party = makeGroupParty(hostUserId: 'user-1');
-      await pumpSettingsPage(
-        tester,
-        party: party,
-        currentUserId: 'user-1',
-        size: const Size(800, 1000),
-      );
-      await tester.pump();
+      'affichage sur grand écran (mode wide) — boutons footer visibles',
+      (tester) async {
+        final party = makeGroupParty(hostUserId: 'user-1');
+        await pumpSettingsPage(
+          tester,
+          party: party,
+          currentUserId: 'user-1',
+          size: const Size(800, 1000),
+        );
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
     testWidgets(
-        'scoreEachRound initial est false → texte "à la fin" visible quand settings chargés',
-        (tester) async {
-      // party.scoreEachRound = false par défaut via makeGroupParty
-      final party = makeGroupParty(hostUserId: 'user-1');
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+      'scoreEachRound initial est false → texte "à la fin" visible quand settings chargés',
+      (tester) async {
+        // party.scoreEachRound = false par défaut via makeGroupParty
+        final party = makeGroupParty(hostUserId: 'user-1');
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      // Settings loaded or loading — just confirm no crash
-      expect(find.byType(Scaffold), findsOneWidget);
+        // Settings loaded or loading — just confirm no crash
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('pumpAndSettle complet ne lève pas d\'exception', (tester) async {
+    testWidgets('pumpAndSettle complet ne lève pas d\'exception', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'user-1');
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -465,8 +471,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('hôte voit le titre "Paramètres de la partie" avec animation',
-        (tester) async {
+    testWidgets('hôte voit le titre "Paramètres de la partie" avec animation', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'user-1');
       await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
 
@@ -480,8 +487,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('initialisation des thèmes depuis party.partyTheme',
-        (tester) async {
+    testWidgets('initialisation des thèmes depuis party.partyTheme', (
+      tester,
+    ) async {
       // La partie a un thème déjà sélectionné (id=1) → vérifier que _selectedThemeIds le prend
       final party = makeGroupParty(hostUserId: 'user-1');
       // party.partyTheme has theme id=1 by default in makeGroupParty
@@ -495,8 +503,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('initialisation des difficultés depuis party.partyDifficulty',
-        (tester) async {
+    testWidgets('initialisation des difficultés depuis party.partyDifficulty', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'user-1');
       // party.partyDifficulty has difficulty id=2 by default
 
@@ -520,12 +529,10 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('scoreEachRound=true → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        scoreEachRound: true,
-      );
+    testWidgets('scoreEachRound=true → widget construit sans crash', (
+      tester,
+    ) async {
+      final party = makeGroupParty(hostUserId: 'user-1', scoreEachRound: true);
       await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
       await tester.pump();
 
@@ -534,78 +541,88 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('party avec plusieurs thèmes sélectionnés → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        themes: [
-          makePartyTheme(id: 1, label: 'Général'),
-          makePartyTheme(id: 2, label: 'Science'),
-          makePartyTheme(id: 3, label: 'Sport'),
-        ],
-      );
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+    testWidgets(
+      'party avec plusieurs thèmes sélectionnés → widget construit sans crash',
+      (tester) async {
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          themes: [
+            makePartyTheme(id: 1, label: 'Général'),
+            makePartyTheme(id: 2, label: 'Science'),
+            makePartyTheme(id: 3, label: 'Sport'),
+          ],
+        );
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('party avec plusieurs difficultés sélectionnées → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        difficulties: [
-          makePartyDifficulty(id: 1, label: 'Facile'),
-          makePartyDifficulty(id: 2, label: 'Moyen'),
-          makePartyDifficulty(id: 3, label: 'Difficile'),
-        ],
-      );
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+    testWidgets(
+      'party avec plusieurs difficultés sélectionnées → widget construit sans crash',
+      (tester) async {
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          difficulties: [
+            makePartyDifficulty(id: 1, label: 'Facile'),
+            makePartyDifficulty(id: 2, label: 'Moyen'),
+            makePartyDifficulty(id: 3, label: 'Difficile'),
+          ],
+        );
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('party sans thèmes ni difficultés pré-sélectionnés → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        themes: [],
-        difficulties: [],
-      );
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+    testWidgets(
+      'party sans thèmes ni difficultés pré-sélectionnés → widget construit sans crash',
+      (tester) async {
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          themes: [],
+          difficulties: [],
+        );
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('party avec nbQuestions=5 (minimum) → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(hostUserId: 'user-1', nbQuestions: 5);
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+    testWidgets(
+      'party avec nbQuestions=5 (minimum) → widget construit sans crash',
+      (tester) async {
+        final party = makeGroupParty(hostUserId: 'user-1', nbQuestions: 5);
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('party avec nbQuestions=20 (maximum) → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(hostUserId: 'user-1', nbQuestions: 20);
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+    testWidgets(
+      'party avec nbQuestions=20 (maximum) → widget construit sans crash',
+      (tester) async {
+        final party = makeGroupParty(hostUserId: 'user-1', nbQuestions: 20);
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
     testWidgets('non-hôte → bouton "Annuler" appelle onBack', (tester) async {
       final party = makeGroupParty(hostUserId: 'other-user');
@@ -664,7 +681,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('footer mode étroit (350px) → Scaffold visible', (tester) async {
+    testWidgets('footer mode étroit (350px) → Scaffold visible', (
+      tester,
+    ) async {
       final prevOnError = FlutterError.onError;
       FlutterError.onError = (FlutterErrorDetails details) {
         if (details.exceptionAsString().contains('overflowed')) return;
@@ -703,8 +722,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('non-hôte → avertissement ET warning text corrects',
-        (tester) async {
+    testWidgets('non-hôte → avertissement ET warning text corrects', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'host-xyz');
       await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
       await tester.pump();
@@ -733,8 +753,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('onSettingsSaved n\'est pas appelé sans interaction',
-        (tester) async {
+    testWidgets('onSettingsSaved n\'est pas appelé sans interaction', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'user-1');
       var savedCalled = false;
 
@@ -759,23 +780,26 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('scoreEachRound=true + nbQuestions=20 → widget construit sans crash',
-        (tester) async {
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        nbQuestions: 20,
-        scoreEachRound: true,
-      );
-      await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
-      await tester.pump();
+    testWidgets(
+      'scoreEachRound=true + nbQuestions=20 → widget construit sans crash',
+      (tester) async {
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          nbQuestions: 20,
+          scoreEachRound: true,
+        );
+        await pumpSettingsPage(tester, party: party, currentUserId: 'user-1');
+        await tester.pump();
 
-      expect(find.byType(Scaffold), findsOneWidget);
+        expect(find.byType(Scaffold), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('non-hôte + scoreEachRound=true → avertissement visible',
-        (tester) async {
+    testWidgets('non-hôte + scoreEachRound=true → avertissement visible', (
+      tester,
+    ) async {
       final party = makeGroupParty(
         hostUserId: 'host-xyz',
         scoreEachRound: true,
@@ -791,34 +815,36 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('plusieurs widgets pumpés successivement n\'ont pas de fuite mémoire',
-        (tester) async {
-      for (var i = 0; i < 3; i++) {
-        final party = makeGroupParty(
-          hostUserId: 'user-1',
-          nbQuestions: 5 + i * 5,
-        );
-        await tester.binding.setSurfaceSize(const Size(800, 1000));
-        await tester.pumpWidget(
-          MaterialApp(
-            home: MyAuthStore(
-              notifier: AuthStore.instance,
-              child: GroupSettingsPage(
-                party: party,
-                currentUserId: 'user-1',
-                onSettingsSaved: () {},
-                onBack: () {},
+    testWidgets(
+      'plusieurs widgets pumpés successivement n\'ont pas de fuite mémoire',
+      (tester) async {
+        for (var i = 0; i < 3; i++) {
+          final party = makeGroupParty(
+            hostUserId: 'user-1',
+            nbQuestions: 5 + i * 5,
+          );
+          await tester.binding.setSurfaceSize(const Size(800, 1000));
+          await tester.pumpWidget(
+            MaterialApp(
+              home: MyAuthStore(
+                notifier: AuthStore.instance,
+                child: GroupSettingsPage(
+                  party: party,
+                  currentUserId: 'user-1',
+                  onSettingsSaved: () {},
+                  onBack: () {},
+                ),
               ),
             ),
-          ),
-        );
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(find.byType(Scaffold), findsOneWidget);
-      }
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(find.byType(Scaffold), findsOneWidget);
+        }
 
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await finishGroupTest(tester);
-    });
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await finishGroupTest(tester);
+      },
+    );
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -826,7 +852,9 @@ void main() {
   // ─────────────────────────────────────────────────────────────────────────
 
   group('GroupSettingsPage — avec APIs injectées (chemins de succès)', () {
-    testWidgets('chargement réussi → thèmes + difficultés visibles', (tester) async {
+    testWidgets('chargement réussi → thèmes + difficultés visibles', (
+      tester,
+    ) async {
       await pumpWithApis(tester);
 
       // Themes section
@@ -839,17 +867,21 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('tous les boutons de thèmes sont affichés (coverage _buildThemesSection)',
-        (tester) async {
-      await pumpWithApis(tester);
+    testWidgets(
+      'tous les boutons de thèmes sont affichés (coverage _buildThemesSection)',
+      (tester) async {
+        await pumpWithApis(tester);
 
-      // At least the first theme's name should be visible
-      expect(find.text('Art'), findsWidgets);
+        // At least the first theme's name should be visible
+        expect(find.text('Art'), findsWidgets);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('thèmes avec toutes les icônes possibles → pas d\'exception', (tester) async {
+    testWidgets('thèmes avec toutes les icônes possibles → pas d\'exception', (
+      tester,
+    ) async {
       // Providing themes with each icon key to cover all switch branches
       final allIconThemes = [
         ThemeDto(id: 1, key: 'a', name: 'A1', icon: 'wand-magic-sparkles'),
@@ -876,10 +908,7 @@ void main() {
         ThemeDto(id: 21, key: 'u', name: 'totally unknown', icon: ''),
       ];
 
-      await pumpWithApis(
-        tester,
-        themeApi: FakeThemeApi(themes: allIconThemes),
-      );
+      await pumpWithApis(tester, themeApi: FakeThemeApi(themes: allIconThemes));
 
       expect(find.byType(Scaffold), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -887,36 +916,46 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('hôte peut toggler un thème (suppression du thème pré-sélectionné)',
-        (tester) async {
-      // Party has theme id=1 selected; themes API returns theme id=1 named 'Général'
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        themes: [makePartyTheme(id: 1, label: 'Général')],
-      );
-      await pumpWithApis(
-        tester,
-        party: party,
-        themeApi: FakeThemeApi(
-          themes: [ThemeDto(id: 1, key: 'g', name: 'Général', icon: 'wand-magic-sparkles')],
-        ),
-        difficultyApi: FakeDifficultyApi(difficulties: _kDifficulties),
-      );
+    testWidgets(
+      'hôte peut toggler un thème (suppression du thème pré-sélectionné)',
+      (tester) async {
+        // Party has theme id=1 selected; themes API returns theme id=1 named 'Général'
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          themes: [makePartyTheme(id: 1, label: 'Général')],
+        );
+        await pumpWithApis(
+          tester,
+          party: party,
+          themeApi: FakeThemeApi(
+            themes: [
+              ThemeDto(
+                id: 1,
+                key: 'g',
+                name: 'Général',
+                icon: 'wand-magic-sparkles',
+              ),
+            ],
+          ),
+          difficultyApi: FakeDifficultyApi(difficulties: _kDifficulties),
+        );
 
-      // Find the theme button and tap it (removes from selection)
-      final btn = find.text('Général');
-      if (btn.evaluate().isNotEmpty) {
-        await tester.tap(btn.first, warnIfMissed: false);
-        await tester.pump();
-      }
+        // Find the theme button and tap it (removes from selection)
+        final btn = find.text('Général');
+        if (btn.evaluate().isNotEmpty) {
+          await tester.tap(btn.first, warnIfMissed: false);
+          await tester.pump();
+        }
 
-      expect(tester.takeException(), isNull);
+        expect(tester.takeException(), isNull);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('hôte peut toggler une difficulté (suppression puis ajout)',
-        (tester) async {
+    testWidgets('hôte peut toggler une difficulté (suppression puis ajout)', (
+      tester,
+    ) async {
       final party = makeGroupParty(
         hostUserId: 'user-1',
         difficulties: [makePartyDifficulty(id: 1, label: 'Facile')],
@@ -954,7 +993,14 @@ void main() {
         party: party,
         currentUserId: 'user-1',
         themeApi: FakeThemeApi(
-          themes: [ThemeDto(id: 1, key: 'g', name: 'Général', icon: 'wand-magic-sparkles')],
+          themes: [
+            ThemeDto(
+              id: 1,
+              key: 'g',
+              name: 'Général',
+              icon: 'wand-magic-sparkles',
+            ),
+          ],
         ),
       );
 
@@ -984,7 +1030,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('Switch "Score à chaque question" peut être togglé', (tester) async {
+    testWidgets('Switch "Score à chaque question" peut être togglé', (
+      tester,
+    ) async {
       await pumpWithApis(tester);
 
       final sw = find.byType(Switch);
@@ -998,7 +1046,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('InkWell "Score à chaque question" tap par hôte', (tester) async {
+    testWidgets('InkWell "Score à chaque question" tap par hôte', (
+      tester,
+    ) async {
       await pumpWithApis(tester);
 
       // Tap the "Score à chaque question" text to trigger InkWell
@@ -1013,8 +1063,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('non-hôte — Slider null (ne génère pas d\'exception)',
-        (tester) async {
+    testWidgets('non-hôte — Slider null (ne génère pas d\'exception)', (
+      tester,
+    ) async {
       final party = makeGroupParty(hostUserId: 'host-xyz');
       await pumpWithApis(tester, party: party, currentUserId: 'user-1');
 
@@ -1029,7 +1080,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('Sauvegarder avec succès → onSettingsSaved appelé', (tester) async {
+    testWidgets('Sauvegarder avec succès → onSettingsSaved appelé', (
+      tester,
+    ) async {
       // Party with pre-selected theme id=1 and difficulty id=1
       final party = makeGroupParty(
         hostUserId: 'user-1',
@@ -1058,8 +1111,9 @@ void main() {
               onSettingsSaved: () => savedCalled = true,
               onBack: () {},
               themeApiOverride: FakeThemeApi(themes: _kThemes),
-              difficultyApiOverride:
-                  FakeDifficultyApi(difficulties: _kDifficulties),
+              difficultyApiOverride: FakeDifficultyApi(
+                difficulties: _kDifficulties,
+              ),
               groupRestApiOverride: FakeGroupRestApi(success: true),
             ),
           ),
@@ -1115,10 +1169,13 @@ void main() {
               onSettingsSaved: () {},
               onBack: () {},
               themeApiOverride: FakeThemeApi(themes: _kThemes),
-              difficultyApiOverride:
-                  FakeDifficultyApi(difficulties: _kDifficulties),
-              groupRestApiOverride:
-                  FakeGroupRestApi(success: false, errorMessage: 'Erreur serveur test'),
+              difficultyApiOverride: FakeDifficultyApi(
+                difficulties: _kDifficulties,
+              ),
+              groupRestApiOverride: FakeGroupRestApi(
+                success: false,
+                errorMessage: 'Erreur serveur test',
+              ),
             ),
           ),
         ),
@@ -1142,7 +1199,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('Sauvegarder avec exception API → pas de crash', (tester) async {
+    testWidgets('Sauvegarder avec exception API → pas de crash', (
+      tester,
+    ) async {
       final party = makeGroupParty(
         hostUserId: 'user-1',
         themes: [makePartyTheme(id: 1, label: 'Général')],
@@ -1169,8 +1228,9 @@ void main() {
               onSettingsSaved: () {},
               onBack: () {},
               themeApiOverride: FakeThemeApi(themes: _kThemes),
-              difficultyApiOverride:
-                  FakeDifficultyApi(difficulties: _kDifficulties),
+              difficultyApiOverride: FakeDifficultyApi(
+                difficulties: _kDifficulties,
+              ),
               groupRestApiOverride: FakeGroupRestApi(shouldThrow: true),
             ),
           ),
@@ -1197,7 +1257,9 @@ void main() {
   });
 
   group('GroupSettingsPage — chemins d\'erreur API', () {
-    testWidgets('erreur API thèmes → message d\'erreur visible', (tester) async {
+    testWidgets('erreur API thèmes → message d\'erreur visible', (
+      tester,
+    ) async {
       await pumpWithApis(
         tester,
         themeApi: FakeThemeApi(errorMessage: 'Erreur thèmes test'),
@@ -1208,10 +1270,14 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('erreur API difficultés → message d\'erreur visible', (tester) async {
+    testWidgets('erreur API difficultés → message d\'erreur visible', (
+      tester,
+    ) async {
       await pumpWithApis(
         tester,
-        difficultyApi: FakeDifficultyApi(errorMessage: 'Erreur difficultés test'),
+        difficultyApi: FakeDifficultyApi(
+          errorMessage: 'Erreur difficultés test',
+        ),
       );
 
       expect(find.text('Erreur'), findsWidgets);
@@ -1220,17 +1286,16 @@ void main() {
     });
 
     testWidgets('exception API thèmes → error card visible', (tester) async {
-      await pumpWithApis(
-        tester,
-        themeApi: FakeThemeApi(shouldThrow: true),
-      );
+      await pumpWithApis(tester, themeApi: FakeThemeApi(shouldThrow: true));
 
       expect(find.text('Erreur'), findsWidgets);
 
       await finishGroupTest(tester);
     });
 
-    testWidgets('exception API difficultés → error card visible', (tester) async {
+    testWidgets('exception API difficultés → error card visible', (
+      tester,
+    ) async {
       await pumpWithApis(
         tester,
         difficultyApi: FakeDifficultyApi(shouldThrow: true),
@@ -1241,7 +1306,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('erreur API thèmes → message d\'erreur correspond', (tester) async {
+    testWidgets('erreur API thèmes → message d\'erreur correspond', (
+      tester,
+    ) async {
       await pumpWithApis(
         tester,
         themeApi: FakeThemeApi(errorMessage: 'Custom error xyz'),
@@ -1263,7 +1330,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('Réessayer après erreur → relance fetch sans crash', (tester) async {
+    testWidgets('Réessayer après erreur → relance fetch sans crash', (
+      tester,
+    ) async {
       final fakeTheme = FakeThemeApi(errorMessage: 'Erreur initiale');
 
       await pumpWithApis(tester, themeApi: fakeTheme);
@@ -1290,7 +1359,9 @@ void main() {
   });
 
   group('GroupSettingsPage — validation _saveSettings', () {
-    testWidgets('Sauvegarder sans thèmes sélectionnés → snack erreur', (tester) async {
+    testWidgets('Sauvegarder sans thèmes sélectionnés → snack erreur', (
+      tester,
+    ) async {
       // Party with no pre-selected themes
       final party = makeGroupParty(
         hostUserId: 'user-1',
@@ -1318,8 +1389,9 @@ void main() {
               onSettingsSaved: () {},
               onBack: () {},
               themeApiOverride: FakeThemeApi(themes: _kThemes),
-              difficultyApiOverride:
-                  FakeDifficultyApi(difficulties: _kDifficulties),
+              difficultyApiOverride: FakeDifficultyApi(
+                difficulties: _kDifficulties,
+              ),
               groupRestApiOverride: FakeGroupRestApi(),
             ),
           ),
@@ -1344,8 +1416,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('Sauvegarder sans difficultés sélectionnées → snack erreur',
-        (tester) async {
+    testWidgets('Sauvegarder sans difficultés sélectionnées → snack erreur', (
+      tester,
+    ) async {
       final party = makeGroupParty(
         hostUserId: 'user-1',
         themes: [makePartyTheme(id: 1, label: 'Général')],
@@ -1372,8 +1445,9 @@ void main() {
               onSettingsSaved: () {},
               onBack: () {},
               themeApiOverride: FakeThemeApi(themes: _kThemes),
-              difficultyApiOverride:
-                  FakeDifficultyApi(difficulties: _kDifficulties),
+              difficultyApiOverride: FakeDifficultyApi(
+                difficulties: _kDifficulties,
+              ),
               groupRestApiOverride: FakeGroupRestApi(),
             ),
           ),
@@ -1398,7 +1472,9 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('non-hôte sauvegarder → snack erreur hôte requis', (tester) async {
+    testWidgets('non-hôte sauvegarder → snack erreur hôte requis', (
+      tester,
+    ) async {
       // This is triggered via _saveSettings guard in host check button is disabled but
       // we test the guard by directly calling through a pump with non-host
       final party = makeGroupParty(hostUserId: 'host-xyz');
@@ -1423,8 +1499,9 @@ void main() {
               onSettingsSaved: () {},
               onBack: () {},
               themeApiOverride: FakeThemeApi(themes: _kThemes),
-              difficultyApiOverride:
-                  FakeDifficultyApi(difficulties: _kDifficulties),
+              difficultyApiOverride: FakeDifficultyApi(
+                difficulties: _kDifficulties,
+              ),
               groupRestApiOverride: FakeGroupRestApi(),
             ),
           ),
@@ -1445,32 +1522,34 @@ void main() {
   });
 
   group('GroupSettingsPage — themes/difficulties vides depuis l\'API', () {
-    testWidgets('API retourne 0 thèmes → texte "Aucun thème disponible" visible',
-        (tester) async {
-      await pumpWithApis(
-        tester,
-        themeApi: FakeThemeApi(themes: []),
-      );
+    testWidgets(
+      'API retourne 0 thèmes → texte "Aucun thème disponible" visible',
+      (tester) async {
+        await pumpWithApis(tester, themeApi: FakeThemeApi(themes: []));
 
-      expect(find.text('Aucun thème disponible.'), findsOneWidget);
+        expect(find.text('Aucun thème disponible.'), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
     testWidgets(
-        'API retourne 0 difficultés → texte "Aucune difficulté disponible" visible',
-        (tester) async {
-      await pumpWithApis(
-        tester,
-        difficultyApi: FakeDifficultyApi(difficulties: []),
-      );
+      'API retourne 0 difficultés → texte "Aucune difficulté disponible" visible',
+      (tester) async {
+        await pumpWithApis(
+          tester,
+          difficultyApi: FakeDifficultyApi(difficulties: []),
+        );
 
-      expect(find.text('Aucune difficulté disponible.'), findsOneWidget);
+        expect(find.text('Aucune difficulté disponible.'), findsOneWidget);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('thème avec id=null → SizedBox.shrink rendu sans crash', (tester) async {
+    testWidgets('thème avec id=null → SizedBox.shrink rendu sans crash', (
+      tester,
+    ) async {
       await pumpWithApis(
         tester,
         themeApi: FakeThemeApi(
@@ -1487,36 +1566,40 @@ void main() {
       await finishGroupTest(tester);
     });
 
-    testWidgets('chargement réussi affiche le compteur de thèmes sélectionnés',
-        (tester) async {
-      // party.partyTheme has id=1, themes API returns id=1
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        themes: [makePartyTheme(id: 1, label: 'Général')],
-      );
-      await pumpWithApis(tester, party: party);
+    testWidgets(
+      'chargement réussi affiche le compteur de thèmes sélectionnés',
+      (tester) async {
+        // party.partyTheme has id=1, themes API returns id=1
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          themes: [makePartyTheme(id: 1, label: 'Général')],
+        );
+        await pumpWithApis(tester, party: party);
 
-      // Count indicator text should show "1 sélectionné"
-      expect(find.textContaining('sélectionné'), findsWidgets);
+        // Count indicator text should show "1 sélectionné"
+        expect(find.textContaining('sélectionné'), findsWidgets);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
 
-    testWidgets('chargement réussi affiche le compteur de difficultés sélectionnées',
-        (tester) async {
-      final party = makeGroupParty(
-        hostUserId: 'user-1',
-        difficulties: [
-          makePartyDifficulty(id: 1, label: 'Facile'),
-          makePartyDifficulty(id: 2, label: 'Moyen'),
-        ],
-      );
-      await pumpWithApis(tester, party: party);
+    testWidgets(
+      'chargement réussi affiche le compteur de difficultés sélectionnées',
+      (tester) async {
+        final party = makeGroupParty(
+          hostUserId: 'user-1',
+          difficulties: [
+            makePartyDifficulty(id: 1, label: 'Facile'),
+            makePartyDifficulty(id: 2, label: 'Moyen'),
+          ],
+        );
+        await pumpWithApis(tester, party: party);
 
-      // Count indicator text should show "2 sélectionnées"
-      expect(find.textContaining('sélectionn'), findsWidgets);
+        // Count indicator text should show "2 sélectionnées"
+        expect(find.textContaining('sélectionn'), findsWidgets);
 
-      await finishGroupTest(tester);
-    });
+        await finishGroupTest(tester);
+      },
+    );
   });
 }

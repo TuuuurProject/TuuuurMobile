@@ -25,10 +25,7 @@ void main() {
         'score': 8,
         'time': 120,
         'partyUsers': [
-          {
-            'idUser': 'user-1',
-            'idParty': 'party-uuid-123',
-          },
+          {'idUser': 'user-1', 'idParty': 'party-uuid-123'},
         ],
         'partyTheme': [
           {'idTheme': 1},
@@ -59,10 +56,7 @@ void main() {
     });
 
     test('fromJson gère partyId comme clé alternative', () {
-      final json = {
-        'partyId': 'test-id',
-        'code': 'TEST',
-      };
+      final json = {'partyId': 'test-id', 'code': 'TEST'};
 
       final result = GroupResult.fromJson(json);
 
@@ -70,10 +64,7 @@ void main() {
     });
 
     test('fromJson gère valeurs nulles et listes vides', () {
-      final json = {
-        'id': 'minimal-id',
-        'code': 'MIN',
-      };
+      final json = {'id': 'minimal-id', 'code': 'MIN'};
 
       final result = GroupResult.fromJson(json);
 
@@ -141,11 +132,15 @@ void main() {
           'partyUsers': [],
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 201));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 201),
+        );
 
         final result = await groupApi.createGroup();
 
@@ -156,17 +151,18 @@ void main() {
 
       test('gère réponse avec data wrapper', () async {
         final responseData = {
-          'data': {
-            'id': 'wrapped-id',
-            'code': 'WRAP',
-          },
+          'data': {'id': 'wrapped-id', 'code': 'WRAP'},
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 201));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 201),
+        );
 
         final result = await groupApi.createGroup();
 
@@ -177,18 +173,19 @@ void main() {
       test('gère réponse avec data wrapper double', () async {
         final responseData = {
           'data': {
-            'data': {
-              'id': 'wrapped-id',
-              'code': 'WRAP',
-            },
+            'data': {'id': 'wrapped-id', 'code': 'WRAP'},
           },
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 201));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 201),
+        );
 
         final result = await groupApi.createGroup();
 
@@ -200,11 +197,15 @@ void main() {
       test('retourne erreur si id ou code manquant', () async {
         final responseData = {'code': 'NO-ID'};
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 201));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 201),
+        );
 
         final result = await groupApi.createGroup();
 
@@ -213,14 +214,16 @@ void main() {
       });
 
       test('retourne erreur si la requête échoue', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.err(
-              message: 'Erreur serveur',
-              statusCode: 500,
-            ));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Erreur serveur', statusCode: 500),
+        );
 
         final result = await groupApi.createGroup();
 
@@ -232,20 +235,26 @@ void main() {
         final headers = {'Custom': 'Header'};
         final responseData = {'id': 'test', 'code': 'TEST'};
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: headers,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 201));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: headers,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 201),
+        );
 
         final result = await groupApi.createGroup(headers: headers);
 
         expect(result.ok, isTrue);
-        verify(mockApiClient.postJson(
-          '/api/v1/group/create',
-          headers: headers,
-          body: {},
-        )).called(1);
+        verify(
+          mockApiClient.postJson(
+            '/api/v1/group/create',
+            headers: headers,
+            body: {},
+          ),
+        ).called(1);
       });
     });
 
@@ -257,11 +266,15 @@ void main() {
           'partyUsers': [],
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          headers: null,
-          body: {'code': 'JOIN99'},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            headers: null,
+            body: {'code': 'JOIN99'},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await groupApi.joinGroup(code: 'JOIN99');
 
@@ -270,14 +283,16 @@ void main() {
       });
 
       test('retourne erreur si code invalide', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          headers: null,
-          body: {'code': 'WRONG'},
-        )).thenAnswer((_) async => ApiResponse.err(
-              message: 'Code invalide',
-              statusCode: 404,
-            ));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            headers: null,
+            body: {'code': 'WRONG'},
+          ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Code invalide', statusCode: 404),
+        );
 
         final result = await groupApi.joinGroup(code: 'WRONG');
 
@@ -288,11 +303,15 @@ void main() {
       test('retourne erreur si réponse invalide', () async {
         final responseData = {'incomplete': 'data'};
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/join',
-          headers: null,
-          body: {'code': 'TEST'},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/join',
+            headers: null,
+            body: {'code': 'TEST'},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await groupApi.joinGroup(code: 'TEST');
 
@@ -303,16 +322,18 @@ void main() {
 
     group('updateSettings', () {
       test('met à jour les paramètres avec succès', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/settings',
-          headers: null,
-          body: {
-            'themes': [1, 2, 3],
-            'difficulties': [2],
-            'nbQuestions': 10,
-            'scoreEachRound': true,
-          },
-        )).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 204));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/settings',
+            headers: null,
+            body: {
+              'themes': [1, 2, 3],
+              'difficulties': [2],
+              'nbQuestions': 10,
+              'scoreEachRound': true,
+            },
+          ),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 204));
 
         final result = await groupApi.updateSettings(
           themeIds: [1, 2, 3],
@@ -325,11 +346,9 @@ void main() {
       });
 
       test('accepte différentes valeurs de nbQuestions', () async {
-        when(mockApiClient.postJson(
-          any,
-          headers: null,
-          body: anyNamed('body'),
-        )).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 204));
+        when(
+          mockApiClient.postJson(any, headers: null, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 204));
 
         final result = await groupApi.updateSettings(
           themeIds: [1],
@@ -342,14 +361,12 @@ void main() {
       });
 
       test('retourne erreur si échec', () async {
-        when(mockApiClient.postJson(
-          any,
-          headers: null,
-          body: anyNamed('body'),
-        )).thenAnswer((_) async => ApiResponse.err(
-              message: 'Non autorisé',
-              statusCode: 403,
-            ));
+        when(
+          mockApiClient.postJson(any, headers: null, body: anyNamed('body')),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Non autorisé', statusCode: 403),
+        );
 
         final result = await groupApi.updateSettings(
           themeIds: [1],
@@ -365,16 +382,17 @@ void main() {
 
     group('leaveGroup', () {
       test('quitte la partie avec succès', () async {
-        final responseData = {
-          'id': 'left-party',
-          'code': 'LEFT',
-        };
+        final responseData = {'id': 'left-party', 'code': 'LEFT'};
 
-        when(mockApiClient.postJson(
-          '/api/v1/group/leave',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/leave',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(responseData, statusCode: 200),
+        );
 
         final result = await groupApi.leaveGroup();
 
@@ -383,11 +401,13 @@ void main() {
       });
 
       test('retourne empty si pas de données', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/leave',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 204));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/leave',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 204));
 
         final result = await groupApi.leaveGroup();
 
@@ -397,14 +417,18 @@ void main() {
       });
 
       test('retourne erreur si échec', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/group/leave',
-          headers: null,
-          body: {},
-        )).thenAnswer((_) async => ApiResponse.err(
-              message: 'Impossible de quitter',
-              statusCode: 400,
-            ));
+        when(
+          mockApiClient.postJson(
+            '/api/v1/group/leave',
+            headers: null,
+            body: {},
+          ),
+        ).thenAnswer(
+          (_) async => ApiResponse.err(
+            message: 'Impossible de quitter',
+            statusCode: 400,
+          ),
+        );
 
         final result = await groupApi.leaveGroup();
 

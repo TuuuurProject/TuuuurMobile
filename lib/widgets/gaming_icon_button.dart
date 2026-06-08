@@ -39,9 +39,7 @@ class GamingIconButton extends StatelessWidget {
                 : TuuurTheme.brandGray.withOpacity(0.15),
           ),
         ),
-        child: Center(
-          child: FaIcon(icon, size: 18, color: iconColor),
-        ),
+        child: Center(child: FaIcon(icon, size: 18, color: iconColor)),
       ),
     );
 

@@ -65,10 +65,10 @@ class GroupWebSocketService {
       if (_hubConnection != null) {
         try {
           _unregisterServerEvents();
-          _hubConnection?.stop()?.timeout(
-            const Duration(milliseconds: 500),
-            onTimeout: () {},
-          ).catchError((_) {});
+          _hubConnection
+              ?.stop()
+              ?.timeout(const Duration(milliseconds: 500), onTimeout: () {})
+              .catchError((_) {});
           _hubConnection = null;
         } catch (e) {
           _hubConnection = null;
@@ -109,7 +109,9 @@ class GroupWebSocketService {
         _handleReconnected();
       });
 
-      _hubConnection!.serverTimeoutInMilliseconds = const Duration(hours: 1).inMilliseconds;
+      _hubConnection!.serverTimeoutInMilliseconds = const Duration(
+        hours: 1,
+      ).inMilliseconds;
       _hubConnection!.keepAliveIntervalInMilliseconds = 15000;
 
       _registerServerEvents();
@@ -150,10 +152,7 @@ class GroupWebSocketService {
 
     if (hub != null) {
       try {
-        await hub.stop()?.timeout(
-          const Duration(seconds: 2),
-          onTimeout: () {},
-        );
+        await hub.stop()?.timeout(const Duration(seconds: 2), onTimeout: () {});
       } catch (e) {
         // Ignore errors during disconnect
       }
@@ -216,7 +215,7 @@ class GroupWebSocketService {
     if (_connectionState == WebSocketConnectionState.disconnected) {
       return;
     }
-    
+
     _connectionState = WebSocketConnectionState.disconnected;
     _notifyHandlers((h) => h.onDisconnected());
   }
@@ -398,9 +397,7 @@ class GroupWebSocketService {
       _notifyHandlers((h) => h.onError(error));
       rethrow;
     } catch (e) {
-      _notifyHandlers(
-        (h) => h.onError('Error starting party: $e'),
-      );
+      _notifyHandlers((h) => h.onError('Error starting party: $e'));
       rethrow;
     }
   }
@@ -423,9 +420,7 @@ class GroupWebSocketService {
       _notifyHandlers((h) => h.onError(error));
       rethrow;
     } catch (e) {
-      _notifyHandlers(
-        (h) => h.onError('Error sending answer: $e'),
-      );
+      _notifyHandlers((h) => h.onError('Error sending answer: $e'));
       rethrow;
     }
   }
@@ -443,8 +438,7 @@ class GroupWebSocketService {
       _handlePlayerJoined(args);
 
   @visibleForTesting
-  void testDispatchPlayerLeft(List<Object?>? args) =>
-      _handlePlayerLeft(args);
+  void testDispatchPlayerLeft(List<Object?>? args) => _handlePlayerLeft(args);
 
   @visibleForTesting
   void testDispatchPartyDeleted(List<Object?>? args) =>
@@ -459,8 +453,7 @@ class GroupWebSocketService {
       _handlePartyStarted(args);
 
   @visibleForTesting
-  void testDispatchCountdown(List<Object?>? args) =>
-      _handleCountdown(args);
+  void testDispatchCountdown(List<Object?>? args) => _handleCountdown(args);
 
   @visibleForTesting
   void testDispatchQuestionSend(List<Object?>? args) =>
@@ -475,12 +468,10 @@ class GroupWebSocketService {
       _handleAllPlayerAnswered(args);
 
   @visibleForTesting
-  void testDispatchUserAnswer(List<Object?>? args) =>
-      _handleUserAnswer(args);
+  void testDispatchUserAnswer(List<Object?>? args) => _handleUserAnswer(args);
 
   @visibleForTesting
-  void testDispatchScoreUpdate(List<Object?>? args) =>
-      _handleScoreUpdate(args);
+  void testDispatchScoreUpdate(List<Object?>? args) => _handleScoreUpdate(args);
 
   @visibleForTesting
   void testDispatchPartyFinished(List<Object?>? args) =>

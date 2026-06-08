@@ -119,10 +119,10 @@ class NavigationHeader extends StatelessWidget implements PreferredSizeWidget {
               child: Image.asset(
                 'assets/images/logo.png',
                 width: 80,
-               height: 80,
+                height: 80,
                 fit: BoxFit.cover, // remplit le cercle sans déformer
-               filterQuality: FilterQuality.high,
-             ),
+                filterQuality: FilterQuality.high,
+              ),
             ),
             const SizedBox(width: 8),
             const Text(

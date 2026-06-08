@@ -9,7 +9,8 @@ import 'package:tuuuur_flutter/api/auth/token_provider.dart';
 
 /// Mock REST API Service for testing
 class MockGroupRestApiService extends GroupRestApiService {
-  MockGroupRestApiService() : super(apiClient: ApiClient(baseUrl: 'http://localhost'));
+  MockGroupRestApiService()
+    : super(apiClient: ApiClient(baseUrl: 'http://localhost'));
 
   String? createdPartyCode;
   bool shouldFail = false;
@@ -136,14 +137,22 @@ class MockGroupRestApiService extends GroupRestApiService {
       finish: false,
       dt: '2024-01-01T00:00:00Z',
       partyUsers: [],
-      partyTheme: themes.map((id) => PartyTheme(
-        idTheme: id,
-        theme: Theme(id: id, label: 'Theme $id'),
-      )).toList(),
-      partyDifficulty: difficulties.map((id) => PartyDifficulty(
-        idDifficulty: id,
-        difficulty: Difficulty(id: id, label: 'Difficulty $id'),
-      )).toList(),
+      partyTheme: themes
+          .map(
+            (id) => PartyTheme(
+              idTheme: id,
+              theme: Theme(id: id, label: 'Theme $id'),
+            ),
+          )
+          .toList(),
+      partyDifficulty: difficulties
+          .map(
+            (id) => PartyDifficulty(
+              idDifficulty: id,
+              difficulty: Difficulty(id: id, label: 'Difficulty $id'),
+            ),
+          )
+          .toList(),
       percent: 0,
       score: 0,
       time: 0,
@@ -156,10 +165,10 @@ class MockGroupRestApiService extends GroupRestApiService {
 /// Mock WebSocket Service for testing
 class MockGroupWebSocketService extends GroupWebSocketService {
   MockGroupWebSocketService()
-      : super(
-          hubUrl: 'http://localhost/test',
-          tokenProvider: MockTokenProvider(),
-        );
+    : super(
+        hubUrl: 'http://localhost/test',
+        tokenProvider: MockTokenProvider(),
+      );
 
   bool _connected = false;
   bool shouldFailConnect = false;
@@ -249,7 +258,7 @@ void main() {
 
       test('provides connection state', () {
         expect(coordinator.isConnected, isFalse);
-        
+
         mockWebSocket._connected = true;
         expect(coordinator.isConnected, isTrue);
       });
@@ -257,7 +266,9 @@ void main() {
 
     group('createAndJoinParty', () {
       test('successfully creates party and connects websocket', () async {
-        final code = await coordinator.createAndJoinParty(currentUserId: 'user1');
+        final code = await coordinator.createAndJoinParty(
+          currentUserId: 'user1',
+        );
 
         expect(code, equals('ABC123'));
         expect(mockRestApi.createdPartyCode, equals('ABC123'));
@@ -270,7 +281,9 @@ void main() {
         mockRestApi.shouldFail = true;
         mockRestApi.failMessage = 'Server error';
 
-        final code = await coordinator.createAndJoinParty(currentUserId: 'user1');
+        final code = await coordinator.createAndJoinParty(
+          currentUserId: 'user1',
+        );
 
         expect(code, isNull);
         expect(store.state, equals(GroupPartyState.error));
@@ -280,7 +293,9 @@ void main() {
       test('handles websocket connection failure', () async {
         mockWebSocket.shouldFailConnect = true;
 
-        final code = await coordinator.createAndJoinParty(currentUserId: 'user1');
+        final code = await coordinator.createAndJoinParty(
+          currentUserId: 'user1',
+        );
 
         expect(code, isNull);
         expect(store.state, equals(GroupPartyState.error));
@@ -289,7 +304,10 @@ void main() {
 
     group('joinParty', () {
       test('successfully joins party with code', () async {
-        final success = await coordinator.joinParty('XYZ789', currentUserId: 'user2');
+        final success = await coordinator.joinParty(
+          'XYZ789',
+          currentUserId: 'user2',
+        );
 
         expect(success, isTrue);
         expect(mockWebSocket.isConnected, isTrue);
@@ -301,7 +319,10 @@ void main() {
         mockRestApi.shouldFail = true;
         mockRestApi.failMessage = 'Code de partie invalide';
 
-        final success = await coordinator.joinParty('WRONG', currentUserId: 'user2');
+        final success = await coordinator.joinParty(
+          'WRONG',
+          currentUserId: 'user2',
+        );
 
         expect(success, isFalse);
         expect(store.state, equals(GroupPartyState.error));
@@ -311,7 +332,10 @@ void main() {
       test('handles exception during join', () async {
         mockWebSocket.shouldFailConnect = true;
 
-        final success = await coordinator.joinParty('XYZ789', currentUserId: 'user2');
+        final success = await coordinator.joinParty(
+          'XYZ789',
+          currentUserId: 'user2',
+        );
 
         expect(success, isFalse);
       });

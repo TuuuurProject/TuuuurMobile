@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 
 import '../stores/auth_store.dart';
 import '../stores/group_coordinator.dart';
+import '../stores/ranked_coordinator.dart';
 import 'api_client.dart';
 import 'api_config.dart';
 import 'auth/auth_api_service.dart';
@@ -108,6 +109,7 @@ class ApiModule {
   late final GroupApi _groupApi;
   late final GroupRestApiService _groupRestApi;
   late final GroupCoordinator _groupCoordinator;
+  RankedCoordinator? _rankedCoordinator;
 
   bool _initialized = false;
 
@@ -136,6 +138,26 @@ class ApiModule {
     );
 
     _initialized = true;
+  }
+
+  Future<void> killRanked() async {
+    final old = _rankedCoordinator;
+    _rankedCoordinator =
+        null; // très important : on coupe la réutilisation tout de suite
+
+    if (old != null) {
+      await old.hardDispose();
+    }
+  }
+
+  Future<RankedCoordinator> restartRanked() async {
+    await killRanked();
+    final fresh = RankedCoordinator.create(
+      tokenProvider: _tokenProvider,
+      webSocketHubUrl: ApiConfig.rankedWebSocketUrl,
+    );
+    _rankedCoordinator = fresh;
+    return fresh;
   }
 
   AuthApi get authApi {
@@ -200,6 +222,17 @@ class ApiModule {
       'ApiModule.initialize() must be called before using the API',
     );
     return _groupCoordinator;
+  }
+
+  RankedCoordinator get rankedCoordinator {
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
+    return _rankedCoordinator ??= RankedCoordinator.create(
+      tokenProvider: _tokenProvider,
+      webSocketHubUrl: ApiConfig.rankedWebSocketUrl,
+    );
   }
 
   /// Disposes resources.

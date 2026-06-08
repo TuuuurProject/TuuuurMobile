@@ -43,10 +43,7 @@ void main() {
     });
 
     test('fromJson gère les types de données variés', () {
-      final json = {
-        'id': '456',
-        'isAdmin': 'true',
-      };
+      final json = {'id': '456', 'isAdmin': 'true'};
 
       final user = UserDto.fromJson(json);
 
@@ -168,10 +165,7 @@ void main() {
         raw: {},
       );
 
-      final result = LoginResultDto(
-        requires2fa: false,
-        session: session,
-      );
+      final result = LoginResultDto(requires2fa: false, session: session);
 
       expect(result.requires2fa, isFalse);
       expect(result.session, equals(session));
@@ -194,10 +188,7 @@ void main() {
           'delivery': 'email',
         };
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -214,10 +205,7 @@ void main() {
       });
 
       test('trim les espaces dans email et nickName', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok({'delivery': 'email'}, statusCode: 200),
         );
 
@@ -227,10 +215,9 @@ void main() {
           password: 'pass',
         );
 
-        final captured = verify(mockApiClient.postJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.postJson(captureAny, body: captureAnyNamed('body')),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['email'], equals('test@example.com'));
@@ -238,14 +225,9 @@ void main() {
       });
 
       test('retourne erreur en cas d\'échec', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Email déjà utilisé',
-            statusCode: 409,
-          ),
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Email déjà utilisé', statusCode: 409),
         );
 
         final result = await authApi.register(
@@ -260,12 +242,9 @@ void main() {
       });
 
       test('utilise delivery par défaut si non fourni', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await authApi.register(
           email: 'test@example.com',
@@ -279,12 +258,9 @@ void main() {
 
     group('login', () {
       test('retourne succès pour un login valide', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await authApi.login(
           login: 'test@example.com',
@@ -297,36 +273,24 @@ void main() {
       });
 
       test('trim le login', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
-        await authApi.login(
-          login: '  user@example.com  ',
-          password: 'pass',
-        );
+        await authApi.login(login: '  user@example.com  ', password: 'pass');
 
-        final captured = verify(mockApiClient.postJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.postJson(captureAny, body: captureAnyNamed('body')),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['login'], equals('user@example.com'));
       });
 
       test('retourne erreur pour identifiants invalides', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Invalid credentials',
-            statusCode: 401,
-          ),
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Invalid credentials', statusCode: 401),
         );
 
         final result = await authApi.login(
@@ -339,15 +303,12 @@ void main() {
       });
 
       test('extrait le message d\'erreur depuis un tableau', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.err(
             message: 'Error',
             statusCode: 401,
             raw: [
-              {'description': 'Identifiants incorrects'}
+              {'description': 'Identifiants incorrects'},
             ],
           ),
         );
@@ -362,12 +323,9 @@ void main() {
       });
 
       test('utilise message par défaut si extraction échoue', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(statusCode: 401),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.err(statusCode: 401));
 
         final result = await authApi.login(
           login: 'test@example.com',
@@ -382,20 +340,11 @@ void main() {
     group('loginAsGuest', () {
       test('retourne succès pour un pseudo valide', () async {
         final responseData = {
-          'user': {
-            'id': 999,
-            'nickName': 'GuestUser',
-            'email': null,
-          },
-          'token': {
-            'token': 'guest_token_123',
-          }
+          'user': {'id': 999, 'nickName': 'GuestUser', 'email': null},
+          'token': {'token': 'guest_token_123'},
         };
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -408,19 +357,15 @@ void main() {
       });
 
       test('trim le pseudo', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         await authApi.loginAsGuest(nickName: '  MyGuest  ');
 
-        final captured = verify(mockApiClient.postJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.postJson(captureAny, body: captureAnyNamed('body')),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['nickName'], equals('MyGuest'));
@@ -428,14 +373,9 @@ void main() {
       });
 
       test('retourne erreur', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Invalid nickname',
-            statusCode: 400,
-          ),
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Invalid nickname', statusCode: 400),
         );
 
         final result = await authApi.loginAsGuest(nickName: '!!');
@@ -454,16 +394,11 @@ void main() {
             'nickName': 'googleUser',
             'email': 'user@gmail.com',
           },
-          'token': {
-            'token': 'google_token_123',
-          },
+          'token': {'token': 'google_token_123'},
           'isGoogleUser': true,
         };
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -483,34 +418,22 @@ void main() {
           'token': {'token': 'token'},
         };
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.loginWithGoogle(
-          idToken: 'token',
-        );
+        final result = await authApi.loginWithGoogle(idToken: 'token');
 
         expect(result.data?.isGoogleUser, isTrue);
       });
 
       test('retourne erreur en cas d\'échec', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Invalid Google token',
-            statusCode: 401,
-          ),
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Invalid Google token', statusCode: 401),
         );
 
-        final result = await authApi.loginWithGoogle(
-          idToken: 'invalid_token',
-        );
+        final result = await authApi.loginWithGoogle(idToken: 'invalid_token');
 
         expect(result.ok, isFalse);
         expect(result.message, equals('Invalid Google token'));
@@ -528,17 +451,17 @@ void main() {
           },
         };
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'NewNickname',
-        );
+        final result = await authApi.updateNickname(nickname: 'NewNickname');
 
         expect(result.ok, isTrue);
         expect(result.data?.nickName, equals('NewNickname'));
@@ -546,26 +469,28 @@ void main() {
       });
 
       test('trim le nickname', () async {
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok(
-            {'success': true, 'value': {'id': 1, 'nickName': 'TestNick'}},
-            statusCode: 200,
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
           ),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok({
+            'success': true,
+            'value': {'id': 1, 'nickName': 'TestNick'},
+          }, statusCode: 200),
         );
 
-        await authApi.updateNickname(
-          nickname: '  TestNick  ',
-        );
+        await authApi.updateNickname(nickname: '  TestNick  ');
 
-        final captured = verify(mockApiClient.putJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-          auth: anyNamed('auth'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.putJson(
+            captureAny,
+            body: captureAnyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['nickname'], equals('TestNick'));
@@ -582,17 +507,17 @@ void main() {
           },
         };
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'UpdatedUser',
-        );
+        final result = await authApi.updateNickname(nickname: 'UpdatedUser');
 
         expect(result.ok, isTrue);
         expect(result.data?.id, equals('123'));
@@ -604,25 +529,21 @@ void main() {
         final responseData = {
           'success': true,
           'value': [
-            {
-              'id': 456,
-              'nickName': 'ListUser',
-              'email': 'list@test.com',
-            }
+            {'id': 456, 'nickName': 'ListUser', 'email': 'list@test.com'},
           ],
         };
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'ListUser',
-        );
+        final result = await authApi.updateNickname(nickname: 'ListUser');
 
         expect(result.ok, isTrue);
         expect(result.data?.id, equals('456'));
@@ -630,20 +551,18 @@ void main() {
       });
 
       test('retourne erreur en cas d\'échec', () async {
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Pseudo déjà utilisé',
-            statusCode: 409,
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
           ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Pseudo déjà utilisé', statusCode: 409),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'existing',
-        );
+        final result = await authApi.updateNickname(nickname: 'existing');
 
         expect(result.ok, isFalse);
         expect(result.message, equals('Pseudo déjà utilisé'));
@@ -656,17 +575,17 @@ void main() {
           'message': 'Échec de la validation',
         };
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'invalid',
-        );
+        final result = await authApi.updateNickname(nickname: 'invalid');
 
         expect(result.ok, isFalse);
         expect(result.message, equals('Échec de la validation'));
@@ -676,42 +595,40 @@ void main() {
         final responseData = {
           'success': false,
           'errors': [
-            {'description': 'Pseudo trop court'}
+            {'description': 'Pseudo trop court'},
           ],
         };
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'ab',
-        );
+        final result = await authApi.updateNickname(nickname: 'ab');
 
         expect(result.ok, isFalse);
         expect(result.message, equals('Pseudo trop court'));
       });
 
       test('utilise message par défaut si extraction échoue', () async {
-        final responseData = {
-          'success': false,
-        };
+        final responseData = {'success': false};
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'test',
-        );
+        final result = await authApi.updateNickname(nickname: 'test');
 
         expect(result.ok, isFalse);
         expect(result.message, equals('Échec de la mise à jour du pseudo.'));
@@ -719,23 +636,20 @@ void main() {
 
       test('utilise success true par défaut si non fourni', () async {
         final responseData = {
-          'value': {
-            'id': 1,
-            'nickName': 'DefaultSuccess',
-          },
+          'value': {'id': 1, 'nickName': 'DefaultSuccess'},
         };
 
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
-        final result = await authApi.updateNickname(
-          nickname: 'DefaultSuccess',
-        );
+        final result = await authApi.updateNickname(nickname: 'DefaultSuccess');
 
         expect(result.ok, isTrue);
         expect(result.data?.nickName, equals('DefaultSuccess'));
@@ -760,10 +674,12 @@ void main() {
           'isGoogleUser': false,
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/auth/refresh',
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(
+          mockApiClient.postJson(
+            '/api/v1/auth/refresh',
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -779,10 +695,12 @@ void main() {
         expect(result.data!.user.nickName, equals('testUser'));
         expect(result.data!.isGoogleUser, isFalse);
 
-        final capturedCall = verify(mockApiClient.postJson(
-          '/api/v1/auth/refresh',
-          body: captureAnyNamed('body'),
-        )).captured;
+        final capturedCall = verify(
+          mockApiClient.postJson(
+            '/api/v1/auth/refresh',
+            body: captureAnyNamed('body'),
+          ),
+        ).captured;
 
         expect(capturedCall.length, equals(1));
         final body = capturedCall[0] as Map<String, dynamic>;
@@ -791,10 +709,12 @@ void main() {
       });
 
       test('retourne erreur si refresh échoue', () async {
-        when(mockApiClient.postJson(
-          '/api/v1/auth/refresh',
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(
+          mockApiClient.postJson(
+            '/api/v1/auth/refresh',
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.err(
             message: 'Refresh token expired',
             statusCode: 401,
@@ -818,10 +738,12 @@ void main() {
           'isGoogleUser': false,
         };
 
-        when(mockApiClient.postJson(
-          '/api/v1/auth/refresh',
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(
+          mockApiClient.postJson(
+            '/api/v1/auth/refresh',
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -838,12 +760,9 @@ void main() {
 
     group('passwordReset', () {
       test('retourne succès pour un reset valide', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await authApi.passwordReset(
           login: 'test@example.com',
@@ -857,12 +776,9 @@ void main() {
       });
 
       test('trim le login et le code', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         await authApi.passwordReset(
           login: '  user@test.com  ',
@@ -870,10 +786,9 @@ void main() {
           password: 'pass',
         );
 
-        final captured = verify(mockApiClient.postJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.postJson(captureAny, body: captureAnyNamed('body')),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['login'], equals('user@test.com'));
@@ -881,10 +796,7 @@ void main() {
       });
 
       test('retourne erreur pour un code invalide', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.err(
             message: 'Code invalide ou expiré',
             statusCode: 400,
@@ -903,12 +815,9 @@ void main() {
       });
 
       test('utilise message par défaut si non fourni', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(statusCode: 500),
-        );
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body')),
+        ).thenAnswer((_) async => ApiResponse.err(statusCode: 500));
 
         final result = await authApi.passwordReset(
           login: 'test@example.com',
@@ -937,10 +846,7 @@ void main() {
           'isGoogleUser': false,
         };
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -957,28 +863,18 @@ void main() {
       });
 
       test('trim le login et le code', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok(
-            {
-              'user': {'id': 1},
-              'token': {'token': 'token'},
-            },
-            statusCode: 200,
-          ),
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
+          (_) async => ApiResponse.ok({
+            'user': {'id': 1},
+            'token': {'token': 'token'},
+          }, statusCode: 200),
         );
 
-        await authApi.verify2fa(
-          login: '  user@test.com  ',
-          code: '  654321  ',
-        );
+        await authApi.verify2fa(login: '  user@test.com  ', code: '  654321  ');
 
-        final captured = verify(mockApiClient.postJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.postJson(captureAny, body: captureAnyNamed('body')),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['login'], equals('user@test.com'));
@@ -986,14 +882,9 @@ void main() {
       });
 
       test('retourne erreur pour un code incorrect', () async {
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Code 2FA invalide',
-            statusCode: 401,
-          ),
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Code 2FA invalide', statusCode: 401),
         );
 
         final result = await authApi.verify2fa(
@@ -1012,10 +903,7 @@ void main() {
           'token': {'token': 'token'},
         };
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -1028,15 +916,9 @@ void main() {
       });
 
       test('gère les données manquantes gracieusement', () async {
-        final responseData = {
-          'user': {},
-          'token': {},
-        };
+        final responseData = {'user': {}, 'token': {}};
 
-        when(mockApiClient.postJson(
-          any,
-          body: anyNamed('body'),
-        )).thenAnswer(
+        when(mockApiClient.postJson(any, body: anyNamed('body'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -1062,10 +944,7 @@ void main() {
           'isNew': false,
         };
 
-        when(mockApiClient.getJson(
-          any,
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(mockApiClient.getJson(any, auth: anyNamed('auth'))).thenAnswer(
           (_) async => ApiResponse.ok(responseData, statusCode: 200),
         );
 
@@ -1081,14 +960,9 @@ void main() {
       });
 
       test('retourne erreur si non authentifié', () async {
-        when(mockApiClient.getJson(
-          any,
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Non authentifié',
-            statusCode: 401,
-          ),
+        when(mockApiClient.getJson(any, auth: anyNamed('auth'))).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Non authentifié', statusCode: 401),
         );
 
         final result = await authApi.me();
@@ -1099,12 +973,9 @@ void main() {
       });
 
       test('gère les réponses vides', () async {
-        when(mockApiClient.getJson(
-          any,
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await authApi.me();
 
@@ -1116,13 +987,13 @@ void main() {
 
     group('changePassword', () {
       test('retourne succès pour un changement valide', () async {
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         final result = await authApi.changePassword(
           currentPassword: 'OldPassword123',
@@ -1133,32 +1004,36 @@ void main() {
         expect(result.data, isTrue);
         expect(result.statusCode, equals(200));
 
-        verify(mockApiClient.putJson(
-          '/api/v1/me/change-password',
-          body: anyNamed('body'),
-          auth: true,
-        )).called(1);
+        verify(
+          mockApiClient.putJson(
+            '/api/v1/me/change-password',
+            body: anyNamed('body'),
+            auth: true,
+          ),
+        ).called(1);
       });
 
       test('envoie currentPassword et oldPassword dans le body', () async {
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.ok({}, statusCode: 200),
-        );
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer((_) async => ApiResponse.ok({}, statusCode: 200));
 
         await authApi.changePassword(
           currentPassword: 'current',
           newPassword: 'new',
         );
 
-        final captured = verify(mockApiClient.putJson(
-          captureAny,
-          body: captureAnyNamed('body'),
-          auth: anyNamed('auth'),
-        )).captured;
+        final captured = verify(
+          mockApiClient.putJson(
+            captureAny,
+            body: captureAnyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).captured;
 
         final body = captured[1] as Map<String, dynamic>;
         expect(body['currentPassword'], equals('current'));
@@ -1167,11 +1042,13 @@ void main() {
       });
 
       test('retourne erreur si le mot de passe actuel est incorrect', () async {
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
+          ),
+        ).thenAnswer(
           (_) async => ApiResponse.err(
             message: 'Mot de passe actuel incorrect',
             statusCode: 400,
@@ -1189,15 +1066,15 @@ void main() {
       });
 
       test('retourne erreur si non authentifié', () async {
-        when(mockApiClient.putJson(
-          any,
-          body: anyNamed('body'),
-          auth: anyNamed('auth'),
-        )).thenAnswer(
-          (_) async => ApiResponse.err(
-            message: 'Non authentifié',
-            statusCode: 401,
+        when(
+          mockApiClient.putJson(
+            any,
+            body: anyNamed('body'),
+            auth: anyNamed('auth'),
           ),
+        ).thenAnswer(
+          (_) async =>
+              ApiResponse.err(message: 'Non authentifié', statusCode: 401),
         );
 
         final result = await authApi.changePassword(
@@ -1248,10 +1125,7 @@ void main() {
     });
 
     test('fromJson gère un token sans refreshToken', () {
-      final json = {
-        'token': 'access_only',
-        'validTo': '2026-01-15T11:00:00Z',
-      };
+      final json = {'token': 'access_only', 'validTo': '2026-01-15T11:00:00Z'};
 
       final token = AuthTokenDto.fromJson(json);
 

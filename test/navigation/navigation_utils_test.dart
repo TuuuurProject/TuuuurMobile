@@ -5,7 +5,9 @@ import 'package:tuuuur_flutter/navigation/navigation_utils.dart';
 
 void main() {
   group('runWithConfirmIfNeeded', () {
-    testWidgets('exécute l\'action directement si confirm est false', (WidgetTester tester) async {
+    testWidgets('exécute l\'action directement si confirm est false', (
+      WidgetTester tester,
+    ) async {
       var actionCalled = false;
 
       await tester.pumpWidget(
@@ -37,7 +39,9 @@ void main() {
       expect(find.text('Confirmation'), findsNothing);
     });
 
-    testWidgets('affiche un dialog de confirmation si confirm est true', (WidgetTester tester) async {
+    testWidgets('affiche un dialog de confirmation si confirm est true', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
@@ -67,7 +71,9 @@ void main() {
       expect(find.text('Oui'), findsOneWidget);
     });
 
-    testWidgets('exécute l\'action si l\'utilisateur confirme', (WidgetTester tester) async {
+    testWidgets('exécute l\'action si l\'utilisateur confirme', (
+      WidgetTester tester,
+    ) async {
       var actionCalled = false;
 
       await tester.pumpWidget(
@@ -101,7 +107,9 @@ void main() {
       expect(actionCalled, isTrue);
     });
 
-    testWidgets('n\'exécute pas l\'action si l\'utilisateur annule', (WidgetTester tester) async {
+    testWidgets('n\'exécute pas l\'action si l\'utilisateur annule', (
+      WidgetTester tester,
+    ) async {
       var actionCalled = false;
 
       await tester.pumpWidget(
@@ -135,37 +143,40 @@ void main() {
       expect(actionCalled, isFalse);
     });
 
-    testWidgets('n\'exécute pas l\'action si le dialog est fermé sans réponse', (WidgetTester tester) async {
-      var actionCalled = false;
+    testWidgets(
+      'n\'exécute pas l\'action si le dialog est fermé sans réponse',
+      (WidgetTester tester) async {
+        var actionCalled = false;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) {
-              return ElevatedButton(
-                onPressed: () {
-                  runWithConfirmIfNeeded(
-                    context,
-                    confirm: true,
-                    message: 'Continuer?',
-                    action: () {
-                      actionCalled = true;
-                    },
-                  );
-                },
-                child: const Text('Test'),
-              );
-            },
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () {
+                    runWithConfirmIfNeeded(
+                      context,
+                      confirm: true,
+                      message: 'Continuer?',
+                      action: () {
+                        actionCalled = true;
+                      },
+                    );
+                  },
+                  child: const Text('Test'),
+                );
+              },
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.tap(find.text('Test'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Test'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Confirmation'), findsOneWidget);
+        expect(find.text('Confirmation'), findsOneWidget);
 
-      expect(actionCalled, isFalse);
-    });
+        expect(actionCalled, isFalse);
+      },
+    );
   });
 }

@@ -15,9 +15,13 @@ import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
+
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
+
 class MockGoogleAccount extends Mock implements GoogleSignInAccount {}
+
 class MockGoogleAuth extends Mock implements GoogleSignInAuthentication {}
+
 class MockAuthStore extends Mock implements AuthStore {}
 
 class _DummyPage extends StatelessWidget {
@@ -56,9 +60,18 @@ GoRouter _createRouter({String initialLocation = '/login'}) {
     routes: [
       GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
       GoRoute(path: '/login', builder: (_, __) => const AuthLoginPage()),
-      GoRoute(path: '/register', builder: (_, __) => const _DummyPage('register')),
-      GoRoute(path: '/forgot-password', builder: (_, __) => const _DummyPage('forgot-password')),
-      GoRoute(path: '/verify', builder: (_, state) => _DummyPage('verify extra=${state.extra}')),
+      GoRoute(
+        path: '/register',
+        builder: (_, __) => const _DummyPage('register'),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const _DummyPage('forgot-password'),
+      ),
+      GoRoute(
+        path: '/verify',
+        builder: (_, state) => _DummyPage('verify extra=${state.extra}'),
+      ),
     ],
   );
 }
@@ -107,7 +120,9 @@ GoRouter _routerForGoogle({
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) => homeHasLoginLink ? const _HomeWithLoginLink() : const _DummyPage('home'),
+        builder: (_, __) => homeHasLoginLink
+            ? const _HomeWithLoginLink()
+            : const _DummyPage('home'),
       ),
       GoRoute(
         path: '/login',
@@ -117,7 +132,10 @@ GoRouter _routerForGoogle({
           returnTo: returnTo,
         ),
       ),
-      GoRoute(path: '/profile', builder: (_, __) => const _DummyPage('profile')),
+      GoRoute(
+        path: '/profile',
+        builder: (_, __) => const _DummyPage('profile'),
+      ),
     ],
   );
 }
@@ -187,7 +205,10 @@ void main() {
       await tester.tap(find.byIcon(Icons.visibility));
       await tester.pumpAndSettle();
 
-      expect(tester.widget<TextField>(passwordFieldFinder).obscureText, isFalse);
+      expect(
+        tester.widget<TextField>(passwordFieldFinder).obscureText,
+        isFalse,
+      );
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
     });
 
@@ -203,7 +224,9 @@ void main() {
       expect(snack.backgroundColor, TuuurTheme.brandOrange);
     });
 
-    testWidgets('validation: mot de passe requis => SnackBar orange', (tester) async {
+    testWidgets('validation: mot de passe requis => SnackBar orange', (
+      tester,
+    ) async {
       await _pumpLogin(tester);
 
       final fields = find.byType(TextField);
@@ -306,7 +329,9 @@ void main() {
   });
 
   group('AuthLoginPage - handleLogin comportement UI', () {
-    testWidgets('handleLogin lance un appel API avec des credentials valides', (tester) async {
+    testWidgets('handleLogin lance un appel API avec des credentials valides', (
+      tester,
+    ) async {
       final router = _createRouter();
       await _pumpLogin(tester, router: router);
 
@@ -325,7 +350,9 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
-    testWidgets('handleLogin avec credentials valides affiche un résultat', (tester) async {
+    testWidgets('handleLogin avec credentials valides affiche un résultat', (
+      tester,
+    ) async {
       final router = _createRouter();
       await _pumpLogin(tester, router: router);
 
@@ -364,10 +391,15 @@ void main() {
 
       expect(find.text('Continuer avec Google'), findsOneWidget);
 
-      expect(find.byWidgetPredicate((widget) =>
-        widget is ElevatedButton &&
-        widget.style?.backgroundColor?.resolve({}) == const Color(0xFF4285F4)
-      ), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is ElevatedButton &&
+              widget.style?.backgroundColor?.resolve({}) ==
+                  const Color(0xFF4285F4),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('handleGoogleLogin est cliquable', (tester) async {
@@ -396,7 +428,10 @@ void main() {
             path: '/login',
             builder: (_, __) => const AuthLoginPage(returnTo: testReturnTo),
           ),
-          GoRoute(path: '/verify', builder: (_, state) => _DummyPage('verify extra=${state.extra}')),
+          GoRoute(
+            path: '/verify',
+            builder: (_, state) => _DummyPage('verify extra=${state.extra}'),
+          ),
         ],
       );
 
@@ -405,7 +440,9 @@ void main() {
 
       expect(find.byType(AuthLoginPage), findsOneWidget);
 
-      final authLoginPage = tester.widget<AuthLoginPage>(find.byType(AuthLoginPage));
+      final authLoginPage = tester.widget<AuthLoginPage>(
+        find.byType(AuthLoginPage),
+      );
       expect(authLoginPage.returnTo, testReturnTo);
     });
 
@@ -413,13 +450,17 @@ void main() {
       final router = _createRouter();
       await _pumpLogin(tester, router: router);
 
-      final authLoginPage = tester.widget<AuthLoginPage>(find.byType(AuthLoginPage));
+      final authLoginPage = tester.widget<AuthLoginPage>(
+        find.byType(AuthLoginPage),
+      );
       expect(authLoginPage.returnTo, isNull);
     });
   });
 
   group('AuthLoginPage - mounted checks', () {
-    testWidgets('dispose n\'échoue pas quand appelé plusieurs fois', (tester) async {
+    testWidgets('dispose n\'échoue pas quand appelé plusieurs fois', (
+      tester,
+    ) async {
       await _pumpLogin(tester);
 
       expect(find.byType(AuthLoginPage), findsOneWidget);
@@ -430,22 +471,25 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('les actions ne causent pas d\'erreur si le widget est disposed', (tester) async {
-      final router = _createRouter();
-      await _pumpLogin(tester, router: router);
+    testWidgets(
+      'les actions ne causent pas d\'erreur si le widget est disposed',
+      (tester) async {
+        final router = _createRouter();
+        await _pumpLogin(tester, router: router);
 
-      final fields = find.byType(TextField);
-      await tester.enterText(fields.first, 'user');
-      await tester.enterText(fields.at(1), 'pass');
+        final fields = find.byType(TextField);
+        await tester.enterText(fields.first, 'user');
+        await tester.enterText(fields.at(1), 'pass');
 
-      await tester.tap(find.text('Se connecter'));
-      await tester.pump();
+        await tester.tap(find.text('Se connecter'));
+        await tester.pump();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 
   group('AuthLoginPage - handleLogin avec mocks', () {
@@ -455,53 +499,76 @@ void main() {
       mockAuthApi = MockAuthApi();
     });
 
-    testWidgets('handleLogin success => toast cyan et navigation vers /verify', (tester) async {
-      when(() => mockAuthApi.login(
+    testWidgets(
+      'handleLogin success => toast cyan et navigation vers /verify',
+      (tester) async {
+        when(
+          () => mockAuthApi.login(
             login: any(named: 'login'),
             password: any(named: 'password'),
-          )).thenAnswer(
-        (_) async => ApiResponse<bool>.ok(true, statusCode: 200),
-      );
+          ),
+        ).thenAnswer((_) async => ApiResponse<bool>.ok(true, statusCode: 200));
 
-      final router = GoRouter(
-        initialLocation: '/login',
-        routes: [
-          GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
-          GoRoute(path: '/verify', builder: (_, state) => _DummyPage('verify extra=${state.extra}')),
-        ],
-      );
+        final router = GoRouter(
+          initialLocation: '/login',
+          routes: [
+            GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
+            GoRoute(
+              path: '/login',
+              builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+            ),
+            GoRoute(
+              path: '/verify',
+              builder: (_, state) => _DummyPage('verify extra=${state.extra}'),
+            ),
+          ],
+        );
 
-      await tester.pumpWidget(_wrapWithApp(router));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrapWithApp(router));
+        await tester.pumpAndSettle();
 
-      final fields = find.byType(TextField);
-      await tester.enterText(fields.first, 'testuser');
-      await tester.enterText(fields.at(1), 'password123');
+        final fields = find.byType(TextField);
+        await tester.enterText(fields.first, 'testuser');
+        await tester.enterText(fields.at(1), 'password123');
 
-      await tester.tap(find.text('Se connecter'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.tap(find.text('Se connecter'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Code envoyé par email. Vérifiez votre boîte 📬'), findsOneWidget);
+        expect(
+          find.text('Code envoyé par email. Vérifiez votre boîte 📬'),
+          findsOneWidget,
+        );
 
-      final snackBars = find.byType(SnackBar);
-      expect(snackBars, findsWidgets);
-      final snackBar = tester.widgetList<SnackBar>(snackBars).last;
-      expect(snackBar.backgroundColor, TuuurTheme.brandCyan);
+        final snackBars = find.byType(SnackBar);
+        expect(snackBars, findsWidgets);
+        final snackBar = tester.widgetList<SnackBar>(snackBars).last;
+        expect(snackBar.backgroundColor, TuuurTheme.brandCyan);
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('page_verify extra={login: testuser, returnTo: null}')), findsOneWidget);
+        expect(
+          find.byKey(
+            const Key('page_verify extra={login: testuser, returnTo: null}'),
+          ),
+          findsOneWidget,
+        );
 
-      verify(() => mockAuthApi.login(login: 'testuser', password: 'password123')).called(1);
-    });
+        verify(
+          () => mockAuthApi.login(login: 'testuser', password: 'password123'),
+        ).called(1);
+      },
+    );
 
-    testWidgets('handleLogin failure => toast orange avec message d\'erreur', (tester) async {
-      when(() => mockAuthApi.login(
-            login: any(named: 'login'),
-            password: any(named: 'password'),
-          )).thenAnswer(
+    testWidgets('handleLogin failure => toast orange avec message d\'erreur', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.login(
+          login: any(named: 'login'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer(
         (_) async => ApiResponse<bool>.err(
           message: 'Identifiants invalides',
           statusCode: 401,
@@ -512,7 +579,10 @@ void main() {
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -538,25 +608,31 @@ void main() {
 
       expect(find.byType(AuthLoginPage), findsOneWidget);
 
-      verify(() => mockAuthApi.login(login: 'wronguser', password: 'wrongpass')).called(1);
+      verify(
+        () => mockAuthApi.login(login: 'wronguser', password: 'wrongpass'),
+      ).called(1);
     });
 
-    testWidgets('handleLogin failure sans message => toast par défaut', (tester) async {
-      when(() => mockAuthApi.login(
-            login: any(named: 'login'),
-            password: any(named: 'password'),
-          )).thenAnswer(
-        (_) async => ApiResponse<bool>.err(
-          message: null,
-          statusCode: 500,
+    testWidgets('handleLogin failure sans message => toast par défaut', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.login(
+          login: any(named: 'login'),
+          password: any(named: 'password'),
         ),
+      ).thenAnswer(
+        (_) async => ApiResponse<bool>.err(message: null, statusCode: 500),
       );
 
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -579,13 +655,15 @@ void main() {
       expect(snackBar.backgroundColor, TuuurTheme.brandOrange);
     });
 
-    testWidgets('handleLogin avec returnTo => passe returnTo à /verify', (tester) async {
-      when(() => mockAuthApi.login(
-            login: any(named: 'login'),
-            password: any(named: 'password'),
-          )).thenAnswer(
-        (_) async => ApiResponse<bool>.ok(true, statusCode: 200),
-      );
+    testWidgets('handleLogin avec returnTo => passe returnTo à /verify', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.login(
+          login: any(named: 'login'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async => ApiResponse<bool>.ok(true, statusCode: 200));
 
       final router = GoRouter(
         initialLocation: '/login-with-return',
@@ -593,7 +671,8 @@ void main() {
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
           GoRoute(
             path: '/login-with-return',
-            builder: (_, __) => AuthLoginPage(returnTo: '/profile', authApi: mockAuthApi),
+            builder: (_, __) =>
+                AuthLoginPage(returnTo: '/profile', authApi: mockAuthApi),
           ),
           GoRoute(
             path: '/verify',
@@ -614,20 +693,32 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('page_verify extra={login: user, returnTo: /profile}')), findsOneWidget);
+      expect(
+        find.byKey(
+          const Key('page_verify extra={login: user, returnTo: /profile}'),
+        ),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('handleLogin exception => toast d\'erreur avec message', (tester) async {
-      when(() => mockAuthApi.login(
-            login: any(named: 'login'),
-            password: any(named: 'password'),
-          )).thenThrow(Exception('Network error'));
+    testWidgets('handleLogin exception => toast d\'erreur avec message', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.login(
+          login: any(named: 'login'),
+          password: any(named: 'password'),
+        ),
+      ).thenThrow(Exception('Network error'));
 
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -646,23 +737,31 @@ void main() {
       expect(find.textContaining('Network error'), findsOneWidget);
     });
 
-    testWidgets('handleLogin vérifie mounted avant setState après succès', (tester) async {
-      when(() => mockAuthApi.login(
-            login: any(named: 'login'),
-            password: any(named: 'password'),
-          )).thenAnswer(
-        (_) async {
-          await Future.delayed(const Duration(milliseconds: 50));
-          return ApiResponse<bool>.ok(true, statusCode: 200);
-        },
-      );
+    testWidgets('handleLogin vérifie mounted avant setState après succès', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.login(
+          login: any(named: 'login'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async {
+        await Future.delayed(const Duration(milliseconds: 50));
+        return ApiResponse<bool>.ok(true, statusCode: 200);
+      });
 
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
-          GoRoute(path: '/verify', builder: (_, state) => _DummyPage('verify extra=${state.extra}')),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
+          GoRoute(
+            path: '/verify',
+            builder: (_, state) => _DummyPage('verify extra=${state.extra}'),
+          ),
         ],
       );
 
@@ -692,7 +791,9 @@ void main() {
       mockAuthApi = MockAuthApi();
     });
 
-    testWidgets('handleGoogleLogin success => toast vert et navigation', (tester) async {
+    testWidgets('handleGoogleLogin success => toast vert et navigation', (
+      tester,
+    ) async {
       final session = AuthSessionDto(
         user: UserDto(
           id: '1',
@@ -710,17 +811,20 @@ void main() {
         raw: const {},
       );
 
-      when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
-          .thenAnswer(
+      when(
+        () => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')),
+      ).thenAnswer(
         (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
-
 
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -730,9 +834,12 @@ void main() {
       expect(find.text('Continuer avec Google'), findsOneWidget);
     });
 
-    testWidgets('handleGoogleLogin failure => toast orange avec message', (tester) async {
-      when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
-          .thenAnswer(
+    testWidgets('handleGoogleLogin failure => toast orange avec message', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')),
+      ).thenAnswer(
         (_) async => ApiResponse<AuthSessionDto>.err(
           message: 'Compte Google non autorisé',
           statusCode: 401,
@@ -743,7 +850,10 @@ void main() {
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -753,9 +863,12 @@ void main() {
       expect(find.text('Continuer avec Google'), findsOneWidget);
     });
 
-    testWidgets('handleGoogleLogin avec res.data null => toast d\'erreur', (tester) async {
-      when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
-          .thenAnswer(
+    testWidgets('handleGoogleLogin avec res.data null => toast d\'erreur', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')),
+      ).thenAnswer(
         (_) async => ApiResponse<AuthSessionDto>.err(
           message: 'Données de session manquantes',
           statusCode: 200,
@@ -766,7 +879,10 @@ void main() {
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -776,7 +892,9 @@ void main() {
       expect(find.text('Continuer avec Google'), findsOneWidget);
     });
 
-    testWidgets('handleGoogleLogin vérifie mounted avant setState', (tester) async {
+    testWidgets('handleGoogleLogin vérifie mounted avant setState', (
+      tester,
+    ) async {
       final session = AuthSessionDto(
         user: UserDto(
           id: '1',
@@ -794,20 +912,21 @@ void main() {
         raw: const {},
       );
 
-      when(() => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')))
-          .thenAnswer(
-        (_) async {
-          await Future.delayed(const Duration(milliseconds: 50));
-          return ApiResponse<AuthSessionDto>.ok(session, statusCode: 200);
-        },
-      );
-
+      when(
+        () => mockAuthApi.loginWithGoogle(idToken: any(named: 'idToken')),
+      ).thenAnswer((_) async {
+        await Future.delayed(const Duration(milliseconds: 50));
+        return ApiResponse<AuthSessionDto>.ok(session, statusCode: 200);
+      });
 
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
           GoRoute(path: '/', builder: (_, __) => const _DummyPage('home')),
-          GoRoute(path: '/login', builder: (_, __) => AuthLoginPage(authApi: mockAuthApi)),
+          GoRoute(
+            path: '/login',
+            builder: (_, __) => AuthLoginPage(authApi: mockAuthApi),
+          ),
         ],
       );
 
@@ -831,11 +950,12 @@ void main() {
       account = MockGoogleAccount();
       googleAuth = MockGoogleAuth();
       mockStore = MockAuthStore();
-      when(() => mockStore.signInWithSession(any()))
-          .thenAnswer((_) async {});
+      when(() => mockStore.signInWithSession(any())).thenAnswer((_) async {});
     });
 
-    testWidgets('signedIn == true => signOut appelé avant signIn', (tester) async {
+    testWidgets('signedIn == true => signOut appelé avant signIn', (
+      tester,
+    ) async {
       final signInCompleter = Completer<GoogleSignInAccount?>();
 
       when(() => google.isSignedIn()).thenAnswer((_) async => true);
@@ -885,7 +1005,9 @@ void main() {
       expect(find.byType(SnackBar), findsNothing);
     });
 
-    testWidgets('idToken null/empty => Exception => toast "Erreur Google"', (tester) async {
+    testWidgets('idToken null/empty => Exception => toast "Erreur Google"', (
+      tester,
+    ) async {
       when(() => google.isSignedIn()).thenAnswer((_) async => false);
       when(() => google.signIn()).thenAnswer((_) async => account);
       when(() => account.authentication).thenAnswer((_) async => googleAuth);
@@ -907,10 +1029,20 @@ void main() {
       expect(find.text('Continuer avec Google'), findsOneWidget);
     });
 
-    testWidgets('API refuse (res.ok == false) => toast orange avec message', (tester) async {
-      _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
+    testWidgets('API refuse (res.ok == false) => toast orange avec message', (
+      tester,
+    ) async {
+      _stubHappyPathGoogle(
+        google: google,
+        account: account,
+        auth: googleAuth,
+        idToken: 'tok',
+      );
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
-        (_) async => ApiResponse<AuthSessionDto>.err(message: 'Compte Google non autorisé', statusCode: 401),
+        (_) async => ApiResponse<AuthSessionDto>.err(
+          message: 'Compte Google non autorisé',
+          statusCode: 401,
+        ),
       );
 
       final router = _routerForGoogle(authApi: authApi, google: google);
@@ -930,7 +1062,12 @@ void main() {
 
     testWidgets('succès + returnTo => context.go(returnTo)', (tester) async {
       final session = _makeSession();
-      _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
+      _stubHappyPathGoogle(
+        google: google,
+        account: account,
+        auth: googleAuth,
+        idToken: 'tok',
+      );
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
         (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
@@ -953,7 +1090,12 @@ void main() {
 
     testWidgets('succès + canPop => goBack', (tester) async {
       final session = _makeSession();
-      _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
+      _stubHappyPathGoogle(
+        google: google,
+        account: account,
+        auth: googleAuth,
+        idToken: 'tok',
+      );
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
         (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
@@ -979,12 +1121,21 @@ void main() {
 
     testWidgets('succès + !canPop => go("/")', (tester) async {
       final session = _makeSession();
-      _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
+      _stubHappyPathGoogle(
+        google: google,
+        account: account,
+        auth: googleAuth,
+        idToken: 'tok',
+      );
       when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer(
         (_) async => ApiResponse<AuthSessionDto>.ok(session, statusCode: 200),
       );
 
-      final router = _routerForGoogle(authApi: authApi, google: google, initialLocation: '/login');
+      final router = _routerForGoogle(
+        authApi: authApi,
+        google: google,
+        initialLocation: '/login',
+      );
 
       await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
       await tester.pumpAndSettle();
@@ -995,66 +1146,85 @@ void main() {
       expect(find.byKey(const Key('page_home')), findsOneWidget);
     });
 
-    testWidgets('catch: google.signIn throw => toast "Erreur Google" + loading false', (tester) async {
-      when(() => google.isSignedIn()).thenAnswer((_) async => false);
-      when(() => google.signIn()).thenThrow(Exception('boom'));
+    testWidgets(
+      'catch: google.signIn throw => toast "Erreur Google" + loading false',
+      (tester) async {
+        when(() => google.isSignedIn()).thenAnswer((_) async => false);
+        when(() => google.signIn()).thenThrow(Exception('boom'));
 
-      final router = _routerForGoogle(authApi: authApi, google: google);
-      await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
-      await tester.pumpAndSettle();
+        final router = _routerForGoogle(authApi: authApi, google: google);
+        await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Continuer avec Google'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Continuer avec Google'));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Erreur Google:'), findsOneWidget);
-      expect(find.textContaining('boom'), findsOneWidget);
+        expect(find.textContaining('Erreur Google:'), findsOneWidget);
+        expect(find.textContaining('boom'), findsOneWidget);
 
-      expect(find.text('Continuer avec Google'), findsOneWidget);
-    });
+        expect(find.text('Continuer avec Google'), findsOneWidget);
+      },
+    );
 
-    testWidgets('mounted check après signIn: dispose avant retour => pas d\'exception', (tester) async {
-      when(() => google.isSignedIn()).thenAnswer((_) async => false);
-      when(() => google.signIn()).thenAnswer((_) async {
-        await Future.delayed(const Duration(milliseconds: 80));
-        return account;
-      });
+    testWidgets(
+      'mounted check après signIn: dispose avant retour => pas d\'exception',
+      (tester) async {
+        when(() => google.isSignedIn()).thenAnswer((_) async => false);
+        when(() => google.signIn()).thenAnswer((_) async {
+          await Future.delayed(const Duration(milliseconds: 80));
+          return account;
+        });
 
-      final router = _routerForGoogle(authApi: authApi, google: google);
-      await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
-      await tester.pumpAndSettle();
+        final router = _routerForGoogle(authApi: authApi, google: google);
+        await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Continuer avec Google'));
-      await tester.pump();
+        await tester.tap(find.text('Continuer avec Google'));
+        await tester.pump();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
 
-      await tester.pump(const Duration(milliseconds: 120));
+        await tester.pump(const Duration(milliseconds: 120));
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('mounted check après API: dispose avant réponse => pas d\'exception', (tester) async {
-      _stubHappyPathGoogle(google: google, account: account, auth: googleAuth, idToken: 'tok');
+    testWidgets(
+      'mounted check après API: dispose avant réponse => pas d\'exception',
+      (tester) async {
+        _stubHappyPathGoogle(
+          google: google,
+          account: account,
+          auth: googleAuth,
+          idToken: 'tok',
+        );
 
-      when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer((_) async {
-        await Future.delayed(const Duration(milliseconds: 80));
-        return ApiResponse<AuthSessionDto>.ok(_makeSession(), statusCode: 200);
-      });
+        when(() => authApi.loginWithGoogle(idToken: 'tok')).thenAnswer((
+          _,
+        ) async {
+          await Future.delayed(const Duration(milliseconds: 80));
+          return ApiResponse<AuthSessionDto>.ok(
+            _makeSession(),
+            statusCode: 200,
+          );
+        });
 
-      final router = _routerForGoogle(authApi: authApi, google: google);
-      await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
-      await tester.pumpAndSettle();
+        final router = _routerForGoogle(authApi: authApi, google: google);
+        await tester.pumpWidget(_wrapWithApp(router, store: mockStore));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Continuer avec Google'));
-      await tester.pump();
+        await tester.tap(find.text('Continuer avec Google'));
+        await tester.pump();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
 
-      await tester.pump(const Duration(milliseconds: 120));
+        await tester.pump(const Duration(milliseconds: 120));
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

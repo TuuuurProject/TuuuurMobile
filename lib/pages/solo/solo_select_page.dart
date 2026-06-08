@@ -149,7 +149,9 @@ class _SoloSelectPageState extends State<SoloSelectPage> {
         );
       }).toList();
 
-      mapped.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      mapped.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
 
       setState(() {
         _categories = mapped;

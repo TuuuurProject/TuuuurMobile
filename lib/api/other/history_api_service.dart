@@ -1,3 +1,8 @@
+import 'dart:io';
+import 'dart:developer' as dev;
+
+import 'package:path_provider/path_provider.dart';
+
 import '../api_client.dart';
 import 'history_models.dart';
 
@@ -31,9 +36,9 @@ class HistoryApi {
   }
 
   /// Fetches party detail by ID
-  /// GET /api/v1/history/{partyId}
+  /// GET /api/v1/group/{partyId}
   Future<ApiResponse<PartyDetailDto>> getPartyDetail(String partyId) async {
-    final path = '/api/v1/history/$partyId';
+    final path = '/api/v1/group/$partyId';
 
     final res = await _api.getJson(path, auth: true);
 

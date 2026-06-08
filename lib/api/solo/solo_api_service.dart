@@ -51,13 +51,8 @@ class SoloApi {
   }
 
   /// GET /api/v1/solo/{partyId} - Fetches solo party state. Requires authentication.
-  Future<ApiResponse<SoloPartyDto>> getSolo({
-    required String partyId,
-  }) async {
-    final res = await _api.getJson(
-      '/api/v1/solo/$partyId',
-      auth: true,
-    );
+  Future<ApiResponse<SoloPartyDto>> getSolo({required String partyId}) async {
+    final res = await _api.getJson('/api/v1/solo/$partyId', auth: true);
 
     if (!res.ok) {
       return ApiResponse.err(
@@ -82,9 +77,7 @@ class SoloApi {
     final res = await _api.postJson(
       '/api/v1/solo/$partyId',
       auth: true,
-      body: {
-        'answerId': answerId,
-      },
+      body: {'answerId': answerId},
     );
 
     if (!res.ok) {
@@ -104,10 +97,7 @@ class SoloApi {
 
   /// GET /api/v1/solo/history - Fetches solo party history. Requires authentication.
   Future<ApiResponse<List<SoloPartyDto>>> getHistory() async {
-    final res = await _api.getJson(
-      '/api/v1/solo/history',
-      auth: true,
-    );
+    final res = await _api.getJson('/api/v1/solo/history', auth: true);
 
     if (!res.ok) {
       return ApiResponse.err(
@@ -131,9 +121,6 @@ class SoloApi {
       }
     }
 
-    return ApiResponse.ok(
-      items,
-      statusCode: res.statusCode,
-    );
+    return ApiResponse.ok(items, statusCode: res.statusCode);
   }
 }

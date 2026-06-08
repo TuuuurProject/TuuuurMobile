@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -11,11 +10,7 @@ Future<void> _pumpInApp(WidgetTester tester, Widget child) async {
     MaterialApp(
       home: Scaffold(
         body: Center(
-
-          child: Material(
-            color: Colors.transparent,
-            child: child,
-          ),
+          child: Material(color: Colors.transparent, child: child),
         ),
       ),
     ),
@@ -50,8 +45,9 @@ void main() {
       expect(calls, 1);
     });
 
-    testWidgets('loading: affiche le loader et ne déclenche pas onPressed',
-        (tester) async {
+    testWidgets('loading: affiche le loader et ne déclenche pas onPressed', (
+      tester,
+    ) async {
       var calls = 0;
 
       await _pumpInApp(
@@ -67,7 +63,6 @@ void main() {
       expect(find.text('Jouer'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-
       expect(
         find.byWidgetPredicate(
           (w) => w is FaIcon && w.icon == FontAwesomeIcons.play,
@@ -81,17 +76,13 @@ void main() {
       expect(calls, 0);
     });
 
-    testWidgets('width: rend une largeur fixe quand width est fourni',
-        (tester) async {
+    testWidgets('width: rend une largeur fixe quand width est fourni', (
+      tester,
+    ) async {
       await _pumpInApp(
         tester,
-        GamingButtonPrimary(
-          text: 'Largeur',
-          width: 240,
-          onPressed: () {},
-        ),
+        GamingButtonPrimary(text: 'Largeur', width: 240, onPressed: () {}),
       );
-
 
       final btnFinder = find.byType(GamingButtonPrimary);
       expect(btnFinder, findsOneWidget);
@@ -107,10 +98,7 @@ void main() {
 
       await _pumpInApp(
         tester,
-        GamingButtonSecondary(
-          text: 'Rechercher',
-          onPressed: () => calls++,
-        ),
+        GamingButtonSecondary(text: 'Rechercher', onPressed: () => calls++),
       );
 
       expect(find.text('Rechercher'), findsOneWidget);
@@ -121,8 +109,9 @@ void main() {
       expect(calls, 1);
     });
 
-    testWidgets('loading: affiche le loader et ne déclenche pas onPressed',
-        (tester) async {
+    testWidgets('loading: affiche le loader et ne déclenche pas onPressed', (
+      tester,
+    ) async {
       var calls = 0;
 
       await _pumpInApp(
@@ -149,10 +138,7 @@ void main() {
 
       await _pumpInApp(
         tester,
-        GamingButtonGhost(
-          text: 'Retour',
-          onPressed: () => calls++,
-        ),
+        GamingButtonGhost(text: 'Retour', onPressed: () => calls++),
       );
 
       expect(find.text('Retour'), findsOneWidget);
@@ -163,8 +149,9 @@ void main() {
       expect(calls, 1);
     });
 
-    testWidgets('loading: affiche le loader et ne déclenche pas onPressed',
-        (tester) async {
+    testWidgets('loading: affiche le loader et ne déclenche pas onPressed', (
+      tester,
+    ) async {
       var calls = 0;
 
       await _pumpInApp(
@@ -191,10 +178,7 @@ void main() {
 
       await _pumpInApp(
         tester,
-        GamingCard(
-          onTap: () => calls++,
-          child: const Text('Contenu'),
-        ),
+        GamingCard(onTap: () => calls++, child: const Text('Contenu')),
       );
 
       expect(find.text('Contenu'), findsOneWidget);
@@ -210,13 +194,7 @@ void main() {
     testWidgets('affiche texte et déclenche onTap', (tester) async {
       var calls = 0;
 
-      await _pumpInApp(
-        tester,
-        PillBadge(
-          text: 'Badge',
-          onTap: () => calls++,
-        ),
-      );
+      await _pumpInApp(tester, PillBadge(text: 'Badge', onTap: () => calls++));
 
       expect(find.text('Badge'), findsOneWidget);
 
@@ -228,13 +206,12 @@ void main() {
   });
 
   group('Badges', () {
-    testWidgets('BadgeSuccess affiche texte + icône si fournie', (tester) async {
+    testWidgets('BadgeSuccess affiche texte + icône si fournie', (
+      tester,
+    ) async {
       await _pumpInApp(
         tester,
-        const BadgeSuccess(
-          text: 'OK',
-          icon: FontAwesomeIcons.check,
-        ),
+        const BadgeSuccess(text: 'OK', icon: FontAwesomeIcons.check),
       );
 
       expect(find.text('OK'), findsOneWidget);
@@ -249,10 +226,7 @@ void main() {
     });
 
     testWidgets('BadgeWarning affiche texte', (tester) async {
-      await _pumpInApp(
-        tester,
-        const BadgeWarning(text: 'Attention'),
-      );
+      await _pumpInApp(tester, const BadgeWarning(text: 'Attention'));
 
       expect(find.text('Attention'), findsOneWidget);
     });
@@ -260,10 +234,7 @@ void main() {
     testWidgets('BadgeInfo affiche texte + icône si fournie', (tester) async {
       await _pumpInApp(
         tester,
-        const BadgeInfo(
-          text: 'Info',
-          icon: FontAwesomeIcons.circleInfo,
-        ),
+        const BadgeInfo(text: 'Info', icon: FontAwesomeIcons.circleInfo),
       );
 
       expect(find.text('Info'), findsOneWidget);
@@ -279,8 +250,9 @@ void main() {
   });
 
   group('CategoryButton', () {
-    testWidgets('selected=true => texte blanc, icône blanche, onTap appelé',
-        (tester) async {
+    testWidgets('selected=true => texte blanc, icône blanche, onTap appelé', (
+      tester,
+    ) async {
       var calls = 0;
 
       await _pumpInApp(
@@ -313,37 +285,38 @@ void main() {
     });
 
     testWidgets(
-        'selected=false => texte brandLightGray, icône brandLightGray, onTap appelé',
-        (tester) async {
-      var calls = 0;
+      'selected=false => texte brandLightGray, icône brandLightGray, onTap appelé',
+      (tester) async {
+        var calls = 0;
 
-      await _pumpInApp(
-        tester,
-        CategoryButton(
-          text: 'Histoire',
-          icon: FontAwesomeIcons.book,
-          selected: false,
-          onTap: () => calls++,
-        ),
-      );
+        await _pumpInApp(
+          tester,
+          CategoryButton(
+            text: 'Histoire',
+            icon: FontAwesomeIcons.book,
+            selected: false,
+            onTap: () => calls++,
+          ),
+        );
 
-      expect(find.text('Histoire'), findsOneWidget);
+        expect(find.text('Histoire'), findsOneWidget);
 
-      final textW = tester.widget<Text>(find.text('Histoire'));
-      expect(textW.style?.color, TuuurTheme.brandLightGray);
+        final textW = tester.widget<Text>(find.text('Histoire'));
+        expect(textW.style?.color, TuuurTheme.brandLightGray);
 
-      final iconFinder = find.byWidgetPredicate(
-        (w) => w is FaIcon && w.icon == FontAwesomeIcons.book,
-      );
-      expect(iconFinder, findsOneWidget);
+        final iconFinder = find.byWidgetPredicate(
+          (w) => w is FaIcon && w.icon == FontAwesomeIcons.book,
+        );
+        expect(iconFinder, findsOneWidget);
 
-      final fa = tester.widget<FaIcon>(iconFinder);
-      expect(fa.color, TuuurTheme.brandLightGray);
+        final fa = tester.widget<FaIcon>(iconFinder);
+        expect(fa.color, TuuurTheme.brandLightGray);
 
-      await tester.tap(find.text('Histoire'));
-      await tester.pump();
+        await tester.tap(find.text('Histoire'));
+        await tester.pump();
 
-      expect(calls, 1);
-    });
+        expect(calls, 1);
+      },
+    );
   });
 }

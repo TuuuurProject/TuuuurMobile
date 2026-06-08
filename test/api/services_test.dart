@@ -14,10 +14,7 @@ import 'services_test.mocks.dart';
 void main() {
   group('DifficultyDto', () {
     test('fromJson crée une instance valide', () {
-      final json = {
-        'id': 1,
-        'label': 'Facile',
-      };
+      final json = {'id': 1, 'label': 'Facile'};
 
       final dto = DifficultyDto.fromJson(json);
 
@@ -26,10 +23,7 @@ void main() {
     });
 
     test('fromJson gère plusieurs formats de clés', () {
-      final json = {
-        'difficultyId': 2,
-        'name': 'Moyen',
-      };
+      final json = {'difficultyId': 2, 'name': 'Moyen'};
 
       final dto = DifficultyDto.fromJson(json);
 
@@ -46,10 +40,7 @@ void main() {
     });
 
     test('fromJson parse les id en string', () {
-      final json = {
-        'id': '5',
-        'label': 'Difficile',
-      };
+      final json = {'id': '5', 'label': 'Difficile'};
 
       final dto = DifficultyDto.fromJson(json);
 
@@ -75,12 +66,9 @@ void main() {
         ],
       };
 
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok(responseData, statusCode: 200),
-      );
+      when(
+        mockApiClient.getJson(any, auth: anyNamed('auth')),
+      ).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
 
       final result = await difficultyApi.getDifficulties();
 
@@ -98,12 +86,9 @@ void main() {
         ],
       };
 
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok(responseData, statusCode: 200),
-      );
+      when(
+        mockApiClient.getJson(any, auth: anyNamed('auth')),
+      ).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
 
       final result = await difficultyApi.getDifficulties();
 
@@ -114,12 +99,9 @@ void main() {
     test('getDifficulties retourne une liste vide si pas de tableau', () async {
       final responseData = {'message': 'no data'};
 
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok(responseData, statusCode: 200),
-      );
+      when(
+        mockApiClient.getJson(any, auth: anyNamed('auth')),
+      ).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
 
       final result = await difficultyApi.getDifficulties();
 
@@ -128,14 +110,8 @@ void main() {
     });
 
     test('getDifficulties propage les erreurs', () async {
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.err(
-          message: 'Server error',
-          statusCode: 500,
-        ),
+      when(mockApiClient.getJson(any, auth: anyNamed('auth'))).thenAnswer(
+        (_) async => ApiResponse.err(message: 'Server error', statusCode: 500),
       );
 
       final result = await difficultyApi.getDifficulties();
@@ -148,11 +124,7 @@ void main() {
 
   group('ThemeItemDto', () {
     test('fromJson crée une instance valide', () {
-      final json = {
-        'id': 1,
-        'icon': 'gamepad',
-        'label': 'Général',
-      };
+      final json = {'id': 1, 'icon': 'gamepad', 'label': 'Général'};
 
       final dto = ThemeItemDto.fromJson(json);
 
@@ -162,11 +134,7 @@ void main() {
     });
 
     test('fromJson parse id depuis string', () {
-      final json = {
-        'id': '42',
-        'icon': 'music',
-        'label': 'Musique',
-      };
+      final json = {'id': '42', 'icon': 'music', 'label': 'Musique'};
 
       final dto = ThemeItemDto.fromJson(json);
 
@@ -204,11 +172,7 @@ void main() {
     });
 
     test('fromJson gère plusieurs clés alternatives', () {
-      final json = {
-        'themeId': 2,
-        'slug': 'science',
-        'title': 'Sciences',
-      };
+      final json = {'themeId': 2, 'slug': 'science', 'title': 'Sciences'};
 
       final dto = ThemeDto.fromJson(json);
 
@@ -218,10 +182,7 @@ void main() {
     });
 
     test('fromJson utilise l\'id comme key par défaut', () {
-      final json = {
-        'id': 5,
-        'label': 'Sport',
-      };
+      final json = {'id': 5, 'label': 'Sport'};
 
       final dto = ThemeDto.fromJson(json);
 
@@ -250,25 +211,14 @@ void main() {
     test('getThemes retourne une liste de thèmes', () async {
       final responseData = {
         'data': [
-          {
-            'id': 1,
-            'code': 'general',
-            'name': 'Général',
-          },
-          {
-            'id': 2,
-            'code': 'sport',
-            'name': 'Sport',
-          },
+          {'id': 1, 'code': 'general', 'name': 'Général'},
+          {'id': 2, 'code': 'sport', 'name': 'Sport'},
         ],
       };
 
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok(responseData, statusCode: 200),
-      );
+      when(
+        mockApiClient.getJson(any, auth: anyNamed('auth')),
+      ).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
 
       final result = await themeApi.getThemes();
 
@@ -285,12 +235,9 @@ void main() {
         ],
       };
 
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok(responseData, statusCode: 200),
-      );
+      when(
+        mockApiClient.getJson(any, auth: anyNamed('auth')),
+      ).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
 
       final result = await themeApi.getThemes();
 
@@ -301,12 +248,9 @@ void main() {
     test('getThemes retourne liste vide si pas de tableau', () async {
       final responseData = {'status': 'ok'};
 
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.ok(responseData, statusCode: 200),
-      );
+      when(
+        mockApiClient.getJson(any, auth: anyNamed('auth')),
+      ).thenAnswer((_) async => ApiResponse.ok(responseData, statusCode: 200));
 
       final result = await themeApi.getThemes();
 
@@ -315,14 +259,8 @@ void main() {
     });
 
     test('getThemes propage les erreurs', () async {
-      when(mockApiClient.getJson(
-        any,
-        auth: anyNamed('auth'),
-      )).thenAnswer(
-        (_) async => ApiResponse.err(
-          message: 'Not found',
-          statusCode: 404,
-        ),
+      when(mockApiClient.getJson(any, auth: anyNamed('auth'))).thenAnswer(
+        (_) async => ApiResponse.err(message: 'Not found', statusCode: 404),
       );
 
       final result = await themeApi.getThemes();
@@ -330,7 +268,5 @@ void main() {
       expect(result.ok, isFalse);
       expect(result.message, equals('Not found'));
     });
-
-
   });
 }

@@ -12,13 +12,10 @@ void main() {
   });
 
   group('AuthRegisterPage', () {
-    testWidgets('affiche tous les éléments de la page de register',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AuthRegisterPage(),
-        ),
-      );
+    testWidgets('affiche tous les éléments de la page de register', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: AuthRegisterPage()));
 
       await tester.pump();
 
@@ -37,13 +34,10 @@ void main() {
       expect(find.text('Se connecter'), findsOneWidget);
     });
 
-    testWidgets('peut basculer la visibilité des mots de passe',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AuthRegisterPage(),
-        ),
-      );
+    testWidgets('peut basculer la visibilité des mots de passe', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: AuthRegisterPage()));
       await tester.pump();
 
       final visibilityIcons = find.byIcon(Icons.visibility);
@@ -59,11 +53,7 @@ void main() {
     });
 
     testWidgets('affiche les boutons d’action', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AuthRegisterPage(),
-        ),
-      );
+      await tester.pumpWidget(const MaterialApp(home: AuthRegisterPage()));
       await tester.pump();
 
       expect(find.text('Annuler'), findsOneWidget);
@@ -73,13 +63,10 @@ void main() {
       expect(find.byType(InkWell), findsWidgets);
     });
 
-    testWidgets('les TextFields acceptent les entrées',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AuthRegisterPage(),
-        ),
-      );
+    testWidgets('les TextFields acceptent les entrées', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: AuthRegisterPage()));
       await tester.pump();
 
       final fields = find.byType(TextField);
@@ -114,13 +101,10 @@ void main() {
       );
     });
 
-    testWidgets('dispose correctement les controllers',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AuthRegisterPage(),
-        ),
-      );
+    testWidgets('dispose correctement les controllers', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: AuthRegisterPage()));
       await tester.pump();
 
       expect(find.byType(AuthRegisterPage), findsOneWidget);

@@ -10,8 +10,8 @@ import 'package:tuuuur_flutter/api/auth/auth_api_service.dart';
 import 'package:tuuuur_flutter/pages/auth/forgot_password_page.dart';
 import 'package:tuuuur_flutter/stores/auth_store.dart';
 import 'package:tuuuur_flutter/theme/tuuuur_theme.dart';
-import 'package:tuuuur_flutter/navigation/app_messengers.dart' show rootScaffoldMessengerKey;
-
+import 'package:tuuuur_flutter/navigation/app_messengers.dart'
+    show rootScaffoldMessengerKey;
 
 class _DummyPage extends StatelessWidget {
   final String label;
@@ -59,7 +59,10 @@ class _FakeAuthApi extends AuthApi {
   }
 }
 
-GoRouter _createRouter({String initialLocation = '/forgot-password', AuthApi? authApi}) {
+GoRouter _createRouter({
+  String initialLocation = '/forgot-password',
+  AuthApi? authApi,
+}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [
@@ -89,7 +92,11 @@ Widget _wrapWithApp(GoRouter router) {
   );
 }
 
-Future<void> _pumpForgot(WidgetTester tester, {GoRouter? router, AuthApi? authApi}) async {
+Future<void> _pumpForgot(
+  WidgetTester tester, {
+  GoRouter? router,
+  AuthApi? authApi,
+}) async {
   final r = router ?? _createRouter(authApi: authApi);
   await tester.pumpWidget(_wrapWithApp(r));
   await tester.pumpAndSettle();
@@ -144,7 +151,9 @@ void main() {
       expect(fake.callCount, 0);
     });
 
-    testWidgets('soumission clavier (done) déclenche l’envoi si login rempli', (tester) async {
+    testWidgets('soumission clavier (done) déclenche l’envoi si login rempli', (
+      tester,
+    ) async {
       await _pumpForgot(tester, authApi: fake);
 
       await tester.enterText(find.byType(TextField), 'testuser');
@@ -157,25 +166,30 @@ void main() {
       expect(fake.lastLogin, 'testuser');
     });
 
-    testWidgets('état loading: le bouton affiche "Envoi..." tant que la requête est en cours', (tester) async {
-      await _pumpForgot(tester, authApi: fake);
+    testWidgets(
+      'état loading: le bouton affiche "Envoi..." tant que la requête est en cours',
+      (tester) async {
+        await _pumpForgot(tester, authApi: fake);
 
-      fake.makePending();
+        fake.makePending();
 
-      await tester.enterText(find.byType(TextField), 'testuser');
-      await tester.tap(find.text('Envoyer le code'));
+        await tester.enterText(find.byType(TextField), 'testuser');
+        await tester.tap(find.text('Envoyer le code'));
 
-      await tester.pump();
+        await tester.pump();
 
-      expect(find.text('Envoi...'), findsOneWidget);
+        expect(find.text('Envoi...'), findsOneWidget);
 
-      fake.completePending(ApiResponse.ok(true, statusCode: 200));
-      await tester.pumpAndSettle();
+        fake.completePending(ApiResponse.ok(true, statusCode: 200));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Envoi...'), findsNothing);
-    });
+        expect(find.text('Envoi...'), findsNothing);
+      },
+    );
 
-    testWidgets('erreur API => affiche le message et reste sur la page', (tester) async {
+    testWidgets('erreur API => affiche le message et reste sur la page', (
+      tester,
+    ) async {
       await _pumpForgot(tester, authApi: fake);
 
       fake.immediateResponse = ApiResponse.err(
@@ -194,29 +208,34 @@ void main() {
       expect(find.byType(ForgotPasswordPage), findsOneWidget);
     });
 
-    testWidgets('succès API => SnackBar vert + navigation vers /reset-password avec extra', (tester) async {
-      await _pumpForgot(tester, authApi: fake);
+    testWidgets(
+      'succès API => SnackBar vert + navigation vers /reset-password avec extra',
+      (tester) async {
+        await _pumpForgot(tester, authApi: fake);
 
-      fake.immediateResponse = ApiResponse.ok(true, statusCode: 200);
+        fake.immediateResponse = ApiResponse.ok(true, statusCode: 200);
 
-      await tester.enterText(find.byType(TextField), 'testuser');
-      await tester.tap(find.text('Envoyer le code'));
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'testuser');
+        await tester.tap(find.text('Envoyer le code'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsOneWidget);
-      expect(
-        find.text('Code envoyé par email. Consultez votre boîte 📬'),
-        findsOneWidget,
-      );
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(
+          find.text('Code envoyé par email. Consultez votre boîte 📬'),
+          findsOneWidget,
+        );
 
-      final snack = tester.widget<SnackBar>(find.byType(SnackBar));
-      expect(snack.backgroundColor, TuuurTheme.brandGreen);
+        final snack = tester.widget<SnackBar>(find.byType(SnackBar));
+        expect(snack.backgroundColor, TuuurTheme.brandGreen);
 
-      expect(find.byKey(const Key('page_reset-password')), findsOneWidget);
+        expect(find.byKey(const Key('page_reset-password')), findsOneWidget);
 
-      final resetText = tester.widget<Text>(find.byKey(const Key('page_reset-password')));
-      expect(resetText.data, contains('login: testuser'));
-    });
+        final resetText = tester.widget<Text>(
+          find.byKey(const Key('page_reset-password')),
+        );
+        expect(resetText.data, contains('login: testuser'));
+      },
+    );
   });
 
   group('ForgotPasswordPage - navigation (GoRouter)', () {
@@ -250,4 +269,3 @@ void main() {
     });
   });
 }
-

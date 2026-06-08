@@ -7,7 +7,7 @@ import 'group_store.dart';
 
 /// Coordonnateur pour le système de groupe
 /// Gère l'intégration entre l'API REST, le WebSocket et le Store
-/// 
+///
 /// Ce service simplifie l'utilisation du système de groupe en:
 /// - Coordonnant les appels API REST et WebSocket
 /// - Gérant la connexion/déconnexion automatique du WebSocket
@@ -22,9 +22,9 @@ class GroupCoordinator {
     required GroupRestApiService restApi,
     required GroupWebSocketService webSocketService,
     required GroupStore store,
-  })  : _restApi = restApi,
-        _webSocketService = webSocketService,
-        _store = store;
+  }) : _restApi = restApi,
+       _webSocketService = webSocketService,
+       _store = store;
 
   /// Factory pour créer un GroupCoordinator complet
   factory GroupCoordinator.create({
@@ -55,21 +55,26 @@ class GroupCoordinator {
   // ==================== Flux complet de création de partie ====================
 
   /// Crée une nouvelle partie et se connecte au WebSocket
-  /// 
+  ///
   /// 1. Appelle l'API REST pour créer la partie
   /// 2. Initialise le store avec la partie créée
   /// 3. Connecte au WebSocket
-  /// 
+  ///
   /// Retourne le code de la partie en cas de succès
   Future<String?> createAndJoinParty({String? currentUserId}) async {
-    try{
+    try {
       dev.log('Création de la partie...', name: 'GroupCoordinator');
 
       // 1. Créer la partie via l'API REST
       final response = await _restApi.createGroup();
       if (!response.ok || response.data == null) {
-        dev.log('Erreur création: ${response.message}', name: 'GroupCoordinator');
-        _store.onError(response.message ?? 'Erreur lors de la création de la partie');
+        dev.log(
+          'Erreur création: ${response.message}',
+          name: 'GroupCoordinator',
+        );
+        _store.onError(
+          response.message ?? 'Erreur lors de la création de la partie',
+        );
         return null;
       }
 
@@ -91,11 +96,11 @@ class GroupCoordinator {
   }
 
   /// Rejoint une partie existante avec un code et se connecte au WebSocket
-  /// 
+  ///
   /// 1. Appelle l'API REST pour rejoindre la partie
   /// 2. Initialise le store avec la partie rejointe
   /// 3. Connecte au WebSocket
-  /// 
+  ///
   /// Retourne true en cas de succès
   Future<bool> joinParty(String code, {String? currentUserId}) async {
     try {
@@ -130,7 +135,10 @@ class GroupCoordinator {
   Future<void> leaveParty() async {
     // Éviter les appels multiples
     if (_isLeaving) {
-      dev.log('leaveParty() déjà en cours, appel ignoré', name: 'GroupCoordinator');
+      dev.log(
+        'leaveParty() déjà en cours, appel ignoré',
+        name: 'GroupCoordinator',
+      );
       return;
     }
 
@@ -142,7 +150,10 @@ class GroupCoordinator {
       try {
         await _webSocketService.disconnect();
       } catch (e) {
-        dev.log('Erreur déconnexion WebSocket (ignorée): $e', name: 'GroupCoordinator');
+        dev.log(
+          'Erreur déconnexion WebSocket (ignorée): $e',
+          name: 'GroupCoordinator',
+        );
       }
 
       // 2. Quitter via l'API REST
@@ -178,7 +189,10 @@ class GroupCoordinator {
       );
 
       if (!response.ok) {
-        dev.log('Erreur updateSettings: ${response.message}', name: 'GroupCoordinator');
+        dev.log(
+          'Erreur updateSettings: ${response.message}',
+          name: 'GroupCoordinator',
+        );
         _store.onError(response.message ?? 'Erreur lors de la mise à jour');
         return false;
       }

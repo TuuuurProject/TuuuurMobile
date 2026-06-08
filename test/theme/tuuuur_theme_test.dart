@@ -34,12 +34,18 @@ void main() {
 
     test('purpleGradient a les bonnes couleurs', () {
       expect(TuuurTheme.purpleGradient.colors.length, equals(2));
-      expect(TuuurTheme.purpleGradient.colors[0], equals(TuuurTheme.brandPurple));
+      expect(
+        TuuurTheme.purpleGradient.colors[0],
+        equals(TuuurTheme.brandPurple),
+      );
     });
 
     test('orangeGradient a les bonnes couleurs', () {
       expect(TuuurTheme.orangeGradient.colors.length, equals(2));
-      expect(TuuurTheme.orangeGradient.colors[0], equals(TuuurTheme.brandOrange));
+      expect(
+        TuuurTheme.orangeGradient.colors[0],
+        equals(TuuurTheme.brandOrange),
+      );
     });
   });
 
