@@ -91,5 +91,39 @@ void main() {
       service.removeEventHandler(handler);
       // Mostly ensuring no crashes.
     });
+
+    test('connect and disconnect updates internal state correctly', () async {
+      // Because we don't have a real SignalR server running locally, we expect 
+      // service.connect() to eventually time out or fail. But we can test 
+      // the immediate state transition or catch the connection error.
+      expect(service.connectionState, RankedConnectionState.disconnected);
+      final connectFuture = service.connect(); // Starts connecting
+      expect(service.connectionState, RankedConnectionState.connecting);
+
+      await service.disconnect();
+      expect(service.connectionState, RankedConnectionState.disconnected);
+      
+      try {
+        await connectFuture;
+      } catch (_) {}
+    });
+
+    test('joinSearchOpponent throws if not connected', () async {
+      expect(
+        () async => await service.joinSearchOpponent(),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('leaveSearchOpponent does not throw if disconnected', () async {
+      await service.leaveSearchOpponent(); // Should return immediately
+    });
+
+    test('sendAnswer throws if not connected', () async {
+      expect(
+        () async => await service.sendAnswer(1),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 }

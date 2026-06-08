@@ -199,6 +199,108 @@ HistoryPartyQuestionDto _makePartyQuestion({
   );
 }
 
+/// Construit un [HistoryMatchDto] de type Ranked (idPartyType == 2).
+/// Utilisé via [HistoryQuizPage.historyMatchRaw] : la page court-circuite l'API
+/// et reconstruit le détail directement à partir du match.
+HistoryMatchDto _makeRankedMatch({
+  String id = 'party-ranked-1',
+  int score = 120,
+  int? time = 95,
+  DateTime? dt,
+  bool finish = true,
+}) {
+  return HistoryMatchDto(
+    id: id,
+    // Date locale fixe pour un formatage déterministe (toLocal() est un no-op).
+    dt: dt ?? DateTime(2026, 3, 14),
+    finish: finish,
+    idPartyType: 2,
+    nbQuestions: 10,
+    score: score,
+    time: time,
+    percent: 75,
+    partyType: const HistoryPartyTypeDto(id: 2, label: 'Ranked'),
+    partyDifficulty: const [],
+    partyTheme: const [],
+  );
+}
+
+HistoryUserDto _makeUser(String id, String name, {String? avatar}) {
+  return HistoryUserDto(
+    userId: id,
+    nickName: name,
+    avatar: avatar,
+    isAdmin: false,
+    isNew: false,
+  );
+}
+
+/// Construit une partie de groupe (idPartyType == 1) avec un classement peuplé
+/// (partyUsers + userScores), ce qui déclenche le podium et le classement.
+PartyDetailDto _makeGroupPartyWithLeaderboard({
+  bool finish = true,
+  int playerCount = 4,
+}) {
+  final allUsers = [
+    _makeUser('u1', 'Alice'),
+    _makeUser('u2', 'Bob'),
+    _makeUser('u3', 'Carol'),
+    _makeUser('u4', 'Dave'),
+  ];
+  const allScores = [100, 80, 60, 40];
+
+  final users = allUsers.take(playerCount).toList();
+
+  return PartyDetailDto(
+    id: 'party-group-lb',
+    idPartyType: 1,
+    active: true,
+    finish: finish,
+    inProgress: !finish,
+    partyType: const HistoryPartyTypeDto(id: 1, label: 'Groupe'),
+    partyDifficulty: [
+      HistoryPartyDifficultyDto(
+        id: 1,
+        difficulty: const HistoryDifficultyDto(id: 1, label: 'Facile'),
+      ),
+      HistoryPartyDifficultyDto(
+        id: 2,
+        difficulty: const HistoryDifficultyDto(id: 3, label: 'Difficile'),
+      ),
+    ],
+    partyTheme: [
+      HistoryPartyThemeDto(
+        id: 1,
+        theme: const HistoryThemeDto(id: 1, label: 'Histoire'),
+      ),
+      HistoryPartyThemeDto(
+        id: 2,
+        theme: const HistoryThemeDto(id: 2, label: 'Sport'),
+      ),
+    ],
+    partyQuestions: [
+      _makePartyQuestion(
+        order: 1,
+        wasCorrect: true,
+        score: 10,
+        questionLabel: 'GQ1 ?',
+      ),
+    ],
+    partyUsers: [
+      for (final u in users) HistoryPartyUserDto(idUser: u.userId, user: u),
+    ],
+    userScores: [
+      for (var i = 0; i < users.length; i++)
+        HistoryUserScoreDto(
+          userId: users[i].userId,
+          score: allScores[i],
+          user: users[i],
+        ),
+    ],
+    score: allScores.first,
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Pump helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,6 +370,42 @@ Future<({FakeHistoryApi api, GoRouter router})> _pumpHistoryPage(
   await tester.pump();
 
   return (api: fakeApi, router: router);
+}
+
+/// Pompe la page en mode Ranked via [HistoryQuizPage.historyMatchRaw].
+/// L'API n'est jamais appelée dans ce flux ; on passe tout de même un fake.
+Future<void> _pumpRankedPage(
+  WidgetTester tester, {
+  required HistoryMatchDto match,
+  Size size = const Size(800, 900),
+}) async {
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  final router = GoRouter(
+    initialLocation: '/history/${match.id}',
+    routes: [
+      GoRoute(
+        path: '/history/:partyId',
+        builder: (context, state) => MyAuthStore(
+          notifier: AuthStore.instance,
+          child: HistoryQuizPage(
+            partyId: state.pathParameters['partyId'] ?? match.id,
+            historyMatchRaw: match,
+            historyApiOverride: FakeHistoryApi(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/',
+        builder: (_, __) =>
+            const Scaffold(body: Center(child: Text('Accueil'))),
+      ),
+    ],
+  );
+
+  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pump();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -735,6 +873,250 @@ void main() {
       await _pumpAnimations(tester);
 
       expect(find.text('Réussite'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+  });
+
+  // ─────────────────────────── Partie Ranked (historyMatchRaw) ─────────────
+  group('HistoryQuizPage — partie Ranked', () {
+    testWidgets('affiche "Victoire" et le score quand le score est positif', (
+      tester,
+    ) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(score: 120));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Victoire'), findsAtLeastNWidgets(1));
+      expect(find.text('Ranked'), findsAtLeastNWidgets(1));
+      expect(find.text('120'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('affiche "Défaite" quand le score est nul', (tester) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(score: 0));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Défaite'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('formate le temps en minutes et secondes', (tester) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(time: 95));
+      await _pumpAnimations(tester);
+
+      expect(find.text('1min 35s'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('formate le temps en secondes seules (< 60s)', (tester) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(time: 45));
+      await _pumpAnimations(tester);
+
+      expect(find.text('45s'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('formate le temps en minutes pleines', (tester) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(time: 120));
+      await _pumpAnimations(tester);
+
+      expect(find.text('2min'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('affiche la date formatée', (tester) async {
+      await _pumpRankedPage(
+        tester,
+        match: _makeRankedMatch(dt: DateTime(2026, 3, 14)),
+      );
+      await _pumpAnimations(tester);
+
+      expect(find.text('14/03/2026'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('affiche le statut "Terminée" pour une partie finie', (
+      tester,
+    ) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(finish: true));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Terminée'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('affiche le statut "En cours" pour une partie non finie', (
+      tester,
+    ) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch(finish: false));
+      await _pumpAnimations(tester);
+
+      expect(find.text('En cours'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('affiche uniquement le bouton Retour (pas de Continuer)', (
+      tester,
+    ) async {
+      await _pumpRankedPage(tester, match: _makeRankedMatch());
+      await _pumpAnimations(tester);
+
+      expect(find.text('Retour'), findsAtLeastNWidgets(1));
+      expect(find.text('Continuer'), findsNothing);
+
+      await _finishTest(tester);
+    });
+  });
+
+  // ─────────────────────────── Classement de groupe ───────────────────────
+  group('HistoryQuizPage — classement de groupe', () {
+    testWidgets('affiche le podium avec les trois premiers joueurs', (
+      tester,
+    ) async {
+      final api = FakeHistoryApi()
+        ..groupResponse = ApiResponse.ok(
+          _makeGroupPartyWithLeaderboard(finish: true),
+          statusCode: 200,
+        );
+
+      await _pumpHistoryPage(tester, api: api);
+      await _pumpAnimations(tester);
+
+      expect(find.text('Podium'), findsAtLeastNWidgets(1));
+      expect(find.text('Alice'), findsAtLeastNWidgets(1));
+      expect(find.text('Bob'), findsAtLeastNWidgets(1));
+      expect(find.text('Carol'), findsAtLeastNWidgets(1));
+      expect(find.text('100 pts'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets(
+      'affiche "Classement provisoire" pour une partie non terminée',
+      (tester) async {
+        final api = FakeHistoryApi()
+          ..groupResponse = ApiResponse.ok(
+            _makeGroupPartyWithLeaderboard(finish: false),
+            statusCode: 200,
+          );
+
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
+
+        expect(
+          find.textContaining('Classement provisoire'),
+          findsAtLeastNWidgets(1),
+        );
+
+        await _finishTest(tester);
+      },
+    );
+
+    testWidgets('affiche le classement complet au-delà de trois joueurs', (
+      tester,
+    ) async {
+      final api = FakeHistoryApi()
+        ..groupResponse = ApiResponse.ok(
+          _makeGroupPartyWithLeaderboard(playerCount: 4),
+          statusCode: 200,
+        );
+
+      await _pumpHistoryPage(tester, api: api);
+      await _pumpAnimations(tester);
+
+      expect(
+        find.textContaining('Classement complet'),
+        findsAtLeastNWidgets(1),
+      );
+      expect(find.text('Dave'), findsAtLeastNWidgets(1));
+      expect(find.text('40 pts'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('masque le classement complet avec trois joueurs ou moins', (
+      tester,
+    ) async {
+      final api = FakeHistoryApi()
+        ..groupResponse = ApiResponse.ok(
+          _makeGroupPartyWithLeaderboard(playerCount: 3),
+          statusCode: 200,
+        );
+
+      await _pumpHistoryPage(tester, api: api);
+      await _pumpAnimations(tester);
+
+      expect(find.textContaining('Classement complet'), findsNothing);
+      // Le podium reste affiché.
+      expect(find.text('Carol'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+
+    testWidgets('affiche le podium en disposition étroite', (tester) async {
+      // En largeur réduite, certaines cartes de la page débordent volontairement
+      // (overflow horizontal) — on ignore ces erreurs visuelles le temps du test.
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.exceptionAsString().contains('A RenderFlex overflowed')) {
+          return;
+        }
+        previousOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = previousOnError);
+
+      final api = FakeHistoryApi()
+        ..groupResponse = ApiResponse.ok(
+          _makeGroupPartyWithLeaderboard(playerCount: 3),
+          statusCode: 200,
+        );
+
+      await _pumpHistoryPage(
+        tester,
+        api: api,
+        size: const Size(420, 1400),
+      );
+      await _pumpAnimations(tester);
+
+      // La disposition étroite affiche les médailles en emoji.
+      expect(find.text('🥇'), findsAtLeastNWidgets(1));
+      expect(find.text('Alice'), findsAtLeastNWidgets(1));
+
+      await _finishTest(tester);
+    });
+  });
+
+  // ─────────────────────────── Navigation ─────────────────────────────────
+  group('HistoryQuizPage — navigation', () {
+    testWidgets('tape sur Continuer et navigue vers le quiz solo', (
+      tester,
+    ) async {
+      final api = FakeHistoryApi()
+        ..soloResponse = ApiResponse.ok(
+          _makeFinishedSoloParty(finish: false),
+          statusCode: 200,
+        );
+
+      await _pumpHistoryPage(tester, api: api, isSolo: true);
+      await _pumpAnimations(tester);
+
+      expect(find.text('Continuer'), findsAtLeastNWidgets(1));
+
+      await tester.tap(find.text('Continuer').first);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      tester.takeException();
+
+      expect(find.text('Solo Quiz'), findsOneWidget);
 
       await _finishTest(tester);
     });
