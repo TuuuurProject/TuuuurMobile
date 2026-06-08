@@ -1512,5 +1512,286 @@ void main() {
       // Date should be displayed in some format (absolute or relative)
       expect(find.text('Terminer'), findsOneWidget);
     });
+
+    testWidgets(
+      'me() en erreur affiche la carte serveur, puis "Réessayer" relance',
+      (WidgetTester tester) async {
+        await AuthStore.instance.signInWithSession(session());
+
+        var meCalls = 0;
+        when(() => mockAuth.me()).thenAnswer((_) async {
+          meCalls++;
+          if (meCalls == 1) {
+            return api.ApiResponse.err(
+              message: 'Serveur indisponible',
+              statusCode: 500,
+            );
+          }
+          return api.ApiResponse.ok(
+            api_auth.UserDto(
+              id: '1',
+              nickName: 'TestUser',
+              email: 'test@exemple.com',
+              avatar: null,
+              isAdmin: false,
+              isNew: false,
+            ),
+            statusCode: 200,
+          );
+        });
+        when(
+          () => mockHistory.getHistory(
+            page: any(named: 'page'),
+            size: any(named: 'size'),
+          ),
+        ).thenAnswer(
+          (_) async => api.ApiResponse.ok(
+            const api_hist.HistoryPageDto(
+              items: <api_hist.HistoryMatchDto>[],
+              totalCount: 0,
+              currentPage: 1,
+              totalPages: 0,
+            ),
+            statusCode: 200,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MyAuthStore(
+              notifier: AuthStore.instance,
+              child: ProfilePage(authApi: mockAuth, historyApi: mockHistory),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Impossible de charger le profil'), findsOneWidget);
+        expect(find.text('Serveur indisponible'), findsOneWidget);
+
+        await tester.tap(find.text('Réessayer'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('TestUser'), findsOneWidget);
+        expect(meCalls, 2);
+      },
+    );
+
+    testWidgets('sauvegarde du pseudo : exception → toast d\'erreur', (
+      WidgetTester tester,
+    ) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: '1',
+            nickName: 'OldNick',
+            email: 'test@exemple.com',
+            avatar: null,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+      when(
+        () => mockHistory.getHistory(
+          page: any(named: 'page'),
+          size: any(named: 'size'),
+        ),
+      ).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          const api_hist.HistoryPageDto(
+            items: <api_hist.HistoryMatchDto>[],
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 0,
+          ),
+          statusCode: 200,
+        ),
+      );
+      when(
+        () => mockAuth.updateNickname(nickname: any(named: 'nickname')),
+      ).thenThrow(Exception('boom'));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(authApi: mockAuth, historyApi: mockHistory),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Modifier le pseudo'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'NewNick');
+      await tester.tap(find.byTooltip('Valider'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Erreur'), findsOneWidget);
+    });
+
+    testWidgets('pagination de l\'historique : navigue entre les pages', (
+      WidgetTester tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: '1',
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: null,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      final matches = List.generate(
+        12,
+        (i) => api_hist.HistoryMatchDto(
+          id: 'm$i',
+          dt: null,
+          finish: true,
+          nbQuestions: 10,
+          score: i,
+          time: 30,
+          percent: 50,
+          partyType: const api_hist.HistoryPartyTypeDto(id: 1, label: 'Solo'),
+          partyDifficulty: const <api_hist.HistoryPartyDifficultyDto>[],
+          partyTheme: const <api_hist.HistoryPartyThemeDto>[],
+        ),
+      );
+
+      when(
+        () => mockHistory.getHistory(
+          page: any(named: 'page'),
+          size: any(named: 'size'),
+        ),
+      ).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_hist.HistoryPageDto(
+            items: matches,
+            totalCount: matches.length,
+            currentPage: 1,
+            totalPages: 1,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(authApi: mockAuth, historyApi: mockHistory),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 12 parties → 2 pages (10 par page)
+      expect(find.text('Page 1 / 2'), findsOneWidget);
+
+      // Dernière page via les doubles chevrons
+      await tester.ensureVisible(find.byIcon(FontAwesomeIcons.anglesRight));
+      await tester.tap(find.byIcon(FontAwesomeIcons.anglesRight));
+      await tester.pumpAndSettle();
+      expect(find.text('Page 2 / 2'), findsOneWidget);
+
+      // Première page
+      await tester.ensureVisible(find.byIcon(FontAwesomeIcons.anglesLeft));
+      await tester.tap(find.byIcon(FontAwesomeIcons.anglesLeft));
+      await tester.pumpAndSettle();
+      expect(find.text('Page 1 / 2'), findsOneWidget);
+
+      // Page suivante via le simple chevron
+      await tester.ensureVisible(find.byIcon(FontAwesomeIcons.chevronRight));
+      await tester.tap(find.byIcon(FontAwesomeIcons.chevronRight));
+      await tester.pumpAndSettle();
+      expect(find.text('Page 2 / 2'), findsOneWidget);
+
+      // Page précédente
+      await tester.ensureVisible(find.byIcon(FontAwesomeIcons.chevronLeft));
+      await tester.tap(find.byIcon(FontAwesomeIcons.chevronLeft));
+      await tester.pumpAndSettle();
+      expect(find.text('Page 1 / 2'), findsOneWidget);
+    });
+
+    testWidgets('_formatRelative : heures et jours', (
+      WidgetTester tester,
+    ) async {
+      await AuthStore.instance.signInWithSession(session());
+
+      when(() => mockAuth.me()).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_auth.UserDto(
+            id: '1',
+            nickName: 'TestUser',
+            email: 'test@exemple.com',
+            avatar: null,
+            isAdmin: false,
+            isNew: false,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      final hoursAgo = DateTime.now().subtract(const Duration(hours: 3));
+      final daysAgo = DateTime.now().subtract(const Duration(days: 2));
+
+      api_hist.HistoryMatchDto match(String id, DateTime dt) =>
+          api_hist.HistoryMatchDto(
+            id: id,
+            dt: dt,
+            finish: true,
+            nbQuestions: 10,
+            score: 5,
+            time: 40,
+            percent: 50,
+            partyType: const api_hist.HistoryPartyTypeDto(id: 1, label: 'Solo'),
+            partyDifficulty: const <api_hist.HistoryPartyDifficultyDto>[],
+            partyTheme: const <api_hist.HistoryPartyThemeDto>[],
+          );
+
+      when(
+        () => mockHistory.getHistory(
+          page: any(named: 'page'),
+          size: any(named: 'size'),
+        ),
+      ).thenAnswer(
+        (_) async => api.ApiResponse.ok(
+          api_hist.HistoryPageDto(
+            items: [match('m1', hoursAgo), match('m2', daysAgo)],
+            totalCount: 2,
+            currentPage: 1,
+            totalPages: 1,
+          ),
+          statusCode: 200,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: ProfilePage(authApi: mockAuth, historyApi: mockHistory),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Il y a 3 h'), findsOneWidget);
+      expect(find.text('Il y a 2 j'), findsOneWidget);
+    });
   });
 }

@@ -12,6 +12,58 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'group_test_helpers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Coordinator espion : enregistre les appels et peut simuler une erreur de leave
+// ─────────────────────────────────────────────────────────────────────────────
+
+class RecordingGroupCoordinator extends FakeGroupCoordinator {
+  RecordingGroupCoordinator({
+    required GroupStore groupStore,
+    required FakeGroupWebSocketService ws,
+  }) : super(groupStore: groupStore, ws: ws);
+
+  bool started = false;
+  bool leaveThrows = false;
+  int leaveCount = 0;
+
+  @override
+  Future<void> startParty() async {
+    started = true;
+  }
+
+  @override
+  Future<void> leaveParty() async {
+    leaveCount++;
+    if (leaveThrows) throw Exception('boom');
+  }
+}
+
+/// Pcompe GroupLobbyPage avec un store/coordinator fournis (sans party par défaut).
+Future<void> pumpLobbyWith(
+  WidgetTester tester, {
+  required GroupStore store,
+  required FakeGroupCoordinator coord,
+  required GroupLobbyData lobby,
+  Size size = const Size(800, 800),
+}) async {
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  await tester.pumpWidget(
+    MaterialApp(
+      home: MyAuthStore(
+        notifier: AuthStore.instance,
+        child: GroupLobbyPage(
+          lobby: lobby,
+          onBack: () {},
+          groupCoordinatorOverride: coord,
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -249,6 +301,146 @@ void main() {
       await tester.pump();
 
       expect(AuthStore.instance.isAuthenticated, isFalse);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('party null → affiche la carte d\'erreur + Retour', (
+      tester,
+    ) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws); // pas de party
+      final coord = FakeGroupCoordinator(groupStore: store, ws: ws);
+
+      await pumpLobbyWith(
+        tester,
+        store: store,
+        coord: coord,
+        lobby: GroupLobbyData(partyId: 'x', code: '000000', isHost: true),
+      );
+      await pumpAnimations(tester);
+
+      expect(find.text('Erreur : Aucune partie en cours'), findsOneWidget);
+      expect(find.text('Retour'), findsOneWidget);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('hôte : "Lancer la partie" appelle startParty', (tester) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws);
+      final coord = RecordingGroupCoordinator(groupStore: store, ws: ws);
+      final party = makeGroupParty(code: '111222', hostUserId: 'user-1');
+      store.initializeParty(party, currentUserId: 'user-1');
+
+      await pumpLobbyWith(
+        tester,
+        store: store,
+        coord: coord,
+        lobby: GroupLobbyData(partyId: party.id, code: party.code, isHost: true),
+      );
+      await pumpAnimations(tester);
+
+      final launch = find.text('Lancer la partie');
+      await tester.ensureVisible(launch);
+      await tester.tap(launch);
+      await tester.pump();
+
+      expect(coord.started, isTrue);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('taper sur l\'icône copier copie le code', (tester) async {
+      final party = makeGroupParty(code: '777888', hostUserId: 'user-1');
+      await pumpLobbyPage(tester, party: party, currentUserId: 'user-1');
+      await pumpAnimations(tester);
+
+      final copyIcon = find.byIcon(FontAwesomeIcons.copy);
+      expect(copyIcon, findsOneWidget);
+      await tester.ensureVisible(copyIcon);
+      await tester.tap(copyIcon);
+      await tester.pump();
+
+      // Pas de crash, la page reste affichée
+      expect(find.text('Infos de la partie'), findsOneWidget);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('partie supprimée par l\'hôte → snack + quitte', (tester) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws);
+      final coord = RecordingGroupCoordinator(groupStore: store, ws: ws);
+      final party = makeGroupParty(
+        code: '654321',
+        hostUserId: 'other-user',
+        users: [
+          PartyUser(
+            idUser: 'other-user',
+            idParty: 'p1',
+            user: GroupUser(id: 'other-user', nickName: 'Host'),
+          ),
+          PartyUser(
+            idUser: 'user-1',
+            idParty: 'p1',
+            user: GroupUser(id: 'user-1', nickName: 'Tester'),
+          ),
+        ],
+      );
+      store.initializeParty(party, currentUserId: 'user-1');
+
+      await pumpLobbyWith(
+        tester,
+        store: store,
+        coord: coord,
+        lobby: GroupLobbyData(
+          partyId: party.id,
+          code: party.code,
+          isHost: false,
+        ),
+      );
+      await pumpAnimations(tester);
+
+      store.onPartyDeleted(GroupUser(id: 'other-user', nickName: 'Host'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('L\'hôte a quitté la partie'), findsOneWidget);
+      expect(coord.leaveCount, greaterThanOrEqualTo(1));
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('erreur lors du leave → affiche un snack d\'erreur', (
+      tester,
+    ) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws);
+      final coord = RecordingGroupCoordinator(groupStore: store, ws: ws)
+        ..leaveThrows = true;
+      final party = makeGroupParty(code: '999000', hostUserId: 'user-1');
+      store.initializeParty(party, currentUserId: 'user-1');
+
+      await pumpLobbyWith(
+        tester,
+        store: store,
+        coord: coord,
+        lobby: GroupLobbyData(partyId: party.id, code: party.code, isHost: true),
+      );
+      await pumpAnimations(tester);
+
+      // Ouvre la confirmation de sortie puis confirme
+      final quit = find.byIcon(FontAwesomeIcons.rightFromBracket);
+      await tester.ensureVisible(quit);
+      await tester.tap(quit);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Oui'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('Erreur'), findsOneWidget);
 
       await finishGroupTest(tester);
     });

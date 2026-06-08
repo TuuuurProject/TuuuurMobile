@@ -216,6 +216,215 @@ void main() {
         expect(result.ok, isFalse);
         expect(result.message, equals('Invalid request'));
       });
+
+      test('lit le partyId depuis le champ id', () async {
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok({'id': 'id-field'}, statusCode: 201),
+        );
+
+        final result = await soloApi.createSolo(
+          themeIds: [1],
+          difficultyIds: [2],
+          nbQuestions: 10,
+        );
+
+        expect(result.ok, isTrue);
+        expect(result.data?.partyId, equals('id-field'));
+      });
+
+      test('lit le partyId depuis le champ partyId', () async {
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok({'partyId': 'party-field'}, statusCode: 201),
+        );
+
+        final result = await soloApi.createSolo(
+          themeIds: [1],
+          difficultyIds: [2],
+          nbQuestions: 10,
+        );
+
+        expect(result.data?.partyId, equals('party-field'));
+      });
+
+      test('retourne erreur si party id manquant dans la réponse', () async {
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(<String, dynamic>{}, statusCode: 200),
+        );
+
+        final result = await soloApi.createSolo(
+          themeIds: [1],
+          difficultyIds: [2],
+          nbQuestions: 10,
+        );
+
+        expect(result.ok, isFalse);
+        expect(result.message, contains('missing party id'));
+      });
+    });
+
+    group('getSolo', () {
+      test('retourne la partie en cas de succès', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(
+            {'id': 'party-1', 'finish': false, 'score': 10},
+            statusCode: 200,
+          ),
+        );
+
+        final result = await soloApi.getSolo(partyId: 'party-1');
+
+        expect(result.ok, isTrue);
+        expect(result.data?.id, equals('party-1'));
+        expect(result.data?.score, equals(10));
+      });
+
+      test('appelle le bon endpoint', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer((_) async => ApiResponse.ok({'id': 'x'}, statusCode: 200));
+
+        await soloApi.getSolo(partyId: 'abc');
+
+        final captured = verify(
+          mockApiClient.getJson(captureAny, auth: captureAnyNamed('auth')),
+        ).captured;
+
+        expect(captured[0], equals('/api/v1/solo/abc'));
+        expect(captured[1], isTrue);
+      });
+
+      test('retourne erreur en cas d\'échec', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.err(message: 'Not found', statusCode: 404),
+        );
+
+        final result = await soloApi.getSolo(partyId: 'party-1');
+
+        expect(result.ok, isFalse);
+        expect(result.statusCode, equals(404));
+      });
+    });
+
+    group('answerSolo', () {
+      test('retourne la partie mise à jour en cas de succès', () async {
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(
+            {'id': 'party-1', 'score': 20},
+            statusCode: 200,
+          ),
+        );
+
+        final result = await soloApi.answerSolo(partyId: 'party-1', answerId: 3);
+
+        expect(result.ok, isTrue);
+        expect(result.data?.score, equals(20));
+      });
+
+      test('envoie answerId dans le body', () async {
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: anyNamed('auth')),
+        ).thenAnswer((_) async => ApiResponse.ok({'id': 'p'}, statusCode: 200));
+
+        await soloApi.answerSolo(partyId: 'p', answerId: 42);
+
+        final captured = verify(
+          mockApiClient.postJson(
+            captureAny,
+            body: captureAnyNamed('body'),
+            auth: captureAnyNamed('auth'),
+          ),
+        ).captured;
+
+        expect(captured[0], equals('/api/v1/solo/p'));
+        final body = captured[1] as Map<String, dynamic>;
+        expect(body['answerId'], equals(42));
+      });
+
+      test('retourne erreur en cas d\'échec', () async {
+        when(
+          mockApiClient.postJson(any, body: anyNamed('body'), auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.err(message: 'Bad answer', statusCode: 400),
+        );
+
+        final result = await soloApi.answerSolo(partyId: 'p', answerId: 1);
+
+        expect(result.ok, isFalse);
+        expect(result.message, equals('Bad answer'));
+      });
+    });
+
+    group('getHistory', () {
+      test('retourne la liste des parties', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok({
+            'data': [
+              {'id': 'party-1', 'score': 10},
+              {'id': 'party-2', 'score': 20},
+            ],
+          }, statusCode: 200),
+        );
+
+        final result = await soloApi.getHistory();
+
+        expect(result.ok, isTrue);
+        expect(result.data?.length, equals(2));
+        expect(result.data?[0].id, equals('party-1'));
+        expect(result.data?[1].score, equals(20));
+      });
+
+      test('retourne liste vide si data n\'est pas une liste', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok({'data': 'pas une liste'}, statusCode: 200),
+        );
+
+        final result = await soloApi.getHistory();
+
+        expect(result.ok, isTrue);
+        expect(result.data, isEmpty);
+      });
+
+      test('retourne liste vide si data absent', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.ok(<String, dynamic>{}, statusCode: 200),
+        );
+
+        final result = await soloApi.getHistory();
+
+        expect(result.ok, isTrue);
+        expect(result.data, isEmpty);
+      });
+
+      test('retourne erreur en cas d\'échec', () async {
+        when(
+          mockApiClient.getJson(any, auth: anyNamed('auth')),
+        ).thenAnswer(
+          (_) async => ApiResponse.err(message: 'Server error', statusCode: 500),
+        );
+
+        final result = await soloApi.getHistory();
+
+        expect(result.ok, isFalse);
+        expect(result.statusCode, equals(500));
+      });
     });
   });
 }

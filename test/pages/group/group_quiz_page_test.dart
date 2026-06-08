@@ -322,5 +322,112 @@ void main() {
 
       await finishGroupTest(tester);
     });
+
+    testWidgets('scoreDisplay avec 4 joueurs affiche le classement complet', (
+      tester,
+    ) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws);
+      final party = makeGroupParty(
+        hostUserId: 'user-1',
+        users: [
+          PartyUser(
+            idUser: 'user-1',
+            idParty: 'p1',
+            user: GroupUser(id: 'user-1', nickName: 'Alice'),
+          ),
+          PartyUser(
+            idUser: 'user-2',
+            idParty: 'p1',
+            user: GroupUser(id: 'user-2', nickName: 'Bob'),
+          ),
+          PartyUser(
+            idUser: 'user-3',
+            idParty: 'p1',
+            user: GroupUser(id: 'user-3', nickName: 'Carol'),
+          ),
+          PartyUser(
+            idUser: 'user-4',
+            idParty: 'p1',
+            user: GroupUser(id: 'user-4', nickName: 'Dave'),
+          ),
+        ],
+      );
+      store.initializeParty(party, currentUserId: 'user-1');
+      store.onScoreUpdate([
+        makeUserScore(userId: 'user-1', nickName: 'Alice', score: 40),
+        makeUserScore(userId: 'user-2', nickName: 'Bob', score: 30),
+        makeUserScore(userId: 'user-3', nickName: 'Carol', score: 20),
+        makeUserScore(userId: 'user-4', nickName: 'Dave', score: 10),
+      ]);
+
+      await pumpQuizPage(tester, party: party, store: store);
+      await pumpFrames(tester);
+
+      expect(find.text('Classement'), findsOneWidget);
+      expect(find.text('Dave'), findsWidgets);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('état error générique affiche la carte d\'erreur', (
+      tester,
+    ) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws);
+      final party = makeGroupParty(hostUserId: 'user-1');
+      store.initializeParty(party, currentUserId: 'user-1');
+
+      await pumpQuizPage(tester, party: party, store: store);
+      await pumpFrames(tester);
+
+      store.onError('Connexion perdue');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Erreur'), findsOneWidget);
+      expect(find.text('Connexion perdue'), findsOneWidget);
+      expect(find.text('Quitter'), findsOneWidget);
+
+      await finishGroupTest(tester);
+    });
+
+    testWidgets('partie supprimée pendant le quiz → snack + onLeave', (
+      tester,
+    ) async {
+      final ws = FakeGroupWebSocketService();
+      final store = GroupStore(webSocketService: ws);
+      final party = makeGroupParty(hostUserId: 'user-1');
+      store.initializeParty(party, currentUserId: 'user-1');
+
+      var left = false;
+
+      await tester.binding.setSurfaceSize(const Size(800, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MyAuthStore(
+            notifier: AuthStore.instance,
+            child: GroupQuizPage(
+              groupStore: store,
+              currentUserId: 'user-1',
+              onFinished: () {},
+              onLeave: () => left = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      store.onPartyDeleted(GroupUser(id: 'user-1', nickName: 'Tester'));
+      // Le Stream.periodic(100ms) détecte l'état supprimé
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(left, isTrue);
+      expect(find.text('L\'hôte a quitté la partie'), findsOneWidget);
+
+      await finishGroupTest(tester);
+    });
   });
 }
