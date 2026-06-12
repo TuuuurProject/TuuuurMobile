@@ -10,6 +10,7 @@ import 'other/difficulty_api_service.dart';
 import 'group/group_api_service.dart';
 import 'group/group_rest_api_service.dart';
 import 'other/history_api_service.dart';
+import 'ranked/ranked_rest_api_service.dart';
 import 'solo/solo_api_service.dart';
 import 'other/theme_api_service.dart';
 import 'auth/token_provider.dart';
@@ -109,6 +110,7 @@ class ApiModule {
   late final GroupApi _groupApi;
   late final GroupRestApiService _groupRestApi;
   late final GroupCoordinator _groupCoordinator;
+  late final RankedRestApiService _rankedApi;
   RankedCoordinator? _rankedCoordinator;
 
   bool _initialized = false;
@@ -136,6 +138,7 @@ class ApiModule {
       tokenProvider: _tokenProvider,
       webSocketHubUrl: ApiConfig.groupWebSocketUrl,
     );
+    _rankedApi = RankedRestApiService(apiClient: _apiClient);
 
     _initialized = true;
   }
@@ -222,6 +225,14 @@ class ApiModule {
       'ApiModule.initialize() must be called before using the API',
     );
     return _groupCoordinator;
+  }
+
+  RankedRestApiService get rankedApi {
+    assert(
+      _initialized,
+      'ApiModule.initialize() must be called before using the API',
+    );
+    return _rankedApi;
   }
 
   RankedCoordinator get rankedCoordinator {

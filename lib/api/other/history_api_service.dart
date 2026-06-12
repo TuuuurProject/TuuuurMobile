@@ -1,7 +1,4 @@
-import 'dart:io';
 import 'dart:developer' as dev;
-
-import 'package:path_provider/path_provider.dart';
 
 import '../api_client.dart';
 import 'history_models.dart';
@@ -43,6 +40,10 @@ class HistoryApi {
     final res = await _api.getJson(path, auth: true);
 
     if (!res.ok) {
+      dev.log(
+        'GET $path → échec (status ${res.statusCode}): ${res.message}',
+        name: 'HistoryApi.group',
+      );
       return ApiResponse.err(
         message: res.message,
         statusCode: res.statusCode,
@@ -51,6 +52,41 @@ class HistoryApi {
     }
 
     final root = res.data ?? <String, dynamic>{};
+    // Log de debug visible dans l'onglet "Logging" de Flutter DevTools.
+    dev.log(
+      'GET $path → réponse API: $root',
+      name: 'HistoryApi.group',
+    );
+    final detail = PartyDetailDto.fromJson(root);
+    return ApiResponse.ok(detail, statusCode: res.statusCode);
+  }
+
+  /// Fetches ranked party detail by ID
+  /// GET /api/v1/ranked/{partyId}
+  Future<ApiResponse<PartyDetailDto>> getRankedPartyDetail(
+    String partyId,
+  ) async {
+    final path = '/api/v1/ranked/$partyId';
+
+    final res = await _api.getJson(path, auth: true);
+
+    if (!res.ok) {
+      dev.log(
+        'GET $path → échec (status ${res.statusCode}): ${res.message}',
+        name: 'HistoryApi.ranked',
+      );
+      return ApiResponse.err(
+        message: res.message,
+        statusCode: res.statusCode,
+        raw: res.raw,
+      );
+    }
+
+    final root = res.data ?? <String, dynamic>{};
+    dev.log(
+      'GET $path → réponse API: $root',
+      name: 'HistoryApi.ranked',
+    );
     final detail = PartyDetailDto.fromJson(root);
     return ApiResponse.ok(detail, statusCode: res.statusCode);
   }

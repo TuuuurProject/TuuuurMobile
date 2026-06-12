@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../api/api_module.dart';
 import '../../api/other/history_api_service.dart';
 import '../../api/other/history_models.dart';
+import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/common_widgets.dart';
@@ -38,6 +39,7 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
   bool _loading = true;
   String? _errorMessage;
   PartyDetailDto? _partyDetail;
+  bool _isRanked = false;
 
   HistoryApi get _historyApi =>
       widget.historyApiOverride ?? ApiModule.instance.historyApi;
@@ -60,6 +62,7 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
   }
 
   bool get _isRankedParty {
+    if (_isRanked) return true;
     if (_partyDetail == null) return false;
     return _partyDetail!.idPartyType == 2 ||
         (_partyDetail!.partyType?.label ?? '').toLowerCase() == 'ranked';
@@ -69,6 +72,51 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     if (_partyDetail == null) return false;
     return _partyDetail!.idPartyType == 1 ||
         (_partyDetail!.partyType?.label ?? '').toLowerCase() == 'group';
+  }
+
+  // ─── Affichage "centré sur l'utilisateur courant" ──────────────────────────
+  // L'API d'historique peut renvoyer, dans `partyQuestions`, les réponses d'un
+  // AUTRE joueur que celui qui consulte. On ne montre donc les résultats par
+  // question que lorsqu'ils appartiennent réellement à l'utilisateur courant.
+
+  String get _currentUserId => MyAuthStore.of(context).user?.id ?? '';
+
+  /// Réponse de l'utilisateur courant pour [pq], ou null si la donnée renvoyée
+  /// par l'API appartient à un autre joueur.
+  UserPartyQuestionDto? _myAnswerFor(HistoryPartyQuestionDto pq) {
+    final upq = pq.userPartyQuestion;
+    if (upq == null) return null;
+    final me = _currentUserId;
+    final owner = upq.userUuid;
+    // Si on ne peut pas déterminer le propriétaire (solo, ou id absent), on
+    // suppose que la réponse est bien celle du joueur.
+    if (me.isEmpty || owner == null || owner.isEmpty) return upq;
+    return owner == me ? upq : null;
+  }
+
+  /// Vrai s'il existe au moins une réponse appartenant à l'utilisateur courant.
+  bool get _hasMyAnswers =>
+      _partyDetail!.partyQuestions.any((pq) => _myAnswerFor(pq) != null);
+
+  int get _myAnsweredTotal =>
+      _partyDetail!.partyQuestions.where((pq) => _myAnswerFor(pq) != null).length;
+
+  int get _myCorrectCount => _partyDetail!.partyQuestions
+      .where((pq) => _myAnswerFor(pq)?.correct == true)
+      .length;
+
+  /// Score de l'utilisateur courant : depuis userScores (groupe), sinon
+  /// finalScore (ranked), sinon le score de la partie.
+  int get _myScore {
+    final detail = _partyDetail!;
+    final me = _currentUserId;
+    if (me.isNotEmpty) {
+      for (final us in detail.userScores) {
+        if (us.userId == me) return us.score;
+      }
+    }
+    if (_isRankedParty) return detail.finalScore ?? detail.score ?? 0;
+    return detail.score ?? 0;
   }
 
   List<_HistoryLeaderboardEntry> get _groupLeaderboardEntries {
@@ -160,32 +208,46 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     });
 
     try {
-      // Ranked: on réutilise directement les données de l'historique.
+      // Ranked : on récupère le détail complet via l'API dédiée
+      // (vainqueur, ELO, questions). En cas d'échec on retombe sur les
+      // données déjà disponibles dans l'historique.
       if (widget.historyMatchRaw is HistoryMatchDto) {
         final match = widget.historyMatchRaw as HistoryMatchDto;
 
         if (_isRankedMatch(match)) {
+          _isRanked = true;
+
+          PartyDetailDto fallbackFromMatch() => PartyDetailDto(
+            id: match.id,
+            dt: match.dt,
+            idPartyType: match.idPartyType ?? match.partyType?.id,
+            idUserHost: null,
+            active: false,
+            finish: match.finish,
+            inProgress: false,
+            nbQuestions: match.nbQuestions,
+            percent: match.percent,
+            score: match.score,
+            time: match.time,
+            partyType: match.partyType,
+            user: null,
+            partyDifficulty: match.partyDifficulty,
+            partyTheme: match.partyTheme,
+            partyQuestions: const [],
+            partyUsers: const [],
+            userScores: const [],
+          );
+
+          final response = await _historyApi.getRankedPartyDetail(
+            widget.partyId,
+          );
+
+          if (!mounted) return;
+
           setState(() {
-            _partyDetail = PartyDetailDto(
-              id: match.id,
-              dt: match.dt,
-              idPartyType: match.idPartyType ?? match.partyType?.id,
-              idUserHost: null,
-              active: false,
-              finish: match.finish,
-              inProgress: false,
-              nbQuestions: match.nbQuestions,
-              percent: match.percent,
-              score: match.score,
-              time: match.time,
-              partyType: match.partyType,
-              user: null,
-              partyDifficulty: match.partyDifficulty,
-              partyTheme: match.partyTheme,
-              partyQuestions: const [],
-              partyUsers: const [],
-              userScores: const [],
-            );
+            _partyDetail = (response.ok && response.data != null)
+                ? response.data
+                : fallbackFromMatch();
             _loading = false;
           });
           return;
@@ -248,22 +310,6 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
         'difficulties': '',
       },
     );
-  }
-
-  String _formatDate(DateTime dt) {
-    final local = dt.toLocal();
-    final day = local.day.toString().padLeft(2, '0');
-    final month = local.month.toString().padLeft(2, '0');
-    final year = local.year.toString();
-    return '$day/$month/$year';
-  }
-
-  String _formatDuration(int seconds) {
-    if (seconds < 60) return '${seconds}s';
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    if (remainingSeconds == 0) return '${minutes}min';
-    return '${minutes}min ${remainingSeconds}s';
   }
 
   @override
@@ -334,33 +380,28 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
             children: [
               if (_isRankedParty) ...[
                 _buildRankedSummaryCard(),
+                if (_partyDetail!.partyTheme.isNotEmpty ||
+                    _partyDetail!.partyDifficulty.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildPartyInfoCard(),
+                ],
+                if (_partyDetail!.partyQuestions.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  if (!_hasMyAnswers) _buildOtherPlayerNote(),
+                  _buildQuestionsRecap(),
+                ],
               ] else ...[
                 GamingResultSummaryCard(
                   title: _partyDetail!.finish
                       ? 'Partie terminée'
                       : 'Partie en cours',
                   partyType: _partyDetail!.partyType?.label ?? 'Partie',
-                  score: _partyDetail!.score ?? 0,
+                  score: _myScore,
                   totalQuestions: _partyDetail!.partyQuestions.length,
-                  correctAnswers: _partyDetail!.partyQuestions
-                      .where((pq) => pq.userPartyQuestion?.correct == true)
-                      .length,
-                  incorrectAnswers:
-                      _partyDetail!.partyQuestions.length -
-                      _partyDetail!.partyQuestions
-                          .where((pq) => pq.userPartyQuestion?.correct == true)
-                          .length,
-                  successRate: _partyDetail!.partyQuestions.isNotEmpty
-                      ? (((_partyDetail!.partyQuestions
-                                        .where(
-                                          (pq) =>
-                                              pq.userPartyQuestion?.correct ==
-                                              true,
-                                        )
-                                        .length) /
-                                    _partyDetail!.partyQuestions.length) *
-                                100)
-                            .round()
+                  correctAnswers: _myCorrectCount,
+                  incorrectAnswers: _myAnsweredTotal - _myCorrectCount,
+                  successRate: _myAnsweredTotal > 0
+                      ? ((_myCorrectCount / _myAnsweredTotal) * 100).round()
                       : 0,
                   isFinished: _partyDetail!.finish,
                 ),
@@ -376,50 +417,9 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
                   const SizedBox(height: 24),
                 ],
                 const SizedBox(height: 24),
-                Builder(
-                  builder: (context) {
-                    final sortedQuestions = List<HistoryPartyQuestionDto>.from(
-                      _partyDetail!.partyQuestions,
-                    )..sort((a, b) => a.order.compareTo(b.order));
-
-                    final reviewQuestions = sortedQuestions.asMap().entries.map(
-                      (entry) {
-                        final i = entry.key;
-                        final HistoryPartyQuestionDto q = entry.value;
-
-                        final answers = (q.question?.answer ?? const [])
-                            .map<QuizAnswerReviewItem>(
-                              (a) => QuizAnswerReviewItem(
-                                label: a.value,
-                                isCorrect: a.valid == true,
-                                isUserChoice:
-                                    q.userPartyQuestion?.idAnswer == a.id,
-                                userAnswered:
-                                    q.userPartyQuestion?.idAnswer != null,
-                              ),
-                            )
-                            .toList();
-
-                        return QuizQuestionReviewItem(
-                          number: i + 1,
-                          questionLabel:
-                              q.question?.label ?? 'Question non disponible',
-                          wasCorrect: q.userPartyQuestion?.correct ?? false,
-                          scoreGained: q.userPartyQuestion?.score ?? 0,
-                          userAnswered: q.userPartyQuestion?.idAnswer != null,
-                          answers: answers,
-                        );
-                      },
-                    ).toList();
-
-                    return GamingQuestionsRecapCard(
-                      maxHeight: MediaQuery.of(context).size.height * 0.60,
-                      scrollable: true,
-                      scrollController: _questionsScrollCtrl,
-                      questions: reviewQuestions,
-                    );
-                  },
-                ),
+                if (_partyDetail!.partyQuestions.isNotEmpty && !_hasMyAnswers)
+                  _buildOtherPlayerNote(),
+                _buildQuestionsRecap(),
               ],
             ],
           ),
@@ -487,191 +487,97 @@ class _HistoryQuizPageState extends State<HistoryQuizPage> {
     );
   }
 
-  Widget _buildRankedSummaryCard() {
-    final score = _partyDetail!.score ?? 0;
-    final isVictory = score > 0;
-    final accentColor = isVictory
-        ? TuuurTheme.brandGreen
-        : TuuurTheme.brandOrange;
-    final title = isVictory ? 'Victoire' : 'Défaite';
+  Widget _buildQuestionsRecap() {
+    final sortedQuestions = List<HistoryPartyQuestionDto>.from(
+      _partyDetail!.partyQuestions,
+    )..sort((a, b) => a.order.compareTo(b.order));
 
-    return Container(
-      decoration: TuuurStyles.gamingCard.copyWith(
-        border: Border.all(
-          color: TuuurTheme.brandPurple.withOpacity(0.30),
-          width: 1,
-        ),
-        boxShadow: TuuurTheme.neonShadow,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: accentColor.withOpacity(0.16),
-                        border: Border.all(
-                          color: accentColor.withOpacity(0.45),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Center(
-                        child: FaIcon(
-                          isVictory
-                              ? FontAwesomeIcons.trophy
-                              : FontAwesomeIcons.skullCrossbones,
-                          size: 24,
-                          color: accentColor,
-                        ),
-                      ),
-                    )
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .scale(
-                      duration: 1400.ms,
-                      begin: const Offset(1.0, 1.0),
-                      end: const Offset(1.04, 1.04),
-                    ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: accentColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Ranked',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: TuuurTheme.brandGray,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+    final reviewQuestions = sortedQuestions.asMap().entries.map((entry) {
+      final i = entry.key;
+      final HistoryPartyQuestionDto q = entry.value;
+      final mine = _myAnswerFor(q);
+
+      final answers = (q.question?.answer ?? const [])
+          .map<QuizAnswerReviewItem>(
+            (a) => QuizAnswerReviewItem(
+              label: a.value,
+              isCorrect: a.valid == true,
+              isUserChoice: mine?.idAnswer == a.id,
+              userAnswered: mine?.idAnswer != null,
             ),
+          )
+          .toList();
 
-            const SizedBox(height: 24),
+      return QuizQuestionReviewItem(
+        number: i + 1,
+        questionLabel: q.question?.label ?? 'Question non disponible',
+        wasCorrect: mine?.correct ?? false,
+        scoreGained: mine?.score ?? 0,
+        userAnswered: mine?.idAnswer != null,
+        answers: answers,
+      );
+    }).toList();
 
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: TuuurTheme.brandDark.withOpacity(0.35),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: TuuurTheme.brandPurple.withOpacity(0.22),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'Score',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: TuuurTheme.brandGray.withOpacity(0.9),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$score',
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w800,
-                      color: TuuurTheme.brandLightGray,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                if (_partyDetail!.time != null)
-                  _buildRankedInfoTile(
-                    icon: FontAwesomeIcons.clock,
-                    label: 'Temps',
-                    value: _formatDuration(_partyDetail!.time!),
-                    color: TuuurTheme.brandPurple,
-                  ),
-                if (_partyDetail!.dt != null)
-                  _buildRankedInfoTile(
-                    icon: FontAwesomeIcons.calendar,
-                    label: 'Date',
-                    value: _formatDate(_partyDetail!.dt!),
-                    color: TuuurTheme.brandLightGray,
-                  ),
-                _buildRankedInfoTile(
-                  icon: FontAwesomeIcons.flagCheckered,
-                  label: 'Statut',
-                  value: _partyDetail!.finish ? 'Terminée' : 'En cours',
-                  color: accentColor,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 220.ms);
+    return GamingQuestionsRecapCard(
+      maxHeight: MediaQuery.of(context).size.height * 0.60,
+      scrollable: true,
+      scrollController: _questionsScrollCtrl,
+      questions: reviewQuestions,
+    );
   }
 
-  Widget _buildRankedInfoTile({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  /// Note affichée quand le détail par question renvoyé par l'API ne concerne
+  /// pas l'utilisateur courant (ses réponses ne sont donc pas disponibles).
+  Widget _buildOtherPlayerNote() {
     return Container(
-      width: 150,
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: TuuurTheme.brandDark.withOpacity(0.28),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.20)),
+        color: TuuurTheme.brandOrange.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TuuurTheme.brandOrange.withOpacity(0.35)),
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FaIcon(icon, size: 15, color: color),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: TuuurTheme.brandGray,
-            ),
+          const FaIcon(
+            FontAwesomeIcons.circleInfo,
+            size: 16,
+            color: TuuurTheme.brandOrange,
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: color,
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              "Le détail de tes réponses question par question n'est pas "
+              "disponible pour cette partie. Les questions sont affichées avec "
+              "la bonne réponse à titre indicatif.",
+              style: TextStyle(color: TuuurTheme.brandLightGray, fontSize: 13),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRankedSummaryCard() {
+    final detail = _partyDetail!;
+    final isVictory = detail.isWinner ?? (_myScore > 0);
+    final answeredTotal = _myAnsweredTotal;
+    final correct = _myCorrectCount;
+
+    return GamingResultSummaryCard(
+      title: isVictory ? 'Victoire' : 'Défaite',
+      partyType: 'Ranked',
+      score: _myScore,
+      totalQuestions: detail.partyQuestions.length,
+      correctAnswers: correct,
+      incorrectAnswers: answeredTotal - correct,
+      successRate: answeredTotal > 0
+          ? ((correct / answeredTotal) * 100).round()
+          : 0,
+      isFinished: detail.finish,
+      isWinner: isVictory,
+      eloDelta: detail.eloDelta ?? 0,
     );
   }
 

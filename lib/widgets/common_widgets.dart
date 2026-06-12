@@ -423,6 +423,11 @@ class GamingResultSummaryCard extends StatelessWidget {
   final int successRate;
   final bool isFinished;
 
+  /// Mode "Ranked" : si non-null, colore la carte selon victoire/défaite
+  /// (vert/orange) et affiche un badge ELO si [eloDelta] est fourni.
+  final bool? isWinner;
+  final int? eloDelta;
+
   const GamingResultSummaryCard({
     super.key,
     required this.title,
@@ -433,7 +438,35 @@ class GamingResultSummaryCard extends StatelessWidget {
     required this.incorrectAnswers,
     required this.successRate,
     required this.isFinished,
+    this.isWinner,
+    this.eloDelta,
   });
+
+  Widget _buildEloBadge(bool win, int elo, Color accent) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withOpacity(0.30)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FaIcon(FontAwesomeIcons.chartLine, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Text(
+            win ? '+${elo.abs()} ELO' : '-${elo.abs()} ELO',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildDivider() {
     return Container(
@@ -474,15 +507,27 @@ class GamingResultSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = isFinished
-        ? FontAwesomeIcons.trophy
-        : FontAwesomeIcons.hourglassHalf;
+    final ranked = isWinner != null;
+    final accent = ranked
+        ? (isWinner! ? TuuurTheme.brandGreen : TuuurTheme.brandOrange)
+        : null;
 
-    final ringColor = isFinished
-        ? TuuurTheme.brandYellow
-        : TuuurTheme.brandOrange;
+    final icon = ranked
+        ? (isWinner!
+              ? FontAwesomeIcons.crown
+              : FontAwesomeIcons.skullCrossbones)
+        : (isFinished
+              ? FontAwesomeIcons.trophy
+              : FontAwesomeIcons.hourglassHalf);
+
+    final ringColor =
+        accent ??
+        (isFinished ? TuuurTheme.brandYellow : TuuurTheme.brandOrange);
+
+    final titleColor = accent ?? TuuurTheme.brandLightGray;
 
     return Container(
+      // Même cadre (dégradé + bordure) que solo/groupe, quel que soit le mode.
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.2)),
@@ -528,10 +573,10 @@ class GamingResultSummaryCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.w800,
-                color: TuuurTheme.brandLightGray,
+                color: titleColor,
                 shadows: [
                   Shadow(
-                    color: TuuurTheme.brandPurple.withOpacity(0.45),
+                    color: (accent ?? TuuurTheme.brandPurple).withOpacity(0.45),
                     blurRadius: 18,
                   ),
                 ],
@@ -550,13 +595,18 @@ class GamingResultSummaryCard extends StatelessWidget {
               ),
             ).animate().fadeIn(delay: 180.ms),
 
+            if (ranked && eloDelta != null) ...[
+              const SizedBox(height: 14),
+              _buildEloBadge(isWinner!, eloDelta!, accent!),
+            ],
+
             const SizedBox(height: 20),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildTopStat(
-                  label: 'Score',
+                  label: ranked ? 'Score final' : 'Score',
                   value: '$score',
                   valueColor: TuuurTheme.brandYellow,
                 ),
@@ -568,7 +618,7 @@ class GamingResultSummaryCard extends StatelessWidget {
                 ),
                 _buildDivider(),
                 _buildTopStat(
-                  label: 'Réussite',
+                  label: ranked ? 'Taux de réussite' : 'Réussite',
                   value: '$successRate%',
                   valueColor: TuuurTheme.brandGreen,
                 ),
@@ -583,11 +633,15 @@ class GamingResultSummaryCard extends StatelessWidget {
               alignment: WrapAlignment.center,
               children: [
                 BadgeSuccess(
-                  text: '$correctAnswers bonnes réponses',
+                  text: ranked
+                      ? '$correctAnswers Correctes'
+                      : '$correctAnswers bonnes réponses',
                   icon: FontAwesomeIcons.checkCircle,
                 ),
                 BadgeWarning(
-                  text: '$incorrectAnswers mauvaises réponses',
+                  text: ranked
+                      ? '$incorrectAnswers Incorrectes'
+                      : '$incorrectAnswers mauvaises réponses',
                   icon: FontAwesomeIcons.timesCircle,
                 ),
               ],

@@ -315,6 +315,11 @@ class UserPartyQuestionDto {
   final int? id;
   final int? idPartyQuestion;
   final int? idUser;
+
+  /// UUID du joueur auquel appartient cette réponse (le backend envoie un UUID
+  /// pour `idUser`, que [idUser] — un int — ne peut pas représenter).
+  final String? userUuid;
+
   final DateTime? dtPresentedAt;
   final DateTime? dtAnsweredAt;
   final int? idAnswer;
@@ -326,6 +331,7 @@ class UserPartyQuestionDto {
     this.id,
     this.idPartyQuestion,
     this.idUser,
+    this.userUuid,
     this.dtPresentedAt,
     this.dtAnsweredAt,
     this.idAnswer,
@@ -336,11 +342,17 @@ class UserPartyQuestionDto {
 
   factory UserPartyQuestionDto.fromJson(Map<String, dynamic> j) {
     final answerJson = get(j, 'answer');
+    final userJson = get(j, 'user');
 
     return UserPartyQuestionDto(
       id: asInt(get(j, 'id')),
       idPartyQuestion: asInt(get(j, 'idPartyQuestion')),
       idUser: asInt(get(j, 'idUser')),
+      userUuid:
+          asString(get(j, 'idUser')) ??
+          (userJson is Map<String, dynamic>
+              ? asString(get(userJson, 'id'))
+              : null),
       dtPresentedAt: asDateTime(get(j, 'dtPresentedAt')),
       dtAnsweredAt: asDateTime(get(j, 'dtAnsweredAt')),
       idAnswer: asInt(get(j, 'idAnswer')),
@@ -416,6 +428,11 @@ class PartyDetailDto {
   final List<HistoryPartyThemeDto> partyTheme;
   final List<HistoryPartyQuestionDto> partyQuestions;
 
+  // Champs spécifiques aux parties Ranked (/api/v1/ranked/{id})
+  final bool? isWinner;
+  final int? eloDelta; // ELO gagné/perdu (champ `elo` côté API)
+  final int? finalScore;
+
   const PartyDetailDto({
     required this.id,
     this.dt,
@@ -435,6 +452,9 @@ class PartyDetailDto {
     required this.partyDifficulty,
     required this.partyTheme,
     required this.partyQuestions,
+    this.isWinner,
+    this.eloDelta,
+    this.finalScore,
   });
 
   factory PartyDetailDto.fromJson(Map<String, dynamic> j) {
@@ -523,6 +543,9 @@ class PartyDetailDto {
       partyDifficulty: pds,
       partyTheme: themes,
       partyQuestions: questions,
+      isWinner: asBool(get(j, 'isWinner')),
+      eloDelta: asInt(get(j, 'elo')),
+      finalScore: asInt(get(j, 'finalScore')),
     );
   }
 }

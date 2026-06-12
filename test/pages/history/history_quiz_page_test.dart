@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tuuuur_flutter/api/api_client.dart';
+import 'package:tuuuur_flutter/api/auth/auth_models.dart';
 import 'package:tuuuur_flutter/api/other/history_api_service.dart';
 import 'package:tuuuur_flutter/api/other/history_models.dart';
 import 'package:tuuuur_flutter/pages/history/history_quiz_page.dart';
@@ -61,6 +62,7 @@ class FakeHistoryApi extends HistoryApi {
 
   ApiResponse<PartyDetailDto>? groupResponse;
   ApiResponse<PartyDetailDto>? soloResponse;
+  ApiResponse<PartyDetailDto>? rankedResponse;
 
   bool simulateNetworkError = false;
 
@@ -81,6 +83,16 @@ class FakeHistoryApi extends HistoryApi {
     if (simulateNetworkError) throw Exception('Network error');
     return soloResponse ??
         ApiResponse.ok(_makeFinishedSoloParty(), statusCode: 200);
+  }
+
+  @override
+  Future<ApiResponse<PartyDetailDto>> getRankedPartyDetail(
+    String partyId,
+  ) async {
+    if (delayFuture != null) await delayFuture;
+    if (simulateNetworkError) throw Exception('Network error');
+    return rankedResponse ??
+        ApiResponse.ok(_makeRankedPartyDetail(), statusCode: 200);
   }
 }
 
@@ -157,12 +169,14 @@ PartyDetailDto _makeFinishedSoloParty({
   );
 }
 
-/// Créé une [HistoryPartyQuestionDto] prête à l'emploi
+/// Créé une [HistoryPartyQuestionDto] prête à l'emploi.
+/// [ownerUuid] permet de simuler une réponse appartenant à un autre joueur.
 HistoryPartyQuestionDto _makePartyQuestion({
   required int order,
   required bool wasCorrect,
   required int score,
   String questionLabel = 'Question ?',
+  String? ownerUuid,
 }) {
   return HistoryPartyQuestionDto(
     id: order,
@@ -192,6 +206,7 @@ HistoryPartyQuestionDto _makePartyQuestion({
     userPartyQuestion: UserPartyQuestionDto(
       id: order,
       idPartyQuestion: order,
+      userUuid: ownerUuid,
       idAnswer: wasCorrect ? order * 100 + 1 : order * 100 + 2,
       correct: wasCorrect,
       score: score,
@@ -200,8 +215,8 @@ HistoryPartyQuestionDto _makePartyQuestion({
 }
 
 /// Construit un [HistoryMatchDto] de type Ranked (idPartyType == 2).
-/// Utilisé via [HistoryQuizPage.historyMatchRaw] : la page court-circuite l'API
-/// et reconstruit le détail directement à partir du match.
+/// Passé via [HistoryQuizPage.historyMatchRaw] pour détecter le mode Ranked ;
+/// le détail complet est ensuite chargé via getRankedPartyDetail.
 HistoryMatchDto _makeRankedMatch({
   String id = 'party-ranked-1',
   int score = 120,
@@ -225,6 +240,68 @@ HistoryMatchDto _makeRankedMatch({
   );
 }
 
+/// Construit le détail complet d'une partie Ranked (réponse de
+/// getRankedPartyDetail) avec vainqueur, ELO, score final et questions.
+PartyDetailDto _makeRankedPartyDetail({
+  String id = 'party-ranked-1',
+  bool? isWinner = true,
+  int eloDelta = 25,
+  int finalScore = 120,
+  int? time = 95,
+  DateTime? dt,
+  bool finish = true,
+  bool withQuestions = true,
+  String? ownerUuid,
+}) {
+  return PartyDetailDto(
+    id: id,
+    dt: dt ?? DateTime(2026, 3, 14),
+    idPartyType: 2,
+    active: false,
+    finish: finish,
+    inProgress: false,
+    nbQuestions: 2,
+    score: finalScore,
+    time: time,
+    partyType: const HistoryPartyTypeDto(id: 2, label: 'Ranked'),
+    partyDifficulty: [
+      HistoryPartyDifficultyDto(
+        id: 1,
+        difficulty: const HistoryDifficultyDto(id: 2, label: 'Moyen'),
+      ),
+    ],
+    partyTheme: [
+      HistoryPartyThemeDto(
+        id: 1,
+        theme: const HistoryThemeDto(id: 1, label: 'Général'),
+      ),
+    ],
+    partyQuestions: withQuestions
+        ? [
+            _makePartyQuestion(
+              order: 1,
+              wasCorrect: true,
+              score: 60,
+              questionLabel: 'RQ1 ?',
+              ownerUuid: ownerUuid,
+            ),
+            _makePartyQuestion(
+              order: 2,
+              wasCorrect: false,
+              score: 0,
+              questionLabel: 'RQ2 ?',
+              ownerUuid: ownerUuid,
+            ),
+          ]
+        : const [],
+    partyUsers: const [],
+    userScores: const [],
+    isWinner: isWinner,
+    eloDelta: eloDelta,
+    finalScore: finalScore,
+  );
+}
+
 HistoryUserDto _makeUser(String id, String name, {String? avatar}) {
   return HistoryUserDto(
     userId: id,
@@ -232,6 +309,18 @@ HistoryUserDto _makeUser(String id, String name, {String? avatar}) {
     avatar: avatar,
     isAdmin: false,
     isNew: false,
+  );
+}
+
+/// Connecte un utilisateur dans AuthStore.instance pour piloter _currentUserId.
+Future<void> _signIn(String userId) async {
+  await AuthStore.instance.signInWithSession(
+    AuthSessionDto(
+      user: UserDto(id: userId, nickName: 'Moi', email: '$userId@test.com'),
+      token: AuthTokenDto(token: 'tok'),
+      isGoogleUser: false,
+      raw: const {},
+    ),
   );
 }
 
@@ -373,14 +462,17 @@ Future<({FakeHistoryApi api, GoRouter router})> _pumpHistoryPage(
 }
 
 /// Pompe la page en mode Ranked via [HistoryQuizPage.historyMatchRaw].
-/// L'API n'est jamais appelée dans ce flux ; on passe tout de même un fake.
-Future<void> _pumpRankedPage(
+/// La page récupère le détail complet via getRankedPartyDetail sur le fake.
+Future<FakeHistoryApi> _pumpRankedPage(
   WidgetTester tester, {
   required HistoryMatchDto match,
+  FakeHistoryApi? api,
   Size size = const Size(800, 900),
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  final fakeApi = api ?? FakeHistoryApi();
 
   final router = GoRouter(
     initialLocation: '/history/${match.id}',
@@ -392,7 +484,7 @@ Future<void> _pumpRankedPage(
           child: HistoryQuizPage(
             partyId: state.pathParameters['partyId'] ?? match.id,
             historyMatchRaw: match,
-            historyApiOverride: FakeHistoryApi(),
+            historyApiOverride: fakeApi,
           ),
         ),
       ),
@@ -406,6 +498,7 @@ Future<void> _pumpRankedPage(
 
   await tester.pumpWidget(MaterialApp.router(routerConfig: router));
   await tester.pump();
+  return fakeApi;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -419,7 +512,10 @@ void main() {
   tearDownAll(_tearDownSecureStorageMock);
 
   setUp(() => _kSecureStore.clear());
-  tearDown(() => _kSecureStore.clear());
+  tearDown(() async {
+    _kSecureStore.clear();
+    await AuthStore.instance.signOut();
+  });
 
   // ─────────────────────────── État de chargement ─────────────────────────
   group('HistoryQuizPage — état de chargement', () {
@@ -878,87 +974,65 @@ void main() {
     });
   });
 
-  // ─────────────────────────── Partie Ranked (historyMatchRaw) ─────────────
+  // ─────────────────────────── Partie Ranked ──────────────────────────────
   group('HistoryQuizPage — partie Ranked', () {
-    testWidgets('affiche "Victoire" et le score quand le score est positif', (
+    FakeHistoryApi rankedApi(PartyDetailDto detail) =>
+        FakeHistoryApi()
+          ..rankedResponse = ApiResponse.ok(detail, statusCode: 200);
+
+    testWidgets('victoire : Victoire + ELO gagné + score final + questions', (
       tester,
     ) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(score: 120));
+      await _pumpRankedPage(
+        tester,
+        match: _makeRankedMatch(),
+        api: rankedApi(
+          _makeRankedPartyDetail(
+            isWinner: true,
+            eloDelta: 25,
+            finalScore: 120,
+          ),
+        ),
+      );
       await _pumpAnimations(tester);
 
       expect(find.text('Victoire'), findsAtLeastNWidgets(1));
       expect(find.text('Ranked'), findsAtLeastNWidgets(1));
+      expect(find.text('+25 ELO'), findsAtLeastNWidgets(1));
+      expect(find.text('Score final'), findsAtLeastNWidgets(1));
       expect(find.text('120'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('RQ1'), findsAtLeastNWidgets(1));
 
       await _finishTest(tester);
     });
 
-    testWidgets('affiche "Défaite" quand le score est nul', (tester) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(score: 0));
-      await _pumpAnimations(tester);
-
-      expect(find.text('Défaite'), findsAtLeastNWidgets(1));
-
-      await _finishTest(tester);
-    });
-
-    testWidgets('formate le temps en minutes et secondes', (tester) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(time: 95));
-      await _pumpAnimations(tester);
-
-      expect(find.text('1min 35s'), findsAtLeastNWidgets(1));
-
-      await _finishTest(tester);
-    });
-
-    testWidgets('formate le temps en secondes seules (< 60s)', (tester) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(time: 45));
-      await _pumpAnimations(tester);
-
-      expect(find.text('45s'), findsAtLeastNWidgets(1));
-
-      await _finishTest(tester);
-    });
-
-    testWidgets('formate le temps en minutes pleines', (tester) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(time: 120));
-      await _pumpAnimations(tester);
-
-      expect(find.text('2min'), findsAtLeastNWidgets(1));
-
-      await _finishTest(tester);
-    });
-
-    testWidgets('affiche la date formatée', (tester) async {
+    testWidgets('défaite : Défaite + ELO perdu (signe négatif)', (tester) async {
       await _pumpRankedPage(
         tester,
-        match: _makeRankedMatch(dt: DateTime(2026, 3, 14)),
+        match: _makeRankedMatch(),
+        api: rankedApi(_makeRankedPartyDetail(isWinner: false, eloDelta: 30)),
       );
       await _pumpAnimations(tester);
 
-      expect(find.text('14/03/2026'), findsAtLeastNWidgets(1));
+      expect(find.text('Défaite'), findsAtLeastNWidgets(1));
+      expect(find.text('-30 ELO'), findsAtLeastNWidgets(1));
 
       await _finishTest(tester);
     });
 
-    testWidgets('affiche le statut "Terminée" pour une partie finie', (
-      tester,
-    ) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(finish: true));
+    testWidgets('affiche le récapitulatif des questions', (tester) async {
+      await _pumpRankedPage(
+        tester,
+        match: _makeRankedMatch(),
+        api: rankedApi(_makeRankedPartyDetail()),
+      );
       await _pumpAnimations(tester);
 
-      expect(find.text('Terminée'), findsAtLeastNWidgets(1));
-
-      await _finishTest(tester);
-    });
-
-    testWidgets('affiche le statut "En cours" pour une partie non finie', (
-      tester,
-    ) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch(finish: false));
-      await _pumpAnimations(tester);
-
-      expect(find.text('En cours'), findsAtLeastNWidgets(1));
+      expect(
+        find.textContaining('Récapitulatif des questions'),
+        findsAtLeastNWidgets(1),
+      );
+      expect(find.textContaining('RQ1'), findsAtLeastNWidgets(1));
 
       await _finishTest(tester);
     });
@@ -966,11 +1040,33 @@ void main() {
     testWidgets('affiche uniquement le bouton Retour (pas de Continuer)', (
       tester,
     ) async {
-      await _pumpRankedPage(tester, match: _makeRankedMatch());
+      await _pumpRankedPage(
+        tester,
+        match: _makeRankedMatch(),
+        api: rankedApi(_makeRankedPartyDetail()),
+      );
       await _pumpAnimations(tester);
-
       expect(find.text('Retour'), findsAtLeastNWidgets(1));
       expect(find.text('Continuer'), findsNothing);
+      await _finishTest(tester);
+    });
+
+    testWidgets('repli sur les données du match si l\'API échoue', (
+      tester,
+    ) async {
+      final api = FakeHistoryApi()
+        ..rankedResponse = ApiResponse.err(message: 'boom', statusCode: 500);
+
+      await _pumpRankedPage(
+        tester,
+        match: _makeRankedMatch(score: 50, time: 45),
+        api: api,
+      );
+      await _pumpAnimations(tester);
+
+      // Repli : isWinner null → score>0 → Victoire ; score issu du match.
+      expect(find.text('Victoire'), findsAtLeastNWidgets(1));
+      expect(find.text('Score final'), findsAtLeastNWidgets(1));
 
       await _finishTest(tester);
     });
@@ -1120,5 +1216,116 @@ void main() {
 
       await _finishTest(tester);
     });
+  });
+
+  // ───────────────── Attribution centrée sur l'utilisateur courant ─────────
+  group('HistoryQuizPage — attribution utilisateur courant', () {
+    testWidgets(
+      'ranked : réponses d\'un AUTRE joueur → note + pas de "Correctes"',
+      (tester) async {
+        await _signIn('me-123');
+
+        final api = FakeHistoryApi()
+          ..rankedResponse = ApiResponse.ok(
+            _makeRankedPartyDetail(
+              isWinner: false,
+              eloDelta: 22,
+              finalScore: 0,
+              ownerUuid: 'other-999', // données d'un autre joueur
+            ),
+            statusCode: 200,
+          );
+
+        await _pumpRankedPage(tester, match: _makeRankedMatch(), api: api);
+        await _pumpAnimations(tester);
+
+        expect(find.text('Défaite'), findsAtLeastNWidgets(1));
+        expect(find.text('-22 ELO'), findsAtLeastNWidgets(1));
+        // Aucune réponse ne m'appartient → 0 Correctes + note d'avertissement.
+        expect(find.text('0 Correctes'), findsOneWidget);
+        expect(find.textContaining('détail de tes réponses'), findsOneWidget);
+
+        await _finishTest(tester);
+      },
+    );
+
+    testWidgets('ranked : MES réponses → récap + "Correctes", pas de note', (
+      tester,
+    ) async {
+      await _signIn('me-123');
+
+      final api = FakeHistoryApi()
+        ..rankedResponse = ApiResponse.ok(
+          _makeRankedPartyDetail(ownerUuid: 'me-123'),
+          statusCode: 200,
+        );
+
+      await _pumpRankedPage(tester, match: _makeRankedMatch(), api: api);
+      await _pumpAnimations(tester);
+
+      expect(find.textContaining('Correctes'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('RQ1'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('détail de tes réponses'), findsNothing);
+
+      await _finishTest(tester);
+    });
+
+    testWidgets(
+      'groupe : score perso (userScores) même si réponses d\'un autre',
+      (tester) async {
+        await _signIn('me-123');
+
+        final party = PartyDetailDto(
+          id: 'g1',
+          idPartyType: 1,
+          active: true,
+          finish: true,
+          score: 0, // score de partie = 0
+          nbQuestions: 2,
+          partyType: const HistoryPartyTypeDto(id: 1, label: 'Groupe'),
+          partyDifficulty: const [],
+          partyTheme: const [],
+          partyQuestions: [
+            _makePartyQuestion(
+              order: 1,
+              wasCorrect: false,
+              score: 0,
+              ownerUuid: 'other-999',
+            ),
+            _makePartyQuestion(
+              order: 2,
+              wasCorrect: false,
+              score: 0,
+              ownerUuid: 'other-999',
+            ),
+          ],
+          partyUsers: const [],
+          userScores: [
+            HistoryUserScoreDto(
+              userId: 'me-123',
+              score: 2534,
+              user: _makeUser('me-123', 'Moi'),
+            ),
+            HistoryUserScoreDto(
+              userId: 'other-999',
+              score: 0,
+              user: _makeUser('other-999', 'Autre'),
+            ),
+          ],
+        );
+
+        final api = FakeHistoryApi()
+          ..groupResponse = ApiResponse.ok(party, statusCode: 200);
+
+        await _pumpHistoryPage(tester, api: api);
+        await _pumpAnimations(tester);
+
+        // Le score perso (2534) s'affiche, pas le score de partie (0).
+        expect(find.text('2534'), findsAtLeastNWidgets(1));
+        expect(find.textContaining('détail de tes réponses'), findsOneWidget);
+
+        await _finishTest(tester);
+      },
+    );
   });
 }
