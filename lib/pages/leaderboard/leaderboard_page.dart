@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../api/api_module.dart';
 import '../../api/ranked/ranked_ranking_models.dart';
 import '../../api/ranked/ranked_rest_api_service.dart';
+import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
 import '../../widgets/avatar_widget.dart';
 import '../../widgets/common_widgets.dart';
@@ -49,7 +49,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
     try {
       final res = await _api.getRanking(page: target, size: _pageSize);
-
       if (!mounted) return;
 
       if (res.ok && res.data != null) {
@@ -73,22 +72,28 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     }
   }
 
-  /// Les joueurs visibles sur la page courante.
-  List<RankingUser> get _users => _data?.users ?? const [];
+  // ─── Données dérivées ──────────────────────────────────────────────────────
+
+  String? get _currentUserId {
+    final id = AuthStore.instance.user?.id;
+    return (id != null && id.isNotEmpty) ? id : null;
+  }
+
+  bool _isCurrentUser(RankingUser p) => p.id == _currentUserId;
 
   int get _currentPage => _data?.currentPage ?? _page;
 
-  /// Le podium apparaît sur la première page dès qu'il y a au moins un joueur
-  /// (1 à 3 joueurs selon le nombre disponible).
-  bool get _showPodium => _currentPage <= 1 && _users.isNotEmpty;
+  /// Joueurs de la page, triés par ELO décroissant (comme le site web).
+  List<RankingUser> get _sorted {
+    final users = List<RankingUser>.from(_data?.users ?? const []);
+    users.sort((a, b) => b.globalElo.compareTo(a.globalElo));
+    return users;
+  }
 
-  List<RankingUser> get _podium =>
-      _showPodium ? _users.take(3).toList() : const [];
-  List<RankingUser> get _rest =>
-      _showPodium ? _users.skip(3).toList() : _users;
+  bool get _showPodium => _currentPage <= 1 && _sorted.isNotEmpty;
 
-  /// L'API ne fournit pas de rang par joueur ici (`userRanking` est null pour
-  /// chaque user) : on le calcule donc à partir de la position dans la liste.
+  /// Rang affiché = position dans le classement (l'API renvoie userRanking null
+  /// par joueur), décalé selon la page.
   int _displayRank(int indexInPage) =>
       (_currentPage - 1) * _pageSize + indexInPage + 1;
 
@@ -146,6 +151,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       );
     }
 
+    final sorted = _sorted;
+    final rest = _showPodium ? sorted.skip(3).toList() : sorted;
+    final baseIndex = _showPodium ? (sorted.length < 3 ? sorted.length : 3) : 0;
+
     return RefreshIndicator(
       color: TuuurTheme.brandPurple,
       onRefresh: () => _load(),
@@ -156,16 +165,30 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHeader(),
-            const SizedBox(height: 32),
-            if (_users.isEmpty)
-              _buildEmptyState()
-            else ...[
-              if (_showPodium) ...[
-                _buildPodium(),
-                const SizedBox(height: 32),
-              ],
-              if (_rest.isNotEmpty) _buildLeaderboardList(),
-            ],
+            const SizedBox(height: 24),
+            GamingCard(
+              child: sorted.isEmpty
+                  ? _buildEmptyState()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_showPodium) ...[
+                          _buildPodium(sorted),
+                          const SizedBox(height: 8),
+                        ],
+                        ...rest.asMap().entries.map(
+                          (e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildPlayerRow(
+                              e.value,
+                              _displayRank(baseIndex + e.key),
+                            ),
+                          ),
+                        ),
+                        ..._buildPinnedCurrentUser(),
+                      ],
+                    ),
+            ),
             const SizedBox(height: 24),
             _buildPagination(),
           ],
@@ -175,175 +198,138 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   Widget _buildHeader() {
-    final myRank = _data?.userRanking ?? 0;
-    final myElo = _data?.userElo ?? 0;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 420;
-
-        final badge = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: TuuurTheme.brandOrange.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: TuuurTheme.brandOrange.withOpacity(0.4),
-              width: 1,
-            ),
-          ),
+    return const Row(
+      children: [
+        FaIcon(FontAwesomeIcons.trophy, color: TuuurTheme.brandYellow, size: 24),
+        SizedBox(width: 10),
+        Expanded(
           child: Text(
-            myRank > 0
-                ? 'Ton rang : #$myRank • $myElo ELO'
-                : '${_data?.totalUsers ?? 0} joueurs classés',
+            'Classement Global',
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: TuuurTheme.brandOrange,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: TuuurTheme.brandLightGray,
             ),
           ),
-        );
-
-        if (narrow) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Classement',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
-              const SizedBox(height: 12),
-              badge,
-            ],
-          );
-        }
-
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Flexible(
-              child: Text(
-                '🏆 Classement Gaming',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            badge,
-          ],
-        );
-      },
+        ),
+      ],
     );
   }
 
-  Widget _buildPodium() {
-    final podium = _podium;
-    final first = podium.isNotEmpty ? podium[0] : null;
-    final second = podium.length > 1 ? podium[1] : null;
-    final third = podium.length > 2 ? podium[2] : null;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth > 600) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (second != null) Expanded(child: _buildPodiumCard(second, 2)),
-              const SizedBox(width: 16),
-              if (first != null) Expanded(child: _buildPodiumCard(first, 1)),
-              const SizedBox(width: 16),
-              if (third != null) Expanded(child: _buildPodiumCard(third, 3)),
-            ],
-          );
-        }
-        return Column(
-          children: [
-            if (first != null) _buildPodiumCard(first, 1),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (second != null)
-                  Expanded(child: _buildPodiumCard(second, 2)),
-                const SizedBox(width: 16),
-                if (third != null)
-                  Expanded(child: _buildPodiumCard(third, 3)),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildPodiumCard(RankingUser player, int rank) {
-    final isFirst = rank == 1;
-    final isSecond = rank == 2;
-
-    final Color borderColor = isFirst
-        ? TuuurTheme.brandYellow
-        : isSecond
-        ? TuuurTheme.brandOrange
-        : TuuurTheme.brandGray;
-
-    final String medal = isFirst
-        ? '⭐'
-        : isSecond
-        ? '🔥'
-        : '🥉';
-
-    final double avatarSize = isFirst
-        ? 80
-        : isSecond
-        ? 64
-        : 56;
-    final double titleSize = isFirst
-        ? 24
-        : isSecond
-        ? 20
-        : 18;
-
-    return GamingCard(
+  Widget _buildEmptyState() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 28),
       child: Column(
         children: [
-          Container(
-                width: isFirst ? 48 : (isSecond ? 32 : 28),
-                height: isFirst ? 48 : (isSecond ? 32 : 28),
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Center(
-                  child: Icon(
-                    FontAwesomeIcons.trophy,
-                    color: borderColor,
-                    size: isFirst ? 32 : (isSecond ? 24 : 20),
-                  ),
-                ),
-              )
-              .animate(onPlay: (controller) => controller.repeat())
-              .rotate(duration: 4000.ms),
+          FaIcon(
+            FontAwesomeIcons.trophy,
+            size: 40,
+            color: TuuurTheme.brandGray,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Aucun joueur classé pour le moment.',
+            style: TextStyle(color: TuuurTheme.brandGray),
+          ),
+        ],
+      ),
+    );
+  }
 
-          Stack(
+  // ─── Podium ────────────────────────────────────────────────────────────────
+
+  Widget _buildPodium(List<RankingUser> sorted) {
+    final first = sorted.isNotEmpty ? sorted[0] : null;
+    final second = sorted.length > 1 ? sorted[1] : null;
+    final third = sorted.length > 2 ? sorted[2] : null;
+
+    if (first != null && second == null && third == null) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 200),
+          child: _buildPodiumPlace(
+            first,
+            1,
+            avatarSize: 76,
+            barHeight: 120,
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: second != null
+              ? _buildPodiumPlace(second, 2, avatarSize: 56, barHeight: 88)
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: first != null
+              ? _buildPodiumPlace(first, 1, avatarSize: 72, barHeight: 120)
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: third != null
+              ? _buildPodiumPlace(third, 3, avatarSize: 52, barHeight: 70)
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPodiumPlace(
+    RankingUser player,
+    int rank, {
+    required double avatarSize,
+    required double barHeight,
+  }) {
+    final isMe = _isCurrentUser(player);
+    final rankColor = rank == 1
+        ? TuuurTheme.brandYellow
+        : rank == 2
+        ? TuuurTheme.brandGray
+        : TuuurTheme.brandOrange;
+    final borderColor = isMe ? TuuurTheme.brandPurple : rankColor;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (rank == 1)
+          const FaIcon(
+            FontAwesomeIcons.crown,
+            size: 18,
+            color: TuuurTheme.brandYellow,
+          )
+        else
+          const SizedBox(height: 18),
+        const SizedBox(height: 6),
+
+        // Avatar + badge de rang
+        SizedBox(
+          width: avatarSize,
+          height: avatarSize + 8,
+          child: Stack(
             clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
             children: [
               Container(
                 width: avatarSize,
                 height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: borderColor,
-                    width: isFirst ? 4 : 2,
-                  ),
+                  border: Border.all(color: borderColor, width: rank == 1 ? 4 : 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: borderColor.withOpacity(0.35),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 child: ClipOval(
                   child: AvatarWidget(
@@ -354,13 +340,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ),
               ),
               Positioned(
-                top: -4,
-                right: -4,
+                bottom: -6,
                 child: Container(
-                  width: isFirst ? 32 : 24,
-                  height: isFirst ? 32 : 24,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
-                    color: borderColor,
+                    color: rankColor,
                     shape: BoxShape.circle,
                     border: Border.all(color: TuuurTheme.brandDark, width: 2),
                   ),
@@ -368,9 +353,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     child: Text(
                       '$rank',
                       style: TextStyle(
-                        color: isFirst ? TuuurTheme.brandDark : Colors.white,
+                        color: rank == 1 ? TuuurTheme.brandDark : Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: isFirst ? 16 : 12,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -378,148 +363,142 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+        ),
+        const SizedBox(height: 10),
 
-          Text(
-            '#$rank ${player.displayName}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+        if (isMe) ...[
+          _buildYouChip(),
+          const SizedBox(height: 4),
+        ],
+
+        Text(
+          player.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: rank == 1 ? 15 : 13,
+            fontWeight: FontWeight.w700,
+            color: isMe ? TuuurTheme.brandPurple : TuuurTheme.brandLightGray,
+          ),
+        ),
+        const SizedBox(height: 2),
+        _buildEloText(
+          player.globalElo,
+          color: rankColor,
+          size: rank == 1 ? 22 : 18,
+        ),
+        const SizedBox(height: 8),
+
+        // Marche du podium
+        Container(
+          height: barHeight,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                rankColor.withOpacity(0.30),
+                rankColor.withOpacity(0.08),
+              ],
+            ),
+            border: Border.all(color: rankColor.withOpacity(0.35), width: 2),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEloText(int elo, {required Color color, double size = 18}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$elo',
             style: TextStyle(
-              fontSize: titleSize,
-              fontWeight: FontWeight.w600,
-              color: TuuurTheme.brandLightGray,
+              fontSize: size,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
-          const SizedBox(height: 8),
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: borderColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor.withOpacity(0.4), width: 1),
-            ),
-            child: Text(
-              '$medal ${player.globalElo} ELO',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: borderColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+          TextSpan(
+            text: ' ELO',
+            style: TextStyle(
+              fontSize: size * 0.55,
+              fontWeight: FontWeight.w600,
+              color: color.withOpacity(0.6),
             ),
           ),
         ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
-  Widget _buildEmptyState() {
-    return const GamingCard(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: Text(
-            'Aucun joueur classé pour le moment.',
-            style: TextStyle(color: TuuurTheme.brandGray),
-          ),
+  Widget _buildYouChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: TuuurTheme.brandPurple,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        'Vous',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 
-  Widget _buildLeaderboardList() {
-    final rest = _rest;
-    final baseIndex = _showPodium ? _podium.length : 0;
-
-    return GamingCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: TuuurTheme.brandPurple.withOpacity(0.2),
-                ),
-                child: const Center(
-                  child: Text('📊', style: TextStyle(fontSize: 16)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Classement Complet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(height: 1, color: TuuurTheme.brandPurple.withOpacity(0.2)),
-          const SizedBox(height: 16),
-
-          ...rest.asMap().entries.map(
-            (e) => _buildPlayerRow(e.value, _displayRank(baseIndex + e.key)),
-          ),
-        ],
-      ),
-    );
-  }
+  // ─── Lignes du classement (rang 4+) ─────────────────────────────────────────
 
   Widget _buildPlayerRow(RankingUser player, int rank) {
-    final isTopTen = rank > 0 && rank <= 10;
-    final isTopFive = rank > 0 && rank <= 5;
-
-    final accent = isTopFive
-        ? TuuurTheme.brandGreen
-        : isTopTen
-        ? TuuurTheme.brandOrange
-        : TuuurTheme.brandPurple;
+    final isMe = _isCurrentUser(player);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isMe
+            ? TuuurTheme.brandPurple.withOpacity(0.10)
+            : TuuurTheme.brandDarkGray.withOpacity(0.20),
+        border: Border.all(
+          color: isMe
+              ? TuuurTheme.brandPurple.withOpacity(0.60)
+              : TuuurTheme.brandPurple.withOpacity(0.10),
+          width: isMe ? 1.5 : 1,
+        ),
+      ),
       child: Row(
         children: [
           SizedBox(
-            width: 48,
-            height: 32,
-            child: Center(
-              child: Text(
-                '#$rank',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isTopTen
-                      ? TuuurTheme.brandPurple
-                      : TuuurTheme.brandGray,
-                ),
+            width: 28,
+            child: Text(
+              '$rank',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isMe ? TuuurTheme.brandPurple : TuuurTheme.brandGray,
               ),
             ),
           ),
-
+          const SizedBox(width: 10),
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: TuuurTheme.brandPurple.withOpacity(0.3),
-                width: 1,
+                color: isMe
+                    ? TuuurTheme.brandPurple
+                    : TuuurTheme.brandPurple.withOpacity(0.3),
+                width: isMe ? 2 : 1,
               ),
             ),
             child: ClipOval(
@@ -530,60 +509,118 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
-
+          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  player.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TuuurTheme.brandLightGray,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isTopFive
-                      ? 'Champion actuel'
-                      : isTopTen
-                      ? 'Challenger'
-                      : 'Joueur confirmé',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: accent),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: accent.withOpacity(0.4), width: 1),
-            ),
             child: Text(
-              '⚡ ${player.globalElo}',
+              player.displayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: accent,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
+                color: isMe
+                    ? TuuurTheme.brandPurple
+                    : TuuurTheme.brandLightGray,
               ),
             ),
           ),
+          if (isMe) ...[const SizedBox(width: 8), _buildYouChip()],
+          const SizedBox(width: 10),
+          _buildEloText(player.globalElo, color: TuuurTheme.brandPurple, size: 18),
         ],
       ),
     );
   }
+
+  /// Épingle l'utilisateur courant en bas s'il n'est pas dans la page affichée.
+  List<Widget> _buildPinnedCurrentUser() {
+    final me = _currentUserId;
+    final data = _data;
+    if (me == null || data == null) return const [];
+    if (_sorted.any((p) => p.id == me)) return const [];
+
+    final user = AuthStore.instance.user;
+    final rankLabel = data.userRanking > 0 ? '${data.userRanking}' : '—';
+
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: Center(
+          child: Text(
+            '···',
+            style: TextStyle(
+              color: TuuurTheme.brandGray,
+              fontSize: 18,
+              letterSpacing: 4,
+            ),
+          ),
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: TuuurTheme.brandPurple.withOpacity(0.10),
+          border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.60)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Text(
+                rankLabel,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: TuuurTheme.brandPurple,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: TuuurTheme.brandPurple, width: 2),
+              ),
+              child: ClipOval(
+                child: AvatarWidget(
+                  avatarBase64: user?.avatar,
+                  fallbackText: user?.nickName ?? '?',
+                  size: 40,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                user?.nickName ?? 'Vous',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandPurple,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildYouChip(),
+            const SizedBox(width: 10),
+            _buildEloText(
+              data.userElo,
+              color: TuuurTheme.brandPurple,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  // ─── Pagination ──────────────────────────────────────────────────────────
 
   Widget _buildPagination() {
     final current = _data?.currentPage ?? _page;
@@ -598,7 +635,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           onPressed: canPrev ? () => _load(page: current - 1) : null,
           icon: const FaIcon(FontAwesomeIcons.chevronLeft, size: 14),
           color: TuuurTheme.brandPurple,
-          disabledColor: TuuurTheme.brandGray.withOpacity(0.4),
+          disabledColor: TuuurTheme.brandGray.withOpacity(0.35),
           tooltip: 'Page précédente',
         ),
         Text(
@@ -613,7 +650,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           onPressed: canNext ? () => _load(page: current + 1) : null,
           icon: const FaIcon(FontAwesomeIcons.chevronRight, size: 14),
           color: TuuurTheme.brandPurple,
-          disabledColor: TuuurTheme.brandGray.withOpacity(0.4),
+          disabledColor: TuuurTheme.brandGray.withOpacity(0.35),
           tooltip: 'Page suivante',
         ),
       ],
