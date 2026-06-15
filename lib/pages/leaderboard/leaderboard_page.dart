@@ -1,279 +1,351 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+import '../../api/api_module.dart';
+import '../../api/ranked/ranked_ranking_models.dart';
+import '../../api/ranked/ranked_rest_api_service.dart';
+import '../../stores/auth_store.dart';
 import '../../theme/tuuuur_theme.dart';
+import '../../widgets/avatar_widget.dart';
+import '../../widgets/common_widgets.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../widgets/navigation_header.dart';
 import '../../navigation/app_router.dart';
 
 class LeaderboardPage extends StatefulWidget {
-  const LeaderboardPage({super.key});
+  /// Point d'injection pour les tests — null = ApiModule.instance.rankedApi.
+  final RankedRestApiService? rankingApiOverride;
+
+  const LeaderboardPage({super.key, this.rankingApiOverride});
 
   @override
   State<LeaderboardPage> createState() => _LeaderboardPageState();
 }
 
 class _LeaderboardPageState extends State<LeaderboardPage> {
-  // Données identiques à Vue.js
-  final List<Map<String, dynamic>> players = [
-    {'rank': 1, 'name': 'Ava', 'elo': 1639},
-    {'rank': 2, 'name': 'Liam', 'elo': 1627},
-    {'rank': 3, 'name': 'Emma', 'elo': 1615},
-    {'rank': 4, 'name': 'Noah', 'elo': 1603},
-    {'rank': 5, 'name': 'Mia', 'elo': 1591},
-    {'rank': 6, 'name': 'Lucas', 'elo': 1579},
-    {'rank': 7, 'name': 'Zoé', 'elo': 1567},
-    {'rank': 8, 'name': 'Leo', 'elo': 1555},
-    {'rank': 9, 'name': 'Luna', 'elo': 1543},
-    {'rank': 10, 'name': 'Hugo', 'elo': 1531},
-    {'rank': 11, 'name': 'Chloé', 'elo': 1519},
-    {'rank': 12, 'name': 'Nina', 'elo': 1507},
-    {'rank': 13, 'name': 'Evan', 'elo': 1495},
-    {'rank': 14, 'name': 'Jade', 'elo': 1483},
-    {'rank': 15, 'name': 'Axel', 'elo': 1471},
-    {'rank': 16, 'name': 'Léa', 'elo': 1459},
-    {'rank': 17, 'name': 'Sacha', 'elo': 1447},
-    {'rank': 18, 'name': 'Maël', 'elo': 1435},
-    {'rank': 19, 'name': 'Eva', 'elo': 1423},
-    {'rank': 20, 'name': 'Yanis', 'elo': 1411},
-  ];
+  static const int _pageSize = 50;
 
-  List<Map<String, dynamic>> get top => players.take(3).toList();
-  List<Map<String, dynamic>> get rest => players.skip(3).toList();
+  bool _loading = true;
+  String? _error;
+  RankingPageDto? _data;
+  int _page = 1;
 
-  String avatarUrl(String name) {
-    final seed = Uri.encodeComponent(name);
-    return 'https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=$seed';
+  RankedRestApiService get _api =>
+      widget.rankingApiOverride ?? ApiModule.instance.rankedApi;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
+
+  Future<void> _load({int? page}) async {
+    final target = page ?? _page;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final res = await _api.getRanking(page: target, size: _pageSize);
+      if (!mounted) return;
+
+      if (res.ok && res.data != null) {
+        setState(() {
+          _data = res.data;
+          _page = res.data!.currentPage <= 0 ? target : res.data!.currentPage;
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = res.message ?? 'Impossible de charger le classement.';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Erreur: $e';
+        _loading = false;
+      });
+    }
+  }
+
+  // ─── Données dérivées ──────────────────────────────────────────────────────
+
+  String? get _currentUserId {
+    final id = AuthStore.instance.user?.id;
+    return (id != null && id.isNotEmpty) ? id : null;
+  }
+
+  bool _isCurrentUser(RankingUser p) => p.id == _currentUserId;
+
+  int get _currentPage => _data?.currentPage ?? _page;
+
+  /// Joueurs de la page, triés par ELO décroissant (comme le site web).
+  List<RankingUser> get _sorted {
+    final users = List<RankingUser>.from(_data?.users ?? const []);
+    users.sort((a, b) => b.globalElo.compareTo(a.globalElo));
+    return users;
+  }
+
+  bool get _showPodium => _currentPage <= 1 && _sorted.isNotEmpty;
+
+  /// Rang affiché = position dans le classement (l'API renvoie userRanking null
+  /// par joueur), décalé selon la page.
+  int _displayRank(int indexInPage) =>
+      (_currentPage - 1) * _pageSize + indexInPage + 1;
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return; // le système a déjà géré le pop
+        if (didPop) return;
         context.goBack();
       },
       child: Scaffold(
         backgroundColor: TuuurTheme.brandDark,
         appBar: const NavigationHeader(),
-        body: SingleChildScrollView(
+        body: _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading && _data == null) {
+      return const Center(child: GamingLoadingIndicator());
+    }
+
+    if (_error != null && _data == null) {
+      return Center(
+        child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Header identique à Vue.js mais responsive
-              _buildHeader(),
-              const SizedBox(height: 32),
-
-              // Podium top 3
-              _buildPodium(),
-              const SizedBox(height: 32),
-
-              // Liste du classement
-              _buildLeaderboardList(),
+              const FaIcon(
+                FontAwesomeIcons.triangleExclamation,
+                color: TuuurTheme.brandOrange,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: TuuurTheme.brandLightGray,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 24),
+              GamingButtonPrimary(
+                text: 'Réessayer',
+                icon: FontAwesomeIcons.rotateRight,
+                onPressed: () => _load(),
+              ),
             ],
           ),
+        ),
+      );
+    }
+
+    final sorted = _sorted;
+    final rest = _showPodium ? sorted.skip(3).toList() : sorted;
+    final baseIndex = _showPodium ? (sorted.length < 3 ? sorted.length : 3) : 0;
+
+    return RefreshIndicator(
+      color: TuuurTheme.brandPurple,
+      onRefresh: () => _load(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 24),
+            GamingCard(
+              child: sorted.isEmpty
+                  ? _buildEmptyState()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_showPodium) ...[
+                          _buildPodium(sorted),
+                          const SizedBox(height: 8),
+                        ],
+                        ...rest.asMap().entries.map(
+                          (e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildPlayerRow(
+                              e.value,
+                              _displayRank(baseIndex + e.key),
+                            ),
+                          ),
+                        ),
+                        ..._buildPinnedCurrentUser(),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 24),
+            _buildPagination(),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 420;
-
-        final badge =
-            Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: TuuurTheme.brandOrange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: TuuurTheme.brandOrange.withOpacity(0.4),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Text(
-                    'Top 20 Légendes',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: TuuurTheme.brandOrange,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )
-                .animate(onPlay: (c) => c.repeat())
-                .fade(duration: 2000.ms, curve: Curves.easeInOut);
-
-        if (narrow) {
-          // Empile pour éviter l’overflow
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '🏆 Classement Gaming',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
-              const SizedBox(height: 12),
-              badge,
-            ],
-          );
-        }
-
-        // Largeur suffisante : aligné sur une ligne
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Flexible(
-              child: Text(
-                '🏆 Classement Gaming',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: TuuurTheme.brandLightGray,
-                ),
-              ),
+    return const Row(
+      children: [
+        FaIcon(FontAwesomeIcons.trophy, color: TuuurTheme.brandYellow, size: 24),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Classement Global',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: TuuurTheme.brandLightGray,
             ),
-            const SizedBox(width: 12),
-            badge,
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPodium() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth > 600) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // 2ème place
-              Expanded(child: _buildPodiumCard(top[1], 2)),
-              const SizedBox(width: 16),
-              // 1ère place (plus grande)
-              Expanded(child: _buildPodiumCard(top[0], 1)),
-              const SizedBox(width: 16),
-              // 3ème place
-              Expanded(child: _buildPodiumCard(top[2], 3)),
-            ],
-          );
-        } else {
-          return Column(
-            children: [
-              _buildPodiumCard(top[0], 1),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: _buildPodiumCard(top[1], 2)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildPodiumCard(top[2], 3)),
-                ],
-              ),
-            ],
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildPodiumCard(Map<String, dynamic> player, int rank) {
-    final isFirst = rank == 1;
-    final isSecond = rank == 2;
-
-    Color borderColor = isFirst
-        ? TuuurTheme.brandYellow
-        : isSecond
-        ? TuuurTheme.brandOrange
-        : TuuurTheme.brandGray;
-
-    String medal = isFirst
-        ? '⭐'
-        : isSecond
-        ? '🔥'
-        : '🥉';
-
-    double avatarSize = isFirst
-        ? 80
-        : isSecond
-        ? 64
-        : 56;
-    double titleSize = isFirst
-        ? 24
-        : isSecond
-        ? 20
-        : 18;
-
-    return GamingCard(
+  Widget _buildEmptyState() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 28),
       child: Column(
         children: [
-          // Médaille/Icône
-          Container(
-                width: isFirst ? 48 : (isSecond ? 32 : 28),
-                height: isFirst ? 48 : (isSecond ? 32 : 28),
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Center(
-                  child: Icon(
-                    FontAwesomeIcons.trophy,
-                    color: borderColor,
-                    size: isFirst ? 32 : (isSecond ? 24 : 20),
-                  ),
-                ),
-              )
-              .animate(onPlay: (controller) => controller.repeat())
-              .rotate(duration: 4000.ms),
+          FaIcon(
+            FontAwesomeIcons.trophy,
+            size: 40,
+            color: TuuurTheme.brandGray,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Aucun joueur classé pour le moment.',
+            style: TextStyle(color: TuuurTheme.brandGray),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Avatar avec badge de rang
-          Stack(
+  // ─── Podium ────────────────────────────────────────────────────────────────
+
+  Widget _buildPodium(List<RankingUser> sorted) {
+    final first = sorted.isNotEmpty ? sorted[0] : null;
+    final second = sorted.length > 1 ? sorted[1] : null;
+    final third = sorted.length > 2 ? sorted[2] : null;
+
+    if (first != null && second == null && third == null) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 200),
+          child: _buildPodiumPlace(
+            first,
+            1,
+            avatarSize: 76,
+            barHeight: 120,
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: second != null
+              ? _buildPodiumPlace(second, 2, avatarSize: 56, barHeight: 88)
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: first != null
+              ? _buildPodiumPlace(first, 1, avatarSize: 72, barHeight: 120)
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: third != null
+              ? _buildPodiumPlace(third, 3, avatarSize: 52, barHeight: 70)
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPodiumPlace(
+    RankingUser player,
+    int rank, {
+    required double avatarSize,
+    required double barHeight,
+  }) {
+    final isMe = _isCurrentUser(player);
+    final rankColor = rank == 1
+        ? TuuurTheme.brandYellow
+        : rank == 2
+        ? TuuurTheme.brandGray
+        : TuuurTheme.brandOrange;
+    final borderColor = isMe ? TuuurTheme.brandPurple : rankColor;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (rank == 1)
+          const FaIcon(
+            FontAwesomeIcons.crown,
+            size: 18,
+            color: TuuurTheme.brandYellow,
+          )
+        else
+          const SizedBox(height: 18),
+        const SizedBox(height: 6),
+
+        // Avatar + badge de rang
+        SizedBox(
+          width: avatarSize,
+          height: avatarSize + 8,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
             children: [
               Container(
                 width: avatarSize,
                 height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: borderColor,
-                    width: isFirst ? 4 : 2,
-                  ),
+                  border: Border.all(color: borderColor, width: rank == 1 ? 4 : 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: borderColor.withOpacity(0.35),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 child: ClipOval(
-                  child: Image.network(
-                    avatarUrl(player['name']),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: TuuurTheme.brandDarkGray,
-                      child: Icon(
-                        Icons.person,
-                        color: borderColor,
-                        size: avatarSize * 0.5,
-                      ),
-                    ),
+                  child: AvatarWidget(
+                    avatarBase64: player.avatar,
+                    fallbackText: player.displayName,
+                    size: avatarSize,
                   ),
                 ),
               ),
               Positioned(
-                top: -4,
-                right: -4,
+                bottom: -6,
                 child: Container(
-                  width: isFirst ? 32 : 24,
-                  height: isFirst ? 32 : 24,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
-                    color: borderColor,
+                    color: rankColor,
                     shape: BoxShape.circle,
                     border: Border.all(color: TuuurTheme.brandDark, width: 2),
                   ),
@@ -281,331 +353,307 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     child: Text(
                       '$rank',
                       style: TextStyle(
-                        color: isFirst ? TuuurTheme.brandDark : Colors.white,
+                        color: rank == 1 ? TuuurTheme.brandDark : Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: isFirst ? 16 : 12,
+                        fontSize: 11,
                       ),
                     ),
-                  ),
-                ),
-              ),
-              if (isFirst)
-                Positioned(
-                  bottom: -4,
-                  left: avatarSize / 2 - 8,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: TuuurTheme.brandGreen,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: TuuurTheme.brandDark, width: 2),
-                    ),
-                    child: const Center(
-                      child: Text('👑', style: TextStyle(fontSize: 8)),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Nom du joueur
-          Text(
-            '#$rank ${player['name']}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: titleSize,
-              fontWeight: FontWeight.w600,
-              color: TuuurTheme.brandLightGray,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Badge Élo
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: borderColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor.withOpacity(0.4), width: 1),
-            ),
-            child: Text(
-              '$medal ${player['elo']} Élo',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: borderColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeaderboardList() {
-    return GamingCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header de la liste — responsive
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 420;
-
-              final title = Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: TuuurTheme.brandPurple.withOpacity(0.2),
-                    ),
-                    child: const Center(
-                      child: Text('📊', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Classement Complet',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: TuuurTheme.brandLightGray,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-
-              final chip = Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: TuuurTheme.brandCyan.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: TuuurTheme.brandCyan.withOpacity(0.4),
-                    width: 1,
-                  ),
-                ),
-                child: const Text(
-                  'Mise à jour en temps réel',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: TuuurTheme.brandCyan,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-
-              if (narrow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 8), chip],
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: title),
-                  const SizedBox(width: 12),
-                  chip,
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          Container(height: 1, color: TuuurTheme.brandPurple.withOpacity(0.2)),
-          const SizedBox(height: 16),
-
-          // Liste des joueurs 4-20
-          ...rest.map((player) => _buildPlayerRow(player)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlayerRow(Map<String, dynamic> player) {
-    final rank = player['rank'];
-    final isTopTen = rank <= 10;
-    final isTopFive = rank <= 5;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.transparent, width: 1),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {},
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              // Numéro de rang
-              SizedBox(
-                width: 48,
-                height: 32,
-                child: Center(
-                  child: Text(
-                    '#$rank',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isTopTen
-                          ? TuuurTheme.brandPurple
-                          : TuuurTheme.brandGray,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Avatar
-              Stack(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: TuuurTheme.brandPurple.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: Image.network(
-                        avatarUrl(player['name']),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: TuuurTheme.brandDarkGray,
-                          child: const Icon(
-                            Icons.person,
-                            color: TuuurTheme.brandPurple,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (isTopFive)
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: const BoxDecoration(
-                          color: TuuurTheme.brandGreen,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Text('🔥', style: TextStyle(fontSize: 8)),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-
-              // Informations du joueur
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      player['name'],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: TuuurTheme.brandLightGray,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isTopFive
-                          ? 'Champion actuel'
-                          : isTopTen
-                          ? 'Challenger'
-                          : 'Joueur confirmé',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isTopFive
-                            ? TuuurTheme.brandGreen
-                            : isTopTen
-                            ? TuuurTheme.brandOrange
-                            : TuuurTheme.brandGray,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Score Élo (compact, non expansif)
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      (isTopFive
-                              ? TuuurTheme.brandGreen
-                              : isTopTen
-                              ? TuuurTheme.brandOrange
-                              : TuuurTheme.brandPurple)
-                          .withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color:
-                        (isTopFive
-                                ? TuuurTheme.brandGreen
-                                : isTopTen
-                                ? TuuurTheme.brandOrange
-                                : TuuurTheme.brandPurple)
-                            .withOpacity(0.4),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  '⚡ ${player['elo']}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isTopFive
-                        ? TuuurTheme.brandGreen
-                        : isTopTen
-                        ? TuuurTheme.brandOrange
-                        : TuuurTheme.brandPurple,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 10),
+
+        if (isMe) ...[
+          _buildYouChip(),
+          const SizedBox(height: 4),
+        ],
+
+        Text(
+          player.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: rank == 1 ? 15 : 13,
+            fontWeight: FontWeight.w700,
+            color: isMe ? TuuurTheme.brandPurple : TuuurTheme.brandLightGray,
+          ),
+        ),
+        const SizedBox(height: 2),
+        _buildEloText(
+          player.globalElo,
+          color: rankColor,
+          size: rank == 1 ? 22 : 18,
+        ),
+        const SizedBox(height: 8),
+
+        // Marche du podium
+        Container(
+          height: barHeight,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                rankColor.withOpacity(0.30),
+                rankColor.withOpacity(0.08),
+              ],
+            ),
+            border: Border.all(color: rankColor.withOpacity(0.35), width: 2),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEloText(int elo, {required Color color, double size = 18}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$elo',
+            style: TextStyle(
+              fontSize: size,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          TextSpan(
+            text: ' ELO',
+            style: TextStyle(
+              fontSize: size * 0.55,
+              fontWeight: FontWeight.w600,
+              color: color.withOpacity(0.6),
+            ),
+          ),
+        ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildYouChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: TuuurTheme.brandPurple,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        'Vous',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  // ─── Lignes du classement (rang 4+) ─────────────────────────────────────────
+
+  Widget _buildPlayerRow(RankingUser player, int rank) {
+    final isMe = _isCurrentUser(player);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isMe
+            ? TuuurTheme.brandPurple.withOpacity(0.10)
+            : TuuurTheme.brandDarkGray.withOpacity(0.20),
+        border: Border.all(
+          color: isMe
+              ? TuuurTheme.brandPurple.withOpacity(0.60)
+              : TuuurTheme.brandPurple.withOpacity(0.10),
+          width: isMe ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$rank',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isMe ? TuuurTheme.brandPurple : TuuurTheme.brandGray,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isMe
+                    ? TuuurTheme.brandPurple
+                    : TuuurTheme.brandPurple.withOpacity(0.3),
+                width: isMe ? 2 : 1,
+              ),
+            ),
+            child: ClipOval(
+              child: AvatarWidget(
+                avatarBase64: player.avatar,
+                fallbackText: player.displayName,
+                size: 40,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              player.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isMe
+                    ? TuuurTheme.brandPurple
+                    : TuuurTheme.brandLightGray,
+              ),
+            ),
+          ),
+          if (isMe) ...[const SizedBox(width: 8), _buildYouChip()],
+          const SizedBox(width: 10),
+          _buildEloText(player.globalElo, color: TuuurTheme.brandPurple, size: 18),
+        ],
+      ),
+    );
+  }
+
+  /// Épingle l'utilisateur courant en bas s'il n'est pas dans la page affichée.
+  List<Widget> _buildPinnedCurrentUser() {
+    final me = _currentUserId;
+    final data = _data;
+    if (me == null || data == null) return const [];
+    if (_sorted.any((p) => p.id == me)) return const [];
+
+    final user = AuthStore.instance.user;
+    final rankLabel = data.userRanking > 0 ? '${data.userRanking}' : '—';
+
+    return [
+      const Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: Center(
+          child: Text(
+            '···',
+            style: TextStyle(
+              color: TuuurTheme.brandGray,
+              fontSize: 18,
+              letterSpacing: 4,
+            ),
+          ),
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: TuuurTheme.brandPurple.withOpacity(0.10),
+          border: Border.all(color: TuuurTheme.brandPurple.withOpacity(0.60)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Text(
+                rankLabel,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: TuuurTheme.brandPurple,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: TuuurTheme.brandPurple, width: 2),
+              ),
+              child: ClipOval(
+                child: AvatarWidget(
+                  avatarBase64: user?.avatar,
+                  fallbackText: user?.nickName ?? '?',
+                  size: 40,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                user?.nickName ?? 'Vous',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: TuuurTheme.brandPurple,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildYouChip(),
+            const SizedBox(width: 10),
+            _buildEloText(
+              data.userElo,
+              color: TuuurTheme.brandPurple,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  // ─── Pagination ──────────────────────────────────────────────────────────
+
+  Widget _buildPagination() {
+    final current = _data?.currentPage ?? _page;
+    final total = _data?.totalPages ?? 1;
+    final canPrev = current > 1 && !_loading;
+    final canNext = current < total && !_loading;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          onPressed: canPrev ? () => _load(page: current - 1) : null,
+          icon: const FaIcon(FontAwesomeIcons.chevronLeft, size: 14),
+          color: TuuurTheme.brandPurple,
+          disabledColor: TuuurTheme.brandGray.withOpacity(0.35),
+          tooltip: 'Page précédente',
+        ),
+        Text(
+          'Page $current / $total',
+          style: const TextStyle(
+            color: TuuurTheme.brandLightGray,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        IconButton(
+          onPressed: canNext ? () => _load(page: current + 1) : null,
+          icon: const FaIcon(FontAwesomeIcons.chevronRight, size: 14),
+          color: TuuurTheme.brandPurple,
+          disabledColor: TuuurTheme.brandGray.withOpacity(0.35),
+          tooltip: 'Page suivante',
+        ),
+      ],
     );
   }
 }

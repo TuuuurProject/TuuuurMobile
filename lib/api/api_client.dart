@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
@@ -259,5 +260,41 @@ class ApiClient {
     if (status == 409) return 'Conflit : compte existant.';
     if (status == 400 || status == 422) return 'Requête invalide.';
     return null;
+  }
+}
+
+/// Helpers GET + parsing + logging partagés par les services API, pour éviter
+/// de répéter le même boilerplate (appel, mapping d'erreur, log de debug).
+extension ApiClientJsonGet on ApiClient {
+  /// Effectue un GET authentifié, parse la réponse via [parse] et mappe les
+  /// erreurs. Si [logName] est fourni, journalise la réponse/erreur dans
+  /// l'onglet "Logging" de Flutter DevTools.
+  Future<ApiResponse<T>> getParsed<T>(
+    String path,
+    T Function(Map<String, dynamic> json) parse, {
+    bool auth = true,
+    String? logName,
+  }) async {
+    final res = await getJson(path, auth: auth);
+
+    if (!res.ok) {
+      if (logName != null) {
+        dev.log(
+          'GET $path → échec (status ${res.statusCode}): ${res.message}',
+          name: logName,
+        );
+      }
+      return ApiResponse.err(
+        message: res.message,
+        statusCode: res.statusCode,
+        raw: res.raw,
+      );
+    }
+
+    final root = res.data ?? <String, dynamic>{};
+    if (logName != null) {
+      dev.log('GET $path → réponse API: $root', name: logName);
+    }
+    return ApiResponse.ok(parse(root), statusCode: res.statusCode);
   }
 }

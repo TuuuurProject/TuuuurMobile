@@ -47,10 +47,16 @@ void main() {
       ),
     );
 
-    // Wait for animations
-    await tester.pumpAndSettle();
+    // La carte récap a une animation infinie (icône qui pulse) → on ne peut pas
+    // utiliser pumpAndSettle ici. On pompe quelques frames puis on vérifie.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
 
-    // Wait for animations and then clear the widget tree
+    expect(find.byType(RankedResultsView), findsOneWidget);
+
+    // Nettoie l'arbre + purge les timers d'animation avant la fin du test.
     await tester.pumpWidget(Container());
+    await tester.pumpAndSettle();
   });
 }

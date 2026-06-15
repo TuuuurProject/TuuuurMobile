@@ -1,8 +1,3 @@
-import 'dart:io';
-import 'dart:developer' as dev;
-
-import 'package:path_provider/path_provider.dart';
-
 import '../api_client.dart';
 import 'history_models.dart';
 
@@ -17,61 +12,39 @@ class HistoryApi {
   Future<ApiResponse<HistoryPageDto>> getHistory({
     int page = 1,
     int size = 10,
-  }) async {
-    final path = '/api/v1/history?page=$page&size=$size';
-
-    final res = await _api.getJson(path, auth: true);
-
-    if (!res.ok) {
-      return ApiResponse.err(
-        message: res.message,
-        statusCode: res.statusCode,
-        raw: res.raw,
-      );
-    }
-
-    final root = res.data ?? <String, dynamic>{};
-    final pageDto = HistoryPageDto.fromJson(root);
-    return ApiResponse.ok(pageDto, statusCode: res.statusCode);
+  }) {
+    return _api.getParsed(
+      '/api/v1/history?page=$page&size=$size',
+      HistoryPageDto.fromJson,
+    );
   }
 
-  /// Fetches party detail by ID
+  /// Fetches group party detail by ID
   /// GET /api/v1/group/{partyId}
-  Future<ApiResponse<PartyDetailDto>> getPartyDetail(String partyId) async {
-    final path = '/api/v1/group/$partyId';
-
-    final res = await _api.getJson(path, auth: true);
-
-    if (!res.ok) {
-      return ApiResponse.err(
-        message: res.message,
-        statusCode: res.statusCode,
-        raw: res.raw,
-      );
-    }
-
-    final root = res.data ?? <String, dynamic>{};
-    final detail = PartyDetailDto.fromJson(root);
-    return ApiResponse.ok(detail, statusCode: res.statusCode);
+  Future<ApiResponse<PartyDetailDto>> getPartyDetail(String partyId) {
+    return _api.getParsed(
+      '/api/v1/group/$partyId',
+      PartyDetailDto.fromJson,
+      logName: 'HistoryApi.group',
+    );
   }
 
   /// Fetches solo party detail by ID
   /// GET /api/v1/solo/{partyId}
-  Future<ApiResponse<PartyDetailDto>> getSoloPartyDetail(String partyId) async {
-    final path = '/api/v1/solo/$partyId';
+  Future<ApiResponse<PartyDetailDto>> getSoloPartyDetail(String partyId) {
+    return _api.getParsed(
+      '/api/v1/solo/$partyId',
+      PartyDetailDto.fromJson,
+    );
+  }
 
-    final res = await _api.getJson(path, auth: true);
-
-    if (!res.ok) {
-      return ApiResponse.err(
-        message: res.message,
-        statusCode: res.statusCode,
-        raw: res.raw,
-      );
-    }
-
-    final root = res.data ?? <String, dynamic>{};
-    final detail = PartyDetailDto.fromJson(root);
-    return ApiResponse.ok(detail, statusCode: res.statusCode);
+  /// Fetches ranked party detail by ID
+  /// GET /api/v1/ranked/{partyId}
+  Future<ApiResponse<PartyDetailDto>> getRankedPartyDetail(String partyId) {
+    return _api.getParsed(
+      '/api/v1/ranked/$partyId',
+      PartyDetailDto.fromJson,
+      logName: 'HistoryApi.ranked',
+    );
   }
 }
